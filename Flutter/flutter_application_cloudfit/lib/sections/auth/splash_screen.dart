@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants.dart';
-import '../../../dashboard/presentation/screens/main_screen.dart';
+import '../../core/constants.dart';
 
 class SplashScreen extends StatefulWidget {
   static const String name = 'splash_screen';

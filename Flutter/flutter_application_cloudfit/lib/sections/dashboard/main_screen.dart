@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants.dart';
-import '../../data/models/metric_model.dart';
+import '../../core/constants.dart';
+import 'models/metric_model.dart';
 
 class MainScreen extends StatelessWidget {
   static const String name = 'home_screen';

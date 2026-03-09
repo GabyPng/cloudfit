@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_cloudfit/features/rewards/data/models/achievement.dart';
-import '../../../../core/constants.dart';
+import 'package:flutter_application_cloudfit/sections/rewards/models/achievement.dart';
+import '../../core/constants.dart';
 
 
 class RewardScreen extends StatelessWidget {

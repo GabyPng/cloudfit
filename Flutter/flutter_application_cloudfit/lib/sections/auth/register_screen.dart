@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants.dart';
+import '../../core/constants.dart';
 
 class RegisterScreen extends StatelessWidget {
   static const String name = 'register_screen';

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants.dart';
+import '../../core/constants.dart';
 
 class ProfileScreen extends StatelessWidget {
   static const String name = 'profile_screen';
