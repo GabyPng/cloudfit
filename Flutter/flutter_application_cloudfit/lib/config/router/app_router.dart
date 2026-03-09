@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_cloudfit/features/auth/presentation/screens/register_screen.dart';
-import 'package:flutter_application_cloudfit/features/auth/presentation/screens/splash_screen.dart';
+import 'package:flutter_application_cloudfit/sections/auth/register_screen.dart';
+import 'package:flutter_application_cloudfit/sections/auth/splash_screen.dart';
 import 'package:go_router/go_router.dart';
-import '../../features/dashboard/presentation/screens/main_screen.dart';
-import '../../features/workout/presentation/screens/exercise_screen.dart';
-import '../../features/rewards/presentation/screens/reward_screen.dart';
-import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../sections/dashboard/main_screen.dart';
+import '../../sections/workout/exercise_screen.dart';
+import '../../sections/rewards/reward_screen.dart';
+import '../../sections/profile/profile_screen.dart';
 import '../../shared/widgets/custom_bottom_nav.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();

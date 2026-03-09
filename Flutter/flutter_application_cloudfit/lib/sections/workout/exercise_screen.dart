@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants.dart';
-import '../../data/models/workout_model.dart';
+import '../../core/constants.dart';
+import 'models/workout_model.dart';
 
 class ExerciseScreen extends StatelessWidget {
   static const String name = 'exercise_screen';
