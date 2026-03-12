@@ -7,6 +7,9 @@ import '../../sections/workout/exercise_screen.dart';
 import '../../sections/rewards/reward_screen.dart';
 import '../../sections/profile/profile_screen.dart';
 import '../../shared/widgets/custom_bottom_nav.dart';
+import 'package:flutter_application_cloudfit/sections/auth/login_screen.dart';
+
+
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -24,6 +27,14 @@ final appRouter = GoRouter(
       name: RegisterScreen.name,
       builder: (context, state) => const RegisterScreen(),
     ),
+
+    GoRoute(
+      path: '/login',
+      name: LoginScreen.name,
+      builder: (context, state) => const LoginScreen(),
+    ),
+
+
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         

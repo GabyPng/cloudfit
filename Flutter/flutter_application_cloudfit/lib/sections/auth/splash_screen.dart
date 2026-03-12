@@ -17,7 +17,7 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
     // Simulación de carga: 3 segundos y navegamos al Home
     Timer(const Duration(seconds: 3), () {
-      context.go('/register'); 
+      context.go('/login'); 
     });
   }
 
