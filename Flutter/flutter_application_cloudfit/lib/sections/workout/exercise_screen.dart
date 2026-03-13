@@ -65,7 +65,7 @@ class ExerciseScreen extends StatelessWidget {
         image: DecorationImage(
           image: NetworkImage(workout.imageUrl),
           fit: BoxFit.cover,
-          colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.4), BlendMode.darken),
+          colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.4), BlendMode.darken),
         ),
       ),
       child: Padding(

@@ -43,7 +43,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 shadows: [
                   Shadow(
                     blurRadius: 10,
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     offset: const Offset(0, 5),
                   ),
                 ],
@@ -60,7 +60,7 @@ class DiagonalStripesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.05)
+      ..color = Colors.white.withValues(alpha: 0.05)
       ..strokeWidth = 40
       ..style = PaintingStyle.stroke;
 

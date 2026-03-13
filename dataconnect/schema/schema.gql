@@ -1,0 +1,197 @@
+
+
+
+enum Role {
+  ADMINISTRADOR
+  COACH
+  NUTRIOLOGO
+  CLIENTE
+}
+
+enum EstadoTicket {
+  ABIERTO
+  EN_PROGRESO
+  CERRADO
+}
+
+enum TipoControl {
+  ACTUALIZACION
+  EVALUACION
+  ELIMINACION
+}
+
+type Usuario @table {
+  id: String! @col(name:"usuario_id") @default(expr: "auth.uid"),
+  nombre: String! @col(dataType: "varchar(50)"),
+  correo: String! @col(dataType: "varchar(100)"),
+  contrasena: String! @col(dataType: "varchar(255)"),
+  fechaRegistro: Date! @default(expr: "request.time")
+  rol: Role!
+}
+ 
+type PerfilUsuario @table{
+  usuario: Usuario! @unique, #1:1,
+  foto: String @col(dataType: "varchar(255)"),
+  descripcion: String @col(dataType: "varchar(500)")
+}
+
+type Coach @table{
+  coach: Usuario! @unique, #1:1,
+  especialidad: String @col(dataType: "varchar(100)"),
+  aniosExperiencia: Int @col(name:"anios_experiencia")
+}
+
+type Nutriologo @table{
+  nutriologo: Usuario! @unique, #1:1,
+  enfoque: String @col(dataType: "varchar(500)"),
+  cedulaProfesional: String @col(name:"cedula_profesional", dataType: "varchar(50)")  
+}
+
+type Cliente @table{
+  usuario: Usuario! @unique, #1:1,
+  coach: Coach,
+  nutriologo: Nutriologo,
+  fechaNacimiento: Date,
+  altura: Float
+}
+
+type Progreso @table{
+  id: UUID! @default(expr: "uuidV4()"),
+  cliente: Cliente!,
+  peso: Float,
+  imc: Float,
+  fecha: Date @default(expr: "request.time")
+}
+
+type PlanNutricional @table{
+  id: UUID! @default(expr: "uuidV4()"),
+  cliente: Cliente!,
+  descripcion: String @col(dataType: "varchar(500)"),
+  fechaInicio: Date @default(expr: "request.time"),
+  fechaFin: Date
+}
+
+type Administrador @table{
+  usuario: Usuario! @unique, #1:1,
+}
+
+type Gestion @table{
+  id: UUID! @default(expr: "uuidV4()"),
+  administrador: Administrador!,
+  cliente: Cliente!,
+  fecha: Date @default(expr: "request.time"),
+  tipoControl: TipoControl! @col(name:"tipo_control")
+}
+
+type Ticket @table{
+  id: UUID! @default(expr: "uuidV4()"),
+  usuario: Usuario!,
+  asunto: String @col(dataType: "varchar(255)"),
+  estado: EstadoTicket!,
+  fechaCreacion: Date @default(expr: "request.time"),
+}
+
+type MensajeTicket @table{
+  id: UUID! @default(expr: "uuidV4()"),
+  ticket: Ticket!,
+  remitente: Usuario!,
+  contenido: String @col(dataType: "varchar(1000)"),
+  fechaEnvio: Date @default(expr: "request.time")
+}
+
+type Certificacion @table{
+  id: UUID! @default(expr: "uuidV4()"),
+  administrador: Administrador!,
+  usuario: Usuario!,
+  titulo: String @col(dataType: "varchar(255)"),
+  fechaAprobacion: Date! @default(expr: "request.time")
+}
+
+
+# -------------------------------------------------------------
+
+# Catálogo de ejercicios (creados por coaches o admin)
+type Ejercicio @table {
+  id: UUID! @default(expr: "uuidV4()")
+  nombre: String! @col(dataType: "varchar(100)")
+  descripcion: String @col(dataType: "varchar(500)")
+  grupoMuscular: String @col(name: "grupo_muscular", dataType: "varchar(100)")
+  creadoPor: Coach!
+}
+
+# Rutina asignada por un coach a un cliente
+type Rutina @table {
+  id: UUID! @default(expr: "uuidV4()")
+  coach: Coach!
+  cliente: Cliente!
+  nombre: String! @col(dataType: "varchar(100)")
+  descripcion: String @col(dataType: "varchar(500)")
+  fechaInicio: Date @default(expr: "request.time")
+  fechaFin: Date
+}
+
+# Ejercicios dentro de una rutina (tabla puente)
+type RutinaEjercicio @table {
+  id: UUID! @default(expr: "uuidV4()")
+  rutina: Rutina!
+  ejercicio: Ejercicio!
+  series: Int
+  repeticiones: Int
+  descansoSegundos: Int @col(name: "descanso_segundos")
+  orden: Int
+}
+
+
+
+# # Example schema for simple movie review app
+
+# # User table is keyed by Firebase Auth UID.
+# type User @table {
+#   # `@default(expr: "auth.uid")` sets it to Firebase Auth UID during insert and upsert.
+#   id: String! @default(expr: "auth.uid")
+#   username: String! @col(dataType: "varchar(50)")
+#   # The `user: User!` field in the Review table generates the following one-to-many query field.
+#   #  reviews_on_user: [Review!]!
+#   # The `Review` join table the following many-to-many query field.
+#   #  movies_via_Review: [Movie!]!
+# }
+
+# # Movie is keyed by a randomly generated UUID.
+# type Movie @table {
+#   # If you do not pass a 'key' to `@table`, Data Connect automatically adds the following 'id' column.
+#   # Feel free to uncomment and customize it.
+#   #  id: UUID! @default(expr: "uuidV4()")
+#   title: String!
+#   imageUrl: String!
+#   genre: String
+# }
+
+# # MovieMetadata is a metadata attached to a Movie.
+# # Movie <-> MovieMetadata is a one-to-one relationship
+# type MovieMetadata @table {
+#   # @unique ensures each Movie can only one MovieMetadata.
+#   movie: Movie! @unique
+#   # The movie field adds the following foreign key field. Feel free to uncomment and customize it.
+#   #  movieId: UUID!
+#   rating: Float
+#   releaseYear: Int
+#   description: String
+# }
+
+# # Reviews is a join table between User and Movie.
+# # It has a composite primary keys `userUid` and `movieId`.
+# # A user can leave reviews for many movies. A movie can have reviews from many users.
+# # User  <-> Review is a one-to-many relationship
+# # Movie <-> Review is a one-to-many relationship
+# # Movie <-> User is a many-to-many relationship
+# type Review @table(name: "Reviews", key: ["movie", "user"]) {
+#   user: User!
+#   # The user field adds the following foreign key field. Feel free to uncomment and customize it.
+#   #  userUid: String!
+#   movie: Movie!
+#   # The movie field adds the following foreign key field. Feel free to uncomment and customize it.
+#   #  movieId: UUID!
+#   rating: Int
+#   reviewText: String
+#   reviewDate: Date! @default(expr: "request.time")
+# }
