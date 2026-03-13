@@ -19,149 +19,6 @@ export const connectorConfig = {
   location: 'us-east4'
 };
 
-export const getMiPerfilRef = (dc) => {
-  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetMiPerfil');
-}
-getMiPerfilRef.operationName = 'GetMiPerfil';
-
-export function getMiPerfil(dc) {
-  return executeQuery(getMiPerfilRef(dc));
-}
-
-export const getAllCoachesRef = (dc) => {
-  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetAllCoaches');
-}
-getAllCoachesRef.operationName = 'GetAllCoaches';
-
-export function getAllCoaches(dc) {
-  return executeQuery(getAllCoachesRef(dc));
-}
-
-export const getAllNutriologosRef = (dc) => {
-  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetAllNutriologos');
-}
-getAllNutriologosRef.operationName = 'GetAllNutriologos';
-
-export function getAllNutriologos(dc) {
-  return executeQuery(getAllNutriologosRef(dc));
-}
-
-export const getClientesByCoachRef = (dcOrVars, vars) => {
-  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetClientesByCoach', inputVars);
-}
-getClientesByCoachRef.operationName = 'GetClientesByCoach';
-
-export function getClientesByCoach(dcOrVars, vars) {
-  return executeQuery(getClientesByCoachRef(dcOrVars, vars));
-}
-
-export const getClientesByNutriologoRef = (dcOrVars, vars) => {
-  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetClientesByNutriologo', inputVars);
-}
-getClientesByNutriologoRef.operationName = 'GetClientesByNutriologo';
-
-export function getClientesByNutriologo(dcOrVars, vars) {
-  return executeQuery(getClientesByNutriologoRef(dcOrVars, vars));
-}
-
-export const getProgresoClienteRef = (dcOrVars, vars) => {
-  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetProgresoCliente', inputVars);
-}
-getProgresoClienteRef.operationName = 'GetProgresoCliente';
-
-export function getProgresoCliente(dcOrVars, vars) {
-  return executeQuery(getProgresoClienteRef(dcOrVars, vars));
-}
-
-export const getPlanNutricionalRef = (dcOrVars, vars) => {
-  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetPlanNutricional', inputVars);
-}
-getPlanNutricionalRef.operationName = 'GetPlanNutricional';
-
-export function getPlanNutricional(dcOrVars, vars) {
-  return executeQuery(getPlanNutricionalRef(dcOrVars, vars));
-}
-
-export const getAllTicketsRef = (dc) => {
-  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetAllTickets');
-}
-getAllTicketsRef.operationName = 'GetAllTickets';
-
-export function getAllTickets(dc) {
-  return executeQuery(getAllTicketsRef(dc));
-}
-
-export const getMensajesTicketRef = (dcOrVars, vars) => {
-  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetMensajesTicket', inputVars);
-}
-getMensajesTicketRef.operationName = 'GetMensajesTicket';
-
-export function getMensajesTicket(dcOrVars, vars) {
-  return executeQuery(getMensajesTicketRef(dcOrVars, vars));
-}
-
-export const getCertificacionesRef = (dcOrVars, vars) => {
-  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetCertificaciones', inputVars);
-}
-getCertificacionesRef.operationName = 'GetCertificaciones';
-
-export function getCertificaciones(dcOrVars, vars) {
-  return executeQuery(getCertificacionesRef(dcOrVars, vars));
-}
-
-export const getMisClientesRef = (dc) => {
-  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetMisClientes');
-}
-getMisClientesRef.operationName = 'GetMisClientes';
-
-export function getMisClientes(dc) {
-  return executeQuery(getMisClientesRef(dc));
-}
-
-export const getRutinasByClienteRef = (dcOrVars, vars) => {
-  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetRutinasByCliente', inputVars);
-}
-getRutinasByClienteRef.operationName = 'GetRutinasByCliente';
-
-export function getRutinasByCliente(dcOrVars, vars) {
-  return executeQuery(getRutinasByClienteRef(dcOrVars, vars));
-}
-
-export const getEjerciciosRef = (dc) => {
-  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'GetEjercicios');
-}
-getEjerciciosRef.operationName = 'GetEjercicios';
-
-export function getEjercicios(dc) {
-  return executeQuery(getEjerciciosRef(dc));
-}
-
 export const createUsuarioRef = (dcOrVars, vars) => {
   const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
   dcInstance._useGeneratedSdk();
@@ -314,5 +171,148 @@ emitirCertificacionRef.operationName = 'EmitirCertificacion';
 
 export function emitirCertificacion(dcOrVars, vars) {
   return executeMutation(emitirCertificacionRef(dcOrVars, vars));
+}
+
+export const getMiPerfilRef = (dc) => {
+  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetMiPerfil');
+}
+getMiPerfilRef.operationName = 'GetMiPerfil';
+
+export function getMiPerfil(dc) {
+  return executeQuery(getMiPerfilRef(dc));
+}
+
+export const getAllCoachesRef = (dc) => {
+  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetAllCoaches');
+}
+getAllCoachesRef.operationName = 'GetAllCoaches';
+
+export function getAllCoaches(dc) {
+  return executeQuery(getAllCoachesRef(dc));
+}
+
+export const getAllNutriologosRef = (dc) => {
+  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetAllNutriologos');
+}
+getAllNutriologosRef.operationName = 'GetAllNutriologos';
+
+export function getAllNutriologos(dc) {
+  return executeQuery(getAllNutriologosRef(dc));
+}
+
+export const getClientesByCoachRef = (dcOrVars, vars) => {
+  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetClientesByCoach', inputVars);
+}
+getClientesByCoachRef.operationName = 'GetClientesByCoach';
+
+export function getClientesByCoach(dcOrVars, vars) {
+  return executeQuery(getClientesByCoachRef(dcOrVars, vars));
+}
+
+export const getClientesByNutriologoRef = (dcOrVars, vars) => {
+  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetClientesByNutriologo', inputVars);
+}
+getClientesByNutriologoRef.operationName = 'GetClientesByNutriologo';
+
+export function getClientesByNutriologo(dcOrVars, vars) {
+  return executeQuery(getClientesByNutriologoRef(dcOrVars, vars));
+}
+
+export const getProgresoClienteRef = (dcOrVars, vars) => {
+  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetProgresoCliente', inputVars);
+}
+getProgresoClienteRef.operationName = 'GetProgresoCliente';
+
+export function getProgresoCliente(dcOrVars, vars) {
+  return executeQuery(getProgresoClienteRef(dcOrVars, vars));
+}
+
+export const getPlanNutricionalRef = (dcOrVars, vars) => {
+  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetPlanNutricional', inputVars);
+}
+getPlanNutricionalRef.operationName = 'GetPlanNutricional';
+
+export function getPlanNutricional(dcOrVars, vars) {
+  return executeQuery(getPlanNutricionalRef(dcOrVars, vars));
+}
+
+export const getAllTicketsRef = (dc) => {
+  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetAllTickets');
+}
+getAllTicketsRef.operationName = 'GetAllTickets';
+
+export function getAllTickets(dc) {
+  return executeQuery(getAllTicketsRef(dc));
+}
+
+export const getMensajesTicketRef = (dcOrVars, vars) => {
+  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetMensajesTicket', inputVars);
+}
+getMensajesTicketRef.operationName = 'GetMensajesTicket';
+
+export function getMensajesTicket(dcOrVars, vars) {
+  return executeQuery(getMensajesTicketRef(dcOrVars, vars));
+}
+
+export const getCertificacionesRef = (dcOrVars, vars) => {
+  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetCertificaciones', inputVars);
+}
+getCertificacionesRef.operationName = 'GetCertificaciones';
+
+export function getCertificaciones(dcOrVars, vars) {
+  return executeQuery(getCertificacionesRef(dcOrVars, vars));
+}
+
+export const getMisClientesRef = (dc) => {
+  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetMisClientes');
+}
+getMisClientesRef.operationName = 'GetMisClientes';
+
+export function getMisClientes(dc) {
+  return executeQuery(getMisClientesRef(dc));
+}
+
+export const getRutinasByClienteRef = (dcOrVars, vars) => {
+  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetRutinasByCliente', inputVars);
+}
+getRutinasByClienteRef.operationName = 'GetRutinasByCliente';
+
+export function getRutinasByCliente(dcOrVars, vars) {
+  return executeQuery(getRutinasByClienteRef(dcOrVars, vars));
+}
+
+export const getEjerciciosRef = (dc) => {
+  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
+  dcInstance._useGeneratedSdk();
+  return queryRef(dcInstance, 'GetEjercicios');
+}
+getEjerciciosRef.operationName = 'GetEjercicios';
+
+export function getEjercicios(dc) {
+  return executeQuery(getEjerciciosRef(dc));
 }
 

@@ -411,162 +411,6 @@ export interface Usuario_Key {
   __typename?: 'Usuario_Key';
 }
 
-interface GetMiPerfilRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (): QueryRef<GetMiPerfilData, undefined>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect): QueryRef<GetMiPerfilData, undefined>;
-  operationName: string;
-}
-export const getMiPerfilRef: GetMiPerfilRef;
-
-export function getMiPerfil(): QueryPromise<GetMiPerfilData, undefined>;
-export function getMiPerfil(dc: DataConnect): QueryPromise<GetMiPerfilData, undefined>;
-
-interface GetAllCoachesRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (): QueryRef<GetAllCoachesData, undefined>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect): QueryRef<GetAllCoachesData, undefined>;
-  operationName: string;
-}
-export const getAllCoachesRef: GetAllCoachesRef;
-
-export function getAllCoaches(): QueryPromise<GetAllCoachesData, undefined>;
-export function getAllCoaches(dc: DataConnect): QueryPromise<GetAllCoachesData, undefined>;
-
-interface GetAllNutriologosRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (): QueryRef<GetAllNutriologosData, undefined>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect): QueryRef<GetAllNutriologosData, undefined>;
-  operationName: string;
-}
-export const getAllNutriologosRef: GetAllNutriologosRef;
-
-export function getAllNutriologos(): QueryPromise<GetAllNutriologosData, undefined>;
-export function getAllNutriologos(dc: DataConnect): QueryPromise<GetAllNutriologosData, undefined>;
-
-interface GetClientesByCoachRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: GetClientesByCoachVariables): QueryRef<GetClientesByCoachData, GetClientesByCoachVariables>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect, vars: GetClientesByCoachVariables): QueryRef<GetClientesByCoachData, GetClientesByCoachVariables>;
-  operationName: string;
-}
-export const getClientesByCoachRef: GetClientesByCoachRef;
-
-export function getClientesByCoach(vars: GetClientesByCoachVariables): QueryPromise<GetClientesByCoachData, GetClientesByCoachVariables>;
-export function getClientesByCoach(dc: DataConnect, vars: GetClientesByCoachVariables): QueryPromise<GetClientesByCoachData, GetClientesByCoachVariables>;
-
-interface GetClientesByNutriologoRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: GetClientesByNutriologoVariables): QueryRef<GetClientesByNutriologoData, GetClientesByNutriologoVariables>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect, vars: GetClientesByNutriologoVariables): QueryRef<GetClientesByNutriologoData, GetClientesByNutriologoVariables>;
-  operationName: string;
-}
-export const getClientesByNutriologoRef: GetClientesByNutriologoRef;
-
-export function getClientesByNutriologo(vars: GetClientesByNutriologoVariables): QueryPromise<GetClientesByNutriologoData, GetClientesByNutriologoVariables>;
-export function getClientesByNutriologo(dc: DataConnect, vars: GetClientesByNutriologoVariables): QueryPromise<GetClientesByNutriologoData, GetClientesByNutriologoVariables>;
-
-interface GetProgresoClienteRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: GetProgresoClienteVariables): QueryRef<GetProgresoClienteData, GetProgresoClienteVariables>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect, vars: GetProgresoClienteVariables): QueryRef<GetProgresoClienteData, GetProgresoClienteVariables>;
-  operationName: string;
-}
-export const getProgresoClienteRef: GetProgresoClienteRef;
-
-export function getProgresoCliente(vars: GetProgresoClienteVariables): QueryPromise<GetProgresoClienteData, GetProgresoClienteVariables>;
-export function getProgresoCliente(dc: DataConnect, vars: GetProgresoClienteVariables): QueryPromise<GetProgresoClienteData, GetProgresoClienteVariables>;
-
-interface GetPlanNutricionalRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: GetPlanNutricionalVariables): QueryRef<GetPlanNutricionalData, GetPlanNutricionalVariables>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect, vars: GetPlanNutricionalVariables): QueryRef<GetPlanNutricionalData, GetPlanNutricionalVariables>;
-  operationName: string;
-}
-export const getPlanNutricionalRef: GetPlanNutricionalRef;
-
-export function getPlanNutricional(vars: GetPlanNutricionalVariables): QueryPromise<GetPlanNutricionalData, GetPlanNutricionalVariables>;
-export function getPlanNutricional(dc: DataConnect, vars: GetPlanNutricionalVariables): QueryPromise<GetPlanNutricionalData, GetPlanNutricionalVariables>;
-
-interface GetAllTicketsRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (): QueryRef<GetAllTicketsData, undefined>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect): QueryRef<GetAllTicketsData, undefined>;
-  operationName: string;
-}
-export const getAllTicketsRef: GetAllTicketsRef;
-
-export function getAllTickets(): QueryPromise<GetAllTicketsData, undefined>;
-export function getAllTickets(dc: DataConnect): QueryPromise<GetAllTicketsData, undefined>;
-
-interface GetMensajesTicketRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: GetMensajesTicketVariables): QueryRef<GetMensajesTicketData, GetMensajesTicketVariables>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect, vars: GetMensajesTicketVariables): QueryRef<GetMensajesTicketData, GetMensajesTicketVariables>;
-  operationName: string;
-}
-export const getMensajesTicketRef: GetMensajesTicketRef;
-
-export function getMensajesTicket(vars: GetMensajesTicketVariables): QueryPromise<GetMensajesTicketData, GetMensajesTicketVariables>;
-export function getMensajesTicket(dc: DataConnect, vars: GetMensajesTicketVariables): QueryPromise<GetMensajesTicketData, GetMensajesTicketVariables>;
-
-interface GetCertificacionesRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: GetCertificacionesVariables): QueryRef<GetCertificacionesData, GetCertificacionesVariables>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect, vars: GetCertificacionesVariables): QueryRef<GetCertificacionesData, GetCertificacionesVariables>;
-  operationName: string;
-}
-export const getCertificacionesRef: GetCertificacionesRef;
-
-export function getCertificaciones(vars: GetCertificacionesVariables): QueryPromise<GetCertificacionesData, GetCertificacionesVariables>;
-export function getCertificaciones(dc: DataConnect, vars: GetCertificacionesVariables): QueryPromise<GetCertificacionesData, GetCertificacionesVariables>;
-
-interface GetMisClientesRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (): QueryRef<GetMisClientesData, undefined>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect): QueryRef<GetMisClientesData, undefined>;
-  operationName: string;
-}
-export const getMisClientesRef: GetMisClientesRef;
-
-export function getMisClientes(): QueryPromise<GetMisClientesData, undefined>;
-export function getMisClientes(dc: DataConnect): QueryPromise<GetMisClientesData, undefined>;
-
-interface GetRutinasByClienteRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: GetRutinasByClienteVariables): QueryRef<GetRutinasByClienteData, GetRutinasByClienteVariables>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect, vars: GetRutinasByClienteVariables): QueryRef<GetRutinasByClienteData, GetRutinasByClienteVariables>;
-  operationName: string;
-}
-export const getRutinasByClienteRef: GetRutinasByClienteRef;
-
-export function getRutinasByCliente(vars: GetRutinasByClienteVariables): QueryPromise<GetRutinasByClienteData, GetRutinasByClienteVariables>;
-export function getRutinasByCliente(dc: DataConnect, vars: GetRutinasByClienteVariables): QueryPromise<GetRutinasByClienteData, GetRutinasByClienteVariables>;
-
-interface GetEjerciciosRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (): QueryRef<GetEjerciciosData, undefined>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect): QueryRef<GetEjerciciosData, undefined>;
-  operationName: string;
-}
-export const getEjerciciosRef: GetEjerciciosRef;
-
-export function getEjercicios(): QueryPromise<GetEjerciciosData, undefined>;
-export function getEjercicios(dc: DataConnect): QueryPromise<GetEjerciciosData, undefined>;
-
 interface CreateUsuarioRef {
   /* Allow users to create refs without passing in DataConnect */
   (vars: CreateUsuarioVariables): MutationRef<CreateUsuarioData, CreateUsuarioVariables>;
@@ -734,4 +578,160 @@ export const emitirCertificacionRef: EmitirCertificacionRef;
 
 export function emitirCertificacion(vars: EmitirCertificacionVariables): MutationPromise<EmitirCertificacionData, EmitirCertificacionVariables>;
 export function emitirCertificacion(dc: DataConnect, vars: EmitirCertificacionVariables): MutationPromise<EmitirCertificacionData, EmitirCertificacionVariables>;
+
+interface GetMiPerfilRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (): QueryRef<GetMiPerfilData, undefined>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect): QueryRef<GetMiPerfilData, undefined>;
+  operationName: string;
+}
+export const getMiPerfilRef: GetMiPerfilRef;
+
+export function getMiPerfil(): QueryPromise<GetMiPerfilData, undefined>;
+export function getMiPerfil(dc: DataConnect): QueryPromise<GetMiPerfilData, undefined>;
+
+interface GetAllCoachesRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (): QueryRef<GetAllCoachesData, undefined>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect): QueryRef<GetAllCoachesData, undefined>;
+  operationName: string;
+}
+export const getAllCoachesRef: GetAllCoachesRef;
+
+export function getAllCoaches(): QueryPromise<GetAllCoachesData, undefined>;
+export function getAllCoaches(dc: DataConnect): QueryPromise<GetAllCoachesData, undefined>;
+
+interface GetAllNutriologosRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (): QueryRef<GetAllNutriologosData, undefined>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect): QueryRef<GetAllNutriologosData, undefined>;
+  operationName: string;
+}
+export const getAllNutriologosRef: GetAllNutriologosRef;
+
+export function getAllNutriologos(): QueryPromise<GetAllNutriologosData, undefined>;
+export function getAllNutriologos(dc: DataConnect): QueryPromise<GetAllNutriologosData, undefined>;
+
+interface GetClientesByCoachRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (vars: GetClientesByCoachVariables): QueryRef<GetClientesByCoachData, GetClientesByCoachVariables>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect, vars: GetClientesByCoachVariables): QueryRef<GetClientesByCoachData, GetClientesByCoachVariables>;
+  operationName: string;
+}
+export const getClientesByCoachRef: GetClientesByCoachRef;
+
+export function getClientesByCoach(vars: GetClientesByCoachVariables): QueryPromise<GetClientesByCoachData, GetClientesByCoachVariables>;
+export function getClientesByCoach(dc: DataConnect, vars: GetClientesByCoachVariables): QueryPromise<GetClientesByCoachData, GetClientesByCoachVariables>;
+
+interface GetClientesByNutriologoRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (vars: GetClientesByNutriologoVariables): QueryRef<GetClientesByNutriologoData, GetClientesByNutriologoVariables>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect, vars: GetClientesByNutriologoVariables): QueryRef<GetClientesByNutriologoData, GetClientesByNutriologoVariables>;
+  operationName: string;
+}
+export const getClientesByNutriologoRef: GetClientesByNutriologoRef;
+
+export function getClientesByNutriologo(vars: GetClientesByNutriologoVariables): QueryPromise<GetClientesByNutriologoData, GetClientesByNutriologoVariables>;
+export function getClientesByNutriologo(dc: DataConnect, vars: GetClientesByNutriologoVariables): QueryPromise<GetClientesByNutriologoData, GetClientesByNutriologoVariables>;
+
+interface GetProgresoClienteRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (vars: GetProgresoClienteVariables): QueryRef<GetProgresoClienteData, GetProgresoClienteVariables>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect, vars: GetProgresoClienteVariables): QueryRef<GetProgresoClienteData, GetProgresoClienteVariables>;
+  operationName: string;
+}
+export const getProgresoClienteRef: GetProgresoClienteRef;
+
+export function getProgresoCliente(vars: GetProgresoClienteVariables): QueryPromise<GetProgresoClienteData, GetProgresoClienteVariables>;
+export function getProgresoCliente(dc: DataConnect, vars: GetProgresoClienteVariables): QueryPromise<GetProgresoClienteData, GetProgresoClienteVariables>;
+
+interface GetPlanNutricionalRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (vars: GetPlanNutricionalVariables): QueryRef<GetPlanNutricionalData, GetPlanNutricionalVariables>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect, vars: GetPlanNutricionalVariables): QueryRef<GetPlanNutricionalData, GetPlanNutricionalVariables>;
+  operationName: string;
+}
+export const getPlanNutricionalRef: GetPlanNutricionalRef;
+
+export function getPlanNutricional(vars: GetPlanNutricionalVariables): QueryPromise<GetPlanNutricionalData, GetPlanNutricionalVariables>;
+export function getPlanNutricional(dc: DataConnect, vars: GetPlanNutricionalVariables): QueryPromise<GetPlanNutricionalData, GetPlanNutricionalVariables>;
+
+interface GetAllTicketsRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (): QueryRef<GetAllTicketsData, undefined>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect): QueryRef<GetAllTicketsData, undefined>;
+  operationName: string;
+}
+export const getAllTicketsRef: GetAllTicketsRef;
+
+export function getAllTickets(): QueryPromise<GetAllTicketsData, undefined>;
+export function getAllTickets(dc: DataConnect): QueryPromise<GetAllTicketsData, undefined>;
+
+interface GetMensajesTicketRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (vars: GetMensajesTicketVariables): QueryRef<GetMensajesTicketData, GetMensajesTicketVariables>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect, vars: GetMensajesTicketVariables): QueryRef<GetMensajesTicketData, GetMensajesTicketVariables>;
+  operationName: string;
+}
+export const getMensajesTicketRef: GetMensajesTicketRef;
+
+export function getMensajesTicket(vars: GetMensajesTicketVariables): QueryPromise<GetMensajesTicketData, GetMensajesTicketVariables>;
+export function getMensajesTicket(dc: DataConnect, vars: GetMensajesTicketVariables): QueryPromise<GetMensajesTicketData, GetMensajesTicketVariables>;
+
+interface GetCertificacionesRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (vars: GetCertificacionesVariables): QueryRef<GetCertificacionesData, GetCertificacionesVariables>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect, vars: GetCertificacionesVariables): QueryRef<GetCertificacionesData, GetCertificacionesVariables>;
+  operationName: string;
+}
+export const getCertificacionesRef: GetCertificacionesRef;
+
+export function getCertificaciones(vars: GetCertificacionesVariables): QueryPromise<GetCertificacionesData, GetCertificacionesVariables>;
+export function getCertificaciones(dc: DataConnect, vars: GetCertificacionesVariables): QueryPromise<GetCertificacionesData, GetCertificacionesVariables>;
+
+interface GetMisClientesRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (): QueryRef<GetMisClientesData, undefined>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect): QueryRef<GetMisClientesData, undefined>;
+  operationName: string;
+}
+export const getMisClientesRef: GetMisClientesRef;
+
+export function getMisClientes(): QueryPromise<GetMisClientesData, undefined>;
+export function getMisClientes(dc: DataConnect): QueryPromise<GetMisClientesData, undefined>;
+
+interface GetRutinasByClienteRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (vars: GetRutinasByClienteVariables): QueryRef<GetRutinasByClienteData, GetRutinasByClienteVariables>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect, vars: GetRutinasByClienteVariables): QueryRef<GetRutinasByClienteData, GetRutinasByClienteVariables>;
+  operationName: string;
+}
+export const getRutinasByClienteRef: GetRutinasByClienteRef;
+
+export function getRutinasByCliente(vars: GetRutinasByClienteVariables): QueryPromise<GetRutinasByClienteData, GetRutinasByClienteVariables>;
+export function getRutinasByCliente(dc: DataConnect, vars: GetRutinasByClienteVariables): QueryPromise<GetRutinasByClienteData, GetRutinasByClienteVariables>;
+
+interface GetEjerciciosRef {
+  /* Allow users to create refs without passing in DataConnect */
+  (): QueryRef<GetEjerciciosData, undefined>;
+  /* Allow users to pass in custom DataConnect instances */
+  (dc: DataConnect): QueryRef<GetEjerciciosData, undefined>;
+  operationName: string;
+}
+export const getEjerciciosRef: GetEjerciciosRef;
+
+export function getEjercicios(): QueryPromise<GetEjerciciosData, undefined>;
+export function getEjercicios(dc: DataConnect): QueryPromise<GetEjerciciosData, undefined>;
 

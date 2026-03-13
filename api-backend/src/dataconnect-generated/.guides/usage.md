@@ -14,38 +14,38 @@ If a user is not using a supported framework, they can use the generated SDK dir
 Here's an example of how to use it with the first 5 operations:
 
 ```js
-import { getMiPerfil, getAllCoaches, getAllNutriologos, getClientesByCoach, getClientesByNutriologo, getProgresoCliente, getPlanNutricional, getAllTickets, getMensajesTicket, getCertificaciones } from '@dataconnect/generated';
+import { createUsuario, crearPerfil, crearCoach, crearNutriologo, crearCliente, registrarProgreso, crearEjercicio, crearRutina, agregarEjercicioARutina, crearPlanNutricional } from '@dataconnect/generated';
 
 
-// Operation GetMiPerfil: 
-const { data } = await GetMiPerfil(dataConnect);
+// Operation CreateUsuario:  For variables, look at type CreateUsuarioVars in ../index.d.ts
+const { data } = await CreateUsuario(dataConnect, createUsuarioVars);
 
-// Operation GetAllCoaches: 
-const { data } = await GetAllCoaches(dataConnect);
+// Operation CrearPerfil:  For variables, look at type CrearPerfilVars in ../index.d.ts
+const { data } = await CrearPerfil(dataConnect, crearPerfilVars);
 
-// Operation GetAllNutriologos: 
-const { data } = await GetAllNutriologos(dataConnect);
+// Operation CrearCoach:  For variables, look at type CrearCoachVars in ../index.d.ts
+const { data } = await CrearCoach(dataConnect, crearCoachVars);
 
-// Operation GetClientesByCoach:  For variables, look at type GetClientesByCoachVars in ../index.d.ts
-const { data } = await GetClientesByCoach(dataConnect, getClientesByCoachVars);
+// Operation CrearNutriologo:  For variables, look at type CrearNutriologoVars in ../index.d.ts
+const { data } = await CrearNutriologo(dataConnect, crearNutriologoVars);
 
-// Operation GetClientesByNutriologo:  For variables, look at type GetClientesByNutriologoVars in ../index.d.ts
-const { data } = await GetClientesByNutriologo(dataConnect, getClientesByNutriologoVars);
+// Operation CrearCliente:  For variables, look at type CrearClienteVars in ../index.d.ts
+const { data } = await CrearCliente(dataConnect, crearClienteVars);
 
-// Operation GetProgresoCliente:  For variables, look at type GetProgresoClienteVars in ../index.d.ts
-const { data } = await GetProgresoCliente(dataConnect, getProgresoClienteVars);
+// Operation RegistrarProgreso:  For variables, look at type RegistrarProgresoVars in ../index.d.ts
+const { data } = await RegistrarProgreso(dataConnect, registrarProgresoVars);
 
-// Operation GetPlanNutricional:  For variables, look at type GetPlanNutricionalVars in ../index.d.ts
-const { data } = await GetPlanNutricional(dataConnect, getPlanNutricionalVars);
+// Operation CrearEjercicio:  For variables, look at type CrearEjercicioVars in ../index.d.ts
+const { data } = await CrearEjercicio(dataConnect, crearEjercicioVars);
 
-// Operation GetAllTickets: 
-const { data } = await GetAllTickets(dataConnect);
+// Operation CrearRutina:  For variables, look at type CrearRutinaVars in ../index.d.ts
+const { data } = await CrearRutina(dataConnect, crearRutinaVars);
 
-// Operation GetMensajesTicket:  For variables, look at type GetMensajesTicketVars in ../index.d.ts
-const { data } = await GetMensajesTicket(dataConnect, getMensajesTicketVars);
+// Operation AgregarEjercicioARutina:  For variables, look at type AgregarEjercicioARutinaVars in ../index.d.ts
+const { data } = await AgregarEjercicioARutina(dataConnect, agregarEjercicioARutinaVars);
 
-// Operation GetCertificaciones:  For variables, look at type GetCertificacionesVars in ../index.d.ts
-const { data } = await GetCertificaciones(dataConnect, getCertificacionesVars);
+// Operation CrearPlanNutricional:  For variables, look at type CrearPlanNutricionalVars in ../index.d.ts
+const { data } = await CrearPlanNutricional(dataConnect, crearPlanNutricionalVars);
 
 
 ```
