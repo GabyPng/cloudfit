@@ -1,0 +1,246 @@
+
+
+
+# Obtener perfil del usuario autenticado
+query GetMiPerfil @auth(level: USER) {
+  perfilUsuarios(where: { usuarioId: { eq_expr: "auth.uid" } }) {
+    foto
+    descripcion
+    usuario {
+      nombre
+      correo
+      rol
+    }
+  }
+}
+
+# Obtener todos los coaches con su info
+query GetAllCoaches @auth(level: USER) {
+  coaches {
+    especialidad
+    aniosExperiencia
+    coach {
+      id
+      nombre
+    }
+  }
+}
+
+# Obtener todos los nutriologos
+query GetAllNutriologos @auth(level: USER) {
+  nutriologos {
+    enfoque
+    cedulaProfesional
+    nutriologo {
+      id
+      nombre
+    }
+  }
+}
+
+# Obtener clientes de un coach
+query GetClientesByCoach($coachId: UUID!) @auth(level: USER) {
+  clientes(where: { coachId: { eq: $coachId } }) {
+    fechaNacimiento
+    altura
+    usuario {
+      nombre
+      correo
+    }
+  }
+}
+
+# Obtener clientes de un nutriologo
+query GetClientesByNutriologo($nutriologoId: UUID!) @auth(level: USER) {
+  clientes(where: { nutriologoId: { eq: $nutriologoId } }) {
+    fechaNacimiento
+    altura
+    usuario {
+      nombre
+      correo
+    }
+  }
+}
+
+# Obtener historial de progreso de un cliente
+query GetProgresoCliente($clienteId: UUID!) @auth(level: USER) {
+  progresos(where: { clienteId: { eq: $clienteId } }, orderBy: { fecha: DESC }) {
+    peso
+    imc
+    fecha
+  }
+}
+
+# Obtener plan nutricional de un cliente
+query GetPlanNutricional($clienteId: UUID!) @auth(level: USER) {
+  planNutricionals(where: { clienteId: { eq: $clienteId } }) {
+    descripcion
+    fechaInicio
+    fechaFin
+  }
+}
+
+# Obtener todos los tickets (admin)
+query GetAllTickets @auth(level: USER) {
+  tickets(orderBy: { fechaCreacion: DESC }) {
+    id
+    asunto
+    estado
+    fechaCreacion
+    usuario {
+      nombre
+      correo
+    }
+  }
+}
+
+# Obtener mensajes de un ticket
+query GetMensajesTicket($ticketId: UUID!) @auth(level: USER) {
+  mensajeTickets(where: { ticketId: { eq: $ticketId } }, orderBy: { fechaEnvio: ASC }) {
+    contenido
+    fechaEnvio
+    remitente {
+      nombre
+    }
+  }
+}
+
+# Obtener certificaciones de un usuario
+query GetCertificaciones($usuarioId: String!) @auth(level: USER) {
+  certificacions(where: { usuarioId: { eq: $usuarioId } }) {
+    titulo
+    fechaAprobacion
+    administrador {
+      usuario {
+        nombre
+      }
+    }
+  }
+}
+
+
+# -----------------------------------------------------------------
+
+# Coach ve sus clientes (para elegir a quién asignar)
+query GetMisClientes @auth(level: USER) {
+  clientes(where: { coachId: { eq_expr: "auth.uid" } }) {
+    usuarioId
+    usuario {
+      nombre
+    }
+    fechaNacimiento
+    altura
+  }
+}
+
+# Ver rutinas asignadas a un cliente específico
+query GetRutinasByCliente($clienteId: UUID!) @auth(level: USER) {
+  rutinas(where: { clienteId: { eq: $clienteId } }) {
+    id
+    nombre
+    descripcion
+    fechaInicio
+    fechaFin
+    ejercicios: rutinaEjercicios_on_rutina(orderBy: { orden: ASC }) {
+      series
+      repeticiones
+      descansoSegundos
+      orden
+      ejercicio {
+        nombre
+        grupoMuscular
+      }
+    }
+  }
+}
+
+# Catálogo de ejercicios disponibles
+query GetEjercicios @auth(level: USER) {
+  ejercicios {
+    id
+    nombre
+    descripcion
+    grupoMuscular
+  }
+}
+
+
+
+# # Example queries for a simple movie app.
+
+# # @auth() directives control who can call each operation.
+# # Anyone should be able to list all movies, so the auth level is set to PUBLIC
+# query ListMovies @auth(level: PUBLIC, insecureReason: "Anyone can list all movies.") {
+#   movies {
+#     id
+#     title
+#     imageUrl
+#     genre
+#   }
+# }
+
+# # List all users, only admins should be able to list all users, so we use NO_ACCESS
+# query ListUsers @auth(level: NO_ACCESS) {
+#   users {
+#     id
+#     username
+#   }
+# }
+
+# # Logged in users can list all their reviews and movie titles associated with the review
+# # Since the query uses the uid of the current authenticated user, we set auth level to USER
+# query ListUserReviews @auth(level: USER) {
+#   user(key: { id_expr: "auth.uid" }) {
+#     id
+#     username
+#     # <field>_on_<foreign_key_field> makes it easy to grab info from another table
+#     # Here, we use it to grab all the reviews written by the user.
+#     reviews: reviews_on_user {
+#       rating
+#       reviewDate
+#       reviewText
+#       movie {
+#         id
+#         title
+#       }
+#     }
+#   }
+# }
+
+# # Get movie by id
+# query GetMovieById($id: UUID!) @auth(level: PUBLIC, insecureReason: "Anyone can get a movie by id.") {
+#   movie(id: $id) {
+#     id
+#     title
+#     imageUrl
+#     genre
+#     metadata: movieMetadata_on_movie {
+#       rating
+#       releaseYear
+#       description
+#     }
+#     reviews: reviews_on_movie {
+#       reviewText
+#       reviewDate
+#       rating
+#       user {
+#         id
+#         username
+#       }
+#     }
+#   }
+# }
+
+# # Search for movies, actors, and reviews
+# query SearchMovie($titleInput: String, $genre: String) @auth(level: PUBLIC, insecureReason: "Anyone can search for movies.") {
+#   movies(
+#     where: {
+#       _and: [{ genre: { eq: $genre } }, { title: { contains: $titleInput } }]
+#     }
+#   ) {
+#     id
+#     title
+#     genre
+#     imageUrl
+#   }
+# }

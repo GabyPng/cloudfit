@@ -20,7 +20,7 @@ class CustomBottomNav extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 25),
       height: 70,
       decoration: BoxDecoration(
-        color: AppColors.cardGrey.withOpacity(0.95),
+        color: AppColors.cardGrey.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(35),
       ),
       child: Row(

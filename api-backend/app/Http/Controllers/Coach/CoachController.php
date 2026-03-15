@@ -3,24 +3,30 @@
 namespace App\Http\Controllers\Coach;
 
 use App\Http\Controllers\Controller;
+use App\Services\DataConnectService;
 use Illuminate\Http\Request;
 
 class CoachController extends Controller
 {
-    public function dashboard()
+    public function __construct(private DataConnectService $dc) {}
+
+    public function dashboard(Request $request)
     {
         return response()->json([
             'message' => 'Bienvenido al panel de Coach.',
-            'section' => 'coach',
+            'uid'     => $request->attributes->get('firebase_uid'),
         ]);
     }
 
-    public function clientes()
+    public function clientes(Request $request)
     {
-        return response()->json(['message' => 'Clientes del Coach — por implementar.']);
+        $idToken = $request->attributes->get('firebase_token');
+        $data    = $this->dc->getMisClientes($idToken);
+
+        return response()->json($data);
     }
 
-    public function planes()
+    public function planes(Request $request)
     {
         return response()->json(['message' => 'Planes de entrenamiento — por implementar.']);
     }

@@ -199,33 +199,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 }
 
 
-class _StepTab extends StatelessWidget {
-  final String label;
-  final bool active;
-  const _StepTab({required this.label, required this.active});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(
-          color: active ? _CF.neon : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: active ? _CF.neon : _CF.border,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: active ? _CF.neon : _CF.labelGrey,
-            fontSize: 11,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-          ),
-        ),
-      );
-}
 
 class _FieldLabel extends StatelessWidget {
   final String text;

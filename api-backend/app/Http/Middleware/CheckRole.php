@@ -7,7 +7,8 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Middleware que verifica el rol del usuario autenticado.
+ * Verifica el rol del usuario extraído del Firebase ID Token.
+ * Debe usarse después del middleware firebase.auth.
  *
  * Uso en rutas:
  *   ->middleware('role:admin')
@@ -17,17 +18,19 @@ class CheckRole
 {
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        $user = $request->user();
+        $role = $request->attributes->get('firebase_role');
 
-        if (! $user) {
-            return response()->json(['message' => 'No autenticado.'], 401);
+        if (! $role) {
+            return response()->json([
+                'message' => 'No se encontró el rol del usuario en el token.',
+            ], 403);
         }
 
-        if (! in_array($user->role, $roles)) {
+        if (! in_array($role, $roles)) {
             return response()->json([
-                'message' => 'No tienes permiso para acceder a este recurso.',
+                'message'        => 'No tienes permiso para acceder a este recurso.',
                 'required_roles' => $roles,
-                'your_role'      => $user->role,
+                'your_role'      => $role,
             ], 403);
         }
 

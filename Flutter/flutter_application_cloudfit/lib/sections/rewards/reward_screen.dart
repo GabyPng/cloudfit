@@ -106,7 +106,7 @@ class RewardScreen extends StatelessWidget {
         color: AppColors.cardGrey,
         borderRadius: BorderRadius.circular(20),
         border: achievement.isUnlocked 
-            ? Border.all(color: AppColors.neonGreen.withOpacity(0.5), width: 1)
+            ? Border.all(color: AppColors.neonGreen.withValues(alpha: 0.5), width: 1)
             : null,
       ),
       child: Column(
@@ -115,7 +115,7 @@ class RewardScreen extends StatelessWidget {
           Icon(
             achievement.icon,
             size: 50,
-            color: achievement.isUnlocked ? AppColors.neonGreen : Colors.grey.withOpacity(0.3),
+            color: achievement.isUnlocked ? AppColors.neonGreen : Colors.grey.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 10),
           Text(
