@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/constants.dart';
 import 'models/metric_model.dart';
 
@@ -58,7 +59,7 @@ class MainScreen extends StatelessWidget {
                 style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
               const SizedBox(height: 12),
-              _buildDateRow(),
+              _buildDateRow(context),
               const SizedBox(height: 25),
               const Text(
                 "Últimos Resultados",
@@ -116,13 +117,20 @@ class MainScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDateRow() {
-    final days = ["9", "10", "11", "14", "13", "12"];
-    final labels = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB"];
+  // 1. Agrega BuildContext como parámetro para poder usar la navegación
+Widget _buildDateRow(BuildContext context) { 
+  final days = ["9", "10", "11", "14", "13", "12"];
+  final labels = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB"];
 
-    return SizedBox(
+  // 2. Envuelve todo en un GestureDetector para capturar el toque
+  return GestureDetector(
+    onTap: () => context.push('/calendar'), // Dispara la navegación
+    child: SizedBox(
       height: 65,
       child: ListView.builder(
+        // Desactivamos el scroll de la lista para que el GestureDetector 
+        // principal detecte mejor el toque en toda la fila
+        physics: const NeverScrollableScrollPhysics(), 
         scrollDirection: Axis.horizontal,
         itemCount: days.length,
         itemBuilder: (context, index) {
@@ -153,8 +161,9 @@ class MainScreen extends StatelessWidget {
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildMetricGrid() {
     return GridView.builder(

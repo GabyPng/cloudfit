@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/constants.dart';
+import '../../../../core/constants.dart';
 
 class ProfileScreen extends StatelessWidget {
   static const String name = 'profile_screen';
@@ -13,92 +13,129 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 60),
-            _buildProfileHeader(),
+            _buildAvatarHeader(),
             const SizedBox(height: 30),
-            _buildStatsRow(),
-            const SizedBox(height: 40),
-            _buildProfileMenu(),
+            _buildStatsGrid(),
+            const SizedBox(height: 30),
+            _buildSectionTitle("CUENTA"),
+            _buildMenuCard([
+              _menuItem(Icons.person_outline, "Información Personal", null),
+              _menuItem(Icons.workspace_premium, "Mi Suscripción", "Premium"),
+              _menuItem(Icons.settings_outlined, "Preferencias Técnicas", null),
+            ]),
+            const SizedBox(height: 20),
+            _buildSectionTitle("METAS FÍSICAS"),
+            _buildMenuCard([
+              _menuItem(Icons.fitness_center, "Récords Personales", null),
+              _menuItem(Icons.monitor_weight_outlined, "Ajuste de Peso Meta", "70 kg"),
+            ]),
+            const SizedBox(height: 30),
+            _buildLogoutButton(),
+            const SizedBox(height: 120), // Espacio para el BottomNav
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileHeader() {
+  Widget _buildAvatarHeader() {
     return Column(
       children: [
         Stack(
           alignment: Alignment.bottomRight,
           children: [
             const CircleAvatar(
-              radius: 60,
-              backgroundImage: NetworkImage('https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=300'),
+              radius: 55,
+              backgroundColor: AppColors.electricPurple,
+              child: CircleAvatar(
+                radius: 52,
+                backgroundImage: AssetImage('assets/images/Efra.jpg'),
+              ),
             ),
             Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: AppColors.neonGreen,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.edit, size: 18, color: Colors.black),
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(color: AppColors.neonGreen, shape: BoxShape.circle),
+              child: const Icon(Icons.camera_alt, size: 16, color: Colors.black),
             ),
           ],
         ),
         const SizedBox(height: 15),
-        const Text("Daniel Ruiz", 
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-        const Text("Nivel 5 • Miembro desde 2024", 
-          style: TextStyle(color: Colors.grey)),
+        const Text("Daniel Ruiz", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const Text("Rookie • Nivel 5", style: TextStyle(color: Colors.white38, fontSize: 14)),
       ],
     );
   }
 
-  Widget _buildStatsRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _statItem("Entrenamientos", "42"),
-        _statItem("Seguidores", "128"),
-        _statItem("Puntos", "1,250"),
-      ],
+  Widget _buildStatsGrid() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          _statBox("PUNTOS", "1,250", AppColors.neonGreen),
+          const SizedBox(width: 15),
+          _statBox("RACHA", "4 Días", AppColors.electricPurple),
+        ],
+      ),
     );
   }
 
-  Widget _statItem(String label, String value) {
-    return Column(
-      children: [
-        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.neonGreen)),
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-      ],
+  Widget _statBox(String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.cardGrey,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          children: [
+            Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+            Text(label, style: const TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 1.2)),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildProfileMenu() {
+  Widget _buildSectionTitle(String title) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
+      child: Text(title, style: const TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildMenuCard(List<Widget> items) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: AppColors.cardGrey,
         borderRadius: BorderRadius.circular(25),
       ),
-      child: Column(
-        children: [
-          _menuTile(Icons.person_outline, "Editar Perfil"),
-          _menuTile(Icons.notifications_none, "Notificaciones"),
-          _menuTile(Icons.security, "Privacidad y Seguridad"),
-          _menuTile(Icons.help_outline, "Ayuda y Soporte"),
-          const Divider(color: Colors.white10, indent: 20, endIndent: 20),
-          _menuTile(Icons.logout, "Cerrar Sesión", isLogout: true),
-        ],
-      ),
+      child: Column(children: items),
     );
   }
 
-  Widget _menuTile(IconData icon, String title, {bool isLogout = false}) {
+  Widget _menuItem(IconData icon, String title, String? trailingText) {
     return ListTile(
-      leading: Icon(icon, color: isLogout ? Colors.redAccent : Colors.white70),
-      title: Text(title, style: TextStyle(color: isLogout ? Colors.redAccent : Colors.white)),
-      trailing: const Icon(Icons.chevron_right, color: Colors.white24),
+      leading: Icon(icon, color: Colors.white70, size: 22),
+      title: Text(title, style: const TextStyle(fontSize: 14)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (trailingText != null) 
+            Text(trailingText, style: const TextStyle(color: AppColors.neonGreen, fontSize: 12)),
+          const Icon(Icons.chevron_right, color: Colors.white12),
+        ],
+      ),
       onTap: () {},
+    );
+  }
+
+  Widget _buildLogoutButton() {
+    return TextButton(
+      onPressed: () {},
+      child: const Text("Cerrar Sesión", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
     );
   }
 }
