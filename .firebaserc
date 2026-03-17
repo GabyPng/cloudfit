@@ -1,1 +1,7 @@
-{}
+{
+  "projects": {
+    "default": "cloudfit-3c00a"
+  },
+  "targets": {},
+  "etags": {}
+}
