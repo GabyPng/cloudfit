@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/auth_service.dart';
 import '../../core/constants.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -17,7 +18,8 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
     // Simulación de carga: 3 segundos y navegamos al Home
     Timer(const Duration(seconds: 3), () {
-      context.go('/login'); 
+      final destination = AuthService.currentUser != null ? '/' : '/login';
+      context.go(destination);
     });
   }
 
