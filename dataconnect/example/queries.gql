@@ -166,6 +166,15 @@ query GetEjercicios @auth(level: USER) {
 
 
 
+# # ── Query temporal para verificar seed (borrar después) ──────
+# query VerificarSeed @auth(level: NO_ACCESS) {
+#   usuario_many { id nombre rol }
+#   coach_many { id especialidad coachId }
+#   nutriologo_many { id enfoque nutriologoId }
+#   cliente_many { id usuarioId }
+#   administrador_many { id usuarioId }
+# }
+
 # # Example queries for a simple movie app.
 
 # # @auth() directives control who can call each operation.

@@ -1,5 +1,5 @@
 specVersion: "v1"
-serviceId: "cloudfit"
+serviceId: "cloudfit-3c00a"
 location: "us-east4"
 schemas:
   - source: "./schema"
@@ -7,7 +7,7 @@ schemas:
       postgresql:
         database: "fdcdb"
         cloudSql:
-          instanceId: "cloudfit-fdc"
+          instanceId: "cloudfit-2026-instance"
           # schemaValidation: "STRICT"     # STRICT mode makes Postgres schema match Data Connect exactly.
           # schemaValidation: "COMPATIBLE" # COMPATIBLE mode makes Postgres schema compatible with Data Connect.
 connectorDirs: ["./example"]

@@ -17,7 +17,7 @@ exports.Role = Role;
 
 const connectorConfig = {
   connector: 'example',
-  service: 'cloudfit',
+  service: 'cloudfit-3c00a',
   location: 'us-east4'
 };
 exports.connectorConfig = connectorConfig;
