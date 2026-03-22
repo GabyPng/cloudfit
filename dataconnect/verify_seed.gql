@@ -1,0 +1,12 @@
+query VerificarSeed @auth(level: NO_ACCESS) {
+  usuarios { id nombre rol }
+  coaches { id especialidad coachId }
+  nutriologos { id enfoque nutriologoId }
+  clientes { id usuarioId }
+  administradors { id usuarioId }
+}
+
+query VerificarEjercicios @auth(level: NO_ACCESS) {
+  ejercicios { id nombre grupoMuscular }
+  rutinas { id nombre clienteId }
+}

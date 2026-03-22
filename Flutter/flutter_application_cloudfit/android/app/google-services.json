@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "409164652098",
+    "project_id": "cloudfit-3c00a",
+    "storage_bucket": "cloudfit-3c00a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:409164652098:android:b264fbe0b9da50e32a97db",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_cloudfit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQVvyv4U9h7kJhKGbUnvPNDHgQR9s30r0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
