@@ -1,19 +1,19 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  static final _auth = FirebaseAuth.instance;
+  static final _client = Supabase.instance.client;
 
-  static User? get currentUser => _auth.currentUser;
+  static User? get currentUser => _client.auth.currentUser;
 
-  static Future<UserCredential> login(String email, String password) {
-    return _auth.signInWithEmailAndPassword(email: email, password: password);
+  static Future<AuthResponse> login(String email, String password) {
+    return _client.auth.signInWithPassword(email: email, password: password);
   }
 
-  static Future<UserCredential> register(String email, String password) {
-    return _auth.createUserWithEmailAndPassword(email: email, password: password);
+  static Future<AuthResponse> register(String email, String password) {
+    return _client.auth.signUp(email: email, password: password);
   }
 
-  static Future<void> logout() => _auth.signOut();
+  static Future<void> logout() => _client.auth.signOut();
 
-  static Future<String?> getIdToken() async => await _auth.currentUser?.getIdToken();
+  static String? getIdToken() => _client.auth.currentSession?.accessToken;
 }

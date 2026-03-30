@@ -54,6 +54,7 @@ final appRouter = GoRouter(
       name: CalendarScreen.name,
       builder: (context, state) => const CalendarScreen(),
     ),
+    
 
     GoRoute(
       path: '/progress',

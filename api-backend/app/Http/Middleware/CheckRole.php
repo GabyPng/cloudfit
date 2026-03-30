@@ -7,18 +7,18 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Verifica el rol del usuario extraído del Firebase ID Token.
- * Debe usarse después del middleware firebase.auth.
+ * Verifica el rol del usuario extraído del Supabase JWT.
+ * Debe usarse después del middleware supabase.auth.
  *
  * Uso en rutas:
- *   ->middleware('role:admin')
- *   ->middleware('role:admin,coach')   ← Acepta cualquiera de los dos roles
+ *   ->middleware('role:ADMINISTRADOR')
+ *   ->middleware('role:COACH,ADMINISTRADOR')   ← Acepta cualquiera de los dos roles
  */
 class CheckRole
 {
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        $role = $request->attributes->get('firebase_role');
+        $role = $request->attributes->get('supabase_role');
 
         if (! $role) {
             return response()->json([
