@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_service.dart';
@@ -48,20 +48,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       await AuthService.register(_emailCtrl.text.trim(), _passwordCtrl.text);
       if (mounted) context.go('/');
-    } on FirebaseAuthException catch (e) {
-      setState(() => _error = _mensajeError(e.code));
+    } on AuthException catch (e) {
+      setState(() => _error = _mensajeError(e.message));
+    } catch (_) {
+      setState(() => _error = 'Error al crear la cuenta.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  String _mensajeError(String code) {
-    switch (code) {
-      case 'email-already-in-use': return 'Este correo ya está registrado.';
-      case 'invalid-email':        return 'Correo no válido.';
-      case 'weak-password':        return 'La contraseña debe tener al menos 6 caracteres.';
-      default:                     return 'Error al crear la cuenta.';
-    }
+  String _mensajeError(String message) {
+    if (message.contains('User already registered')) return 'Este correo ya está registrado.';
+    if (message.contains('Password should be'))      return 'La contraseña debe tener al menos 6 caracteres.';
+    if (message.contains('invalid'))                 return 'Correo no válido.';
+    return 'Error al crear la cuenta.';
   }
 
   @override

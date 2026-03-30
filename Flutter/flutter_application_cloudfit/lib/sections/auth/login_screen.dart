@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_service.dart';
@@ -41,22 +41,20 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await AuthService.login(_emailCtrl.text.trim(), _passwordCtrl.text);
       if (mounted) context.go('/');
-    } on FirebaseAuthException catch (e) {
-      setState(() => _error = _mensajeError(e.code));
+    } on AuthException catch (e) {
+      setState(() => _error = _mensajeError(e.message));
+    } catch (_) {
+      setState(() => _error = 'Error al iniciar sesión.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  String _mensajeError(String code) {
-    switch (code) {
-      case 'user-not-found':
-      case 'invalid-credential':  return 'Correo o contraseña incorrectos.';
-      case 'wrong-password':      return 'Contraseña incorrecta.';
-      case 'invalid-email':       return 'Correo no válido.';
-      case 'too-many-requests':   return 'Demasiados intentos. Intenta más tarde.';
-      default:                    return 'Error al iniciar sesión.';
-    }
+  String _mensajeError(String message) {
+    if (message.contains('Invalid login credentials')) return 'Correo o contraseña incorrectos.';
+    if (message.contains('Email not confirmed'))       return 'Confirma tu correo antes de iniciar sesión.';
+    if (message.contains('Too many requests'))         return 'Demasiados intentos. Intenta más tarde.';
+    return 'Error al iniciar sesión.';
   }
 
   @override
