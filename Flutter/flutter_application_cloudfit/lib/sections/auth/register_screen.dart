@@ -1,3 +1,4 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -39,47 +40,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _weightCtrl = TextEditingController();
   String _occupation = "Sedentaria (Oficina, Estudio, etc)";
 
-  // Paso 2: Médicos
-  bool _takesMeds = false;
-  final _medsDetailCtrl = TextEditingController();
-
-  // Paso 3 & 4: Lesiones
-  String _currentPain = "Ninguna";
-  bool _usesSupport   = false;
-  final _supportCtrl  = TextEditingController();
-
-  // Paso 5: Fitness
-  String _experience = "Principiante (0-6 meses)";
-  String _cardioType = "Ninguno";
-
-  // Paso 6: Estilo de Vida
-  String _sleepHours = "6-8hrs";
-  final _waterCtrl   = TextEditingController();
-
-  // Paso 7: Objetivos
-  String _objective = "Hipertrofia (Ganancia de masa muscular)";
-  String _daysAvailable = "3";
-
-  // --- LÓGICA DE VALIDACIÓN ---
-  bool _validateStep() {
-    setState(() => _errorMessage = null);
-
-    switch (_currentStep) {
-      case 0:
-        if (!_emailCtrl.text.contains('@')) return _setError("Correo inválido");
-        if (_passCtrl.text.length < 6) return _setError("Contraseña mín. 6 caracteres");
-        break;
-      case 1:
-        if (_nameCtrl.text.isEmpty) return _setError("El nombre es obligatorio");
-        if (int.tryParse(_ageCtrl.text) == null) return _setError("Edad inválida");
-        if (double.tryParse(_weightCtrl.text) == null) return _setError("Peso inválido");
-        break;
-      case 2:
-        if (_takesMeds && _medsDetailCtrl.text.isEmpty) return _setError("Especifique sus medicamentos");
-        break;
-      case 6:
-        if (_waterCtrl.text.isEmpty) return _setError("Indique su consumo de agua");
-        break;
+  Future<void> _register() async {
+    if (_passwordCtrl.text != _confirmCtrl.text) {
+      setState(() => _error = 'Las contraseñas no coinciden.');
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      await AuthService.register(_emailCtrl.text.trim(), _passwordCtrl.text);
+      if (mounted) context.go('/');
+    } on AuthException catch (e) {
+      setState(() => _error = _mensajeError(e.message));
+    } catch (_) {
+      setState(() => _error = 'Error al crear la cuenta.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
     return true;
   }
@@ -89,14 +64,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return false;
   }
 
-  void _nextPage() {
-    if (_validateStep()) {
-      if (_currentStep < _totalSteps - 1) {
-        _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-      } else {
-        context.go('/'); // Finalizar registro plano
-      }
-    }
+  String _mensajeError(String message) {
+    if (message.contains('User already registered')) return 'Este correo ya está registrado.';
+    if (message.contains('Password should be'))      return 'La contraseña debe tener al menos 6 caracteres.';
+    if (message.contains('invalid'))                 return 'Correo no válido.';
+    return 'Error al crear la cuenta.';
   }
 
   @override
