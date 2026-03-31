@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Mail, Lock, Loader2 } from 'lucide-react';
+import { getRoleHomePathFromSession } from '../lib/roleRouting';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -12,7 +13,7 @@ export default function Login() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate('/');
+      if (session) navigate(getRoleHomePathFromSession(session), { replace: true });
     });
   }, [navigate]);
 
@@ -20,7 +21,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       if (error.message.includes('Invalid login credentials')) {
         setError('Correo o contraseña incorrectos.');
@@ -31,7 +32,7 @@ export default function Login() {
       }
       setLoading(false);
     } else {
-      navigate('/');
+      navigate(getRoleHomePathFromSession(data.session), { replace: true });
     }
   };
 

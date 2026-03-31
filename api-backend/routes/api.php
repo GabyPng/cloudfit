@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Route;
 // ── Info y sincronización del usuario autenticado ───────────────────────
 Route::middleware('supabase.auth')->group(function () {
     Route::get('/me', [\App\Http\Controllers\Auth\AuthController::class, 'me']);
+    Route::put('/me', [\App\Http\Controllers\Auth\AuthController::class, 'updateMe']);
     Route::post('/sync', [\App\Http\Controllers\Auth\AuthController::class, 'sync']);
 });
 
