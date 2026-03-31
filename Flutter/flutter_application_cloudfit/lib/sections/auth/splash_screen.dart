@@ -18,7 +18,9 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
     // Simulación de carga: 3 segundos y navegamos al Home
     Timer(const Duration(seconds: 3), () {
-      final destination = AuthService.currentUser != null ? '/' : '/login';
+      final destination = AuthService.currentUser != null
+          ? AuthService.homeRouteForCurrentUser
+          : '/login';
       context.go(destination);
     });
   }
@@ -68,7 +70,7 @@ class DiagonalStripesPainter extends CustomPainter {
 
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = const Color(0xFF2E2E5D), 
+      Paint()..color = const Color(0xFF2E2E5D),
     );
 
     // Dibujar líneas diagonales
