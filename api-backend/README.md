@@ -1,6 +1,6 @@
 # CloudFit — API Backend
 
-API REST construida con Laravel 12. Se conecta a Firebase Data Connect (PostgreSQL) y usa Firebase Auth para autenticación.
+API REST construida con Laravel 12. Usa JWT de Supabase para autenticación/autorización por roles y Gemini (opcional) para el chatbot.
 
 ---
 
@@ -8,8 +8,7 @@ API REST construida con Laravel 12. Se conecta a Firebase Data Connect (PostgreS
 
 - PHP 8.2+
 - Composer
-- Node.js + npm (para el emulador de Firebase)
-- Firebase CLI: `npm install -g firebase-tools`
+- Una URL de proyecto Supabase válida (para validar JWT vía JWKS)
 
 ---
 
@@ -24,23 +23,21 @@ cp .env.example .env
 
 # 3. Generar la clave de la aplicación
 php artisan key:generate
+
+# 4. Crear tablas locales necesarias
+php artisan migrate
+
+# 5. (Opcional, recomendado) verificar rutas activas
+php artisan route:list --path=api --except-vendor
 ```
 
-No necesitas correr migraciones — la base de datos la maneja Firebase Data Connect.
+Nota: el backend actual usa base local de Laravel para datos internos del usuario sincronizado (tabla `users`) y validación de rol por token.
 
 ---
 
 ## Correr el proyecto localmente
 
-Necesitas dos terminales abiertas al mismo tiempo:
-
-**Terminal 1 — Emulador de Firebase (base de datos)**
-```bash
-# Desde la raíz del proyecto (cloudfit/)
-npx firebase emulators:start --only dataconnect
-```
-
-**Terminal 2 — Servidor Laravel (API)**
+**Terminal — Servidor Laravel (API)**
 ```bash
 # Desde api-backend/
 php artisan serve
@@ -52,11 +49,11 @@ La API queda disponible en `http://localhost:8000`
 
 ## Autenticación
 
-Toda la autenticación es via **Firebase Auth**. El login y registro lo maneja el frontend directamente con Firebase.
+Toda la autenticación protegida es vía **Supabase JWT**.
 
-Cada request protegido debe incluir el Firebase ID Token en el header:
+Cada request protegido debe incluir el token en el header:
 ```
-Authorization: Bearer {firebase_id_token}
+Authorization: Bearer {supabase_access_token}
 ```
 
 El token debe tener un custom claim `role` con uno de estos valores:
@@ -71,7 +68,10 @@ El token debe tener un custom claim `role` con uno de estos valores:
 
 | Método | Ruta | Rol requerido | Descripción |
 |--------|------|---------------|-------------|
-| GET | `/api/me` | cualquiera | Info del usuario autenticado |
+| GET | `/api/me` | cualquiera autenticado | Info del usuario autenticado |
+| PUT | `/api/me` | cualquiera autenticado | Actualiza perfil local (name/objective/avatar_url) |
+| POST | `/api/sync` | cualquiera autenticado | Sincroniza usuario Supabase en DB local |
+| POST | `/api/chatbot/message` | cualquiera autenticado | Mensaje al asistente (Gemini o fallback rule-based) |
 | GET | `/api/admin/dashboard` | ADMINISTRADOR | Panel de admin |
 | GET | `/api/admin/users` | ADMINISTRADOR | Lista de usuarios |
 | GET | `/api/coach/dashboard` | COACH | Panel del coach |
@@ -89,15 +89,27 @@ El token debe tener un custom claim `role` con uno de estos valores:
 
 ## Variables de entorno
 
-Copia `.env.example` a `.env`. Para desarrollo local no necesitas cambiar nada — los valores por defecto apuntan al emulador.
+Copia `.env.example` a `.env`.
 
-Para producción cambia:
+Mínimo para funcionamiento:
 ```
-FIREBASE_AUTH_EMULATOR=false
-FIREBASE_PROJECT_ID=tu-proyecto-real
-FIREBASE_CREDENTIALS=/ruta/al/service-account.json
-DATACONNECT_EMULATOR=false
+SUPABASE_URL=https://<tu-proyecto>.supabase.co
 ```
+
+Recomendado para integración completa:
+```
+SUPABASE_ANON_KEY=<tu-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<tu-service-role-key>
+```
+
+Opcional (chatbot con IA):
+```
+GEMINI_API_KEY=<tu-api-key>
+GEMINI_MODEL=gemini-2.0-flash
+GEMINI_ENABLED=true
+```
+
+También existen variables legadas de Firebase/Data Connect en `.env.example`, pero no son requeridas por las rutas API actuales.
 
 ---
 
@@ -107,23 +119,23 @@ DATACONNECT_EMULATOR=false
 app/
 ├── Http/
 │   ├── Controllers/
-│   │   ├── Auth/AuthController.php         # Endpoint /me
+│   │   ├── Auth/AuthController.php
 │   │   ├── Admin/AdminController.php
+│   │   ├── Chatbot/ChatbotController.php
 │   │   ├── Coach/CoachController.php
 │   │   ├── Cliente/ClienteController.php
 │   │   └── Nutriologo/NutriologoController.php
 │   └── Middleware/
-│       ├── VerifyFirebaseToken.php          # Valida Firebase ID Token
-│       └── CheckRole.php                   # Verifica el rol del usuario
-├── Services/
-│   └── DataConnectService.php              # Cliente HTTP para Data Connect
+│       ├── VerifySupabaseToken.php         # Valida JWT de Supabase
+│       └── CheckRole.php                   # Verifica roles permitidos por ruta
 config/
-├── firebase.php                            # Config de Firebase Auth
-└── dataconnect.php                         # Config de Data Connect
+├── supabase.php                            # Config de Supabase
+└── gemini.php                              # Config del chatbot IA
 routes/
 ├── api.php                                 # Hub de rutas
 └── api/
     ├── admin.php
+    ├── chatbot.php
     ├── coach.php
     ├── nutriologo.php
     └── cliente.php
