@@ -47,8 +47,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) context.go(AuthService.homeRouteForCurrentUser);
     } on AuthException catch (e) {
       setState(() => _error = _mensajeError(e.message));
-    } catch (_) {
-      setState(() => _error = 'Error al iniciar sesión.');
+    } catch (e) {
+      setState(() => _error = 'Error técnico: $e'); 
+      print('DEBUG LOGIN: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
