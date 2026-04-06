@@ -47,7 +47,11 @@ class AuthService {
     );
   }
 
-  static Future<void> syncCurrentUser({String? name, String? role}) async {
+  static Future<void> syncCurrentUser({
+    String? name,
+    String? role,
+    Map<String, dynamic>? profile,
+  }) async {
     final token = _client.auth.currentSession?.accessToken;
     if (token == null) return;
 
@@ -61,6 +65,7 @@ class AuthService {
       body: jsonEncode({
         if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
         'role': role ?? 'cliente',
+        if (profile != null) 'profile': profile,
       }),
     );
 

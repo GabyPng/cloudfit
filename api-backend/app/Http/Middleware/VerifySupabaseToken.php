@@ -15,6 +15,18 @@ use Illuminate\Support\Facades\Cache;
 
 class VerifySupabaseToken
 {
+    private function normalizeRole(?string $rawRole): string
+    {
+        $role = strtoupper((string) ($rawRole ?? 'CLIENTE'));
+
+        return match ($role) {
+            'ADMIN', 'ADMINISTRADOR' => 'ADMINISTRADOR',
+            'COACH' => 'COACH',
+            'NUTRIOLOGO', 'NUTRIÓLOGO' => 'NUTRIOLOGO',
+            default => 'CLIENTE',
+        };
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         $token = $request->bearerToken();
@@ -77,7 +89,7 @@ class VerifySupabaseToken
                 $userMeta = (array) $payload['user_metadata'];
                 $role = $userMeta['role'] ?? null;
             }
-            $request->attributes->set('supabase_role', strtoupper($role ?? 'CLIENTE'));
+            $request->attributes->set('supabase_role', $this->normalizeRole($role));
 
         } catch (ExpiredException $e) {
             \Log::error('Token expirado: ' . $e->getMessage());

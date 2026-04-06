@@ -55,13 +55,47 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    public function nutriologoProfile()
+    {
+        return $this->hasOne(Nutriologo::class);
+    }
+
     public function hasRole($roleName)
     {
-        return $this->role && $this->role->name === $roleName;
+        return $this->role && $this->role->name === (string) $roleName;
     }
 
     public function hasAnyRole(array $roleNames)
     {
-        return $this->role && in_array($this->role->name, $roleNames);
+        return $this->role && in_array($this->role->name, $roleNames, true);
+    }
+
+    public function nutritionPlansCreated()
+    {
+        return $this->hasManyThrough(
+            NutritionPlan::class,
+            Nutriologo::class,
+            'user_id',
+            'nutriologo_id',
+            'id',
+            'id'
+        );
+    }
+
+    public function nutritionPlanAssignmentsAsClient()
+    {
+        return $this->hasMany(NutritionPlanAssignment::class, 'client_id');
+    }
+
+    public function nutritionPlanAssignmentsAsNutriologo()
+    {
+        return $this->hasManyThrough(
+            NutritionPlanAssignment::class,
+            Nutriologo::class,
+            'user_id',
+            'nutriologo_id',
+            'id',
+            'id'
+        );
     }
 }
