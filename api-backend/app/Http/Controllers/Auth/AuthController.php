@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Models\Nutriologo;
 use App\Models\Role;
 use App\Models\User;
 use App\Http\Controllers\Controller;
@@ -31,11 +32,11 @@ class AuthController extends Controller
         $tokenRole = $this->normalizeRoleValue($request->attributes->get('supabase_role'));
 
         // Priorizar el role explícito del frontend en registro/sync.
-        if (in_array($bodyRole, ['cliente', 'coach', 'nutriologo'], true)) {
+        if (in_array($bodyRole, ['cliente', 'coach', 'nutriologo', 'admin'], true)) {
             return $bodyRole;
         }
 
-        if (in_array($tokenRole, ['cliente', 'coach', 'nutriologo'], true)) {
+        if (in_array($tokenRole, ['cliente', 'coach', 'nutriologo', 'admin'], true)) {
             return $tokenRole;
         }
 
@@ -53,7 +54,10 @@ class AuthController extends Controller
 
         if ($email) {
             $localUser = User::query()
-                ->with('role:id,name,description')
+                ->with([
+                    'role:id,name,description',
+                    'nutriologoProfile:id,user_id,license_number,focus,certificate_uploads',
+                ])
                 ->where('email', $email)
                 ->first();
         }
@@ -120,7 +124,6 @@ class AuthController extends Controller
         $role = $this->resolveRoleFromRequest($request);
 
         $roleId = Role::query()->where('name', $role)->value('id');
-
         if (!$roleId) {
             return response()->json(['error' => 'Role not found'], 422);
         }
@@ -143,9 +146,31 @@ class AuthController extends Controller
 
         $user->save();
 
+        if ($role === 'nutriologo') {
+            $profile = $request->input('profile', []);
+            $licenseNumber = trim((string) data_get($profile, 'licenseNumber', ''));
+            $focus = trim((string) data_get($profile, 'focus', ''));
+            $certificateUploads = data_get($profile, 'certificateUploads');
+
+            if ($licenseNumber === '' || $focus === '') {
+                return response()->json([
+                    'error' => 'Faltan datos requeridos del perfil de nutriologo (licenseNumber y focus).',
+                ], 422);
+            }
+
+            Nutriologo::query()->updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'license_number' => $licenseNumber,
+                    'focus' => $focus,
+                    'certificate_uploads' => is_array($certificateUploads) ? $certificateUploads : null,
+                ]
+            );
+        }
+
         return response()->json([
             'message' => 'Usuario sincronizado en base de datos',
-            'user' => $user
+            'user' => $user->load('role:id,name,description')
         ]);
     }
 }

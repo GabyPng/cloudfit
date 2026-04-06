@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getNormalizedRoleFromSession, getRoleHomePathFromSession } from '../../lib/roleRouting';
+import { clearCachedLocalUser, syncLocalUserProfile } from '../../lib/localUserSync';
 
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const [loading, setLoading] = useState(true);
@@ -13,12 +14,22 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
 
     supabase.auth.getSession().then(({ data: { session: nextSession } }) => {
       if (!active) return;
+      if (nextSession) {
+        syncLocalUserProfile(nextSession).catch(() => null);
+      } else {
+        clearCachedLocalUser();
+      }
       setSession(nextSession);
       setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!active) return;
+      if (nextSession) {
+        syncLocalUserProfile(nextSession).catch(() => null);
+      } else {
+        clearCachedLocalUser();
+      }
       setSession(nextSession);
       setLoading(false);
     });

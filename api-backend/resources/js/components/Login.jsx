@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Mail, Lock, Loader2 } from 'lucide-react';
 import { getRoleHomePathFromSession } from '../lib/roleRouting';
+import { syncLocalUserProfile } from '../lib/localUserSync';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -13,7 +14,13 @@ export default function Login() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate(getRoleHomePathFromSession(session), { replace: true });
+      if (!session) return;
+
+      syncLocalUserProfile(session)
+        .catch(() => null)
+        .finally(() => {
+          navigate(getRoleHomePathFromSession(session), { replace: true });
+        });
     });
   }, [navigate]);
 
@@ -32,7 +39,11 @@ export default function Login() {
       }
       setLoading(false);
     } else {
-      navigate(getRoleHomePathFromSession(data.session), { replace: true });
+      syncLocalUserProfile(data.session)
+        .catch(() => null)
+        .finally(() => {
+          navigate(getRoleHomePathFromSession(data.session), { replace: true });
+        });
     }
   };
 

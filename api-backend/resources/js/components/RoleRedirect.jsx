@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getRoleHomePathFromSession } from '../lib/roleRouting';
+import { syncLocalUserProfile } from '../lib/localUserSync';
 
 export default function RoleRedirect() {
   const navigate = useNavigate();
@@ -18,7 +19,11 @@ export default function RoleRedirect() {
         return;
       }
 
-      navigate(getRoleHomePathFromSession(session), { replace: true });
+      syncLocalUserProfile(session)
+        .catch(() => null)
+        .finally(() => {
+          navigate(getRoleHomePathFromSession(session), { replace: true });
+        });
     });
 
     return () => {

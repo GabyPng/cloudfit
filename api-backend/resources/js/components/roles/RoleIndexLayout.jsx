@@ -2,12 +2,19 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { clearCachedLocalUser } from '../../lib/localUserSync';
 
-export default function RoleIndexLayout({ title, subtitle, accentClass = 'text-[#CCFF00]' }) {
+export default function RoleIndexLayout({
+  title,
+  subtitle,
+  accentClass = 'text-[#CCFF00]',
+  children,
+}) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    clearCachedLocalUser();
     navigate('/login', { replace: true });
   };
 
@@ -32,6 +39,12 @@ export default function RoleIndexLayout({ title, subtitle, accentClass = 'text-[
       <main className="mx-auto max-w-6xl px-6 py-10">
         <div className="rounded-2xl border border-[#2A2A2A] bg-[#151515] p-8">
           <p className="text-lg text-gray-300 leading-relaxed">{subtitle}</p>
+
+          {children ? (
+            <div className="mt-6 border-t border-[#2A2A2A] pt-6">
+              {children}
+            </div>
+          ) : null}
         </div>
       </main>
     </div>
