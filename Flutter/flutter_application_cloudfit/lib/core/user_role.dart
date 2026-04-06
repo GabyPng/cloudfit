@@ -33,7 +33,7 @@ String roleHomeRoute(UserRole role) {
     case UserRole.admin:
       return '/admin';
     case UserRole.coach:
-      return '/coach';
+      return '/coach-home';
     case UserRole.nutriologo:
       return '/nutriologo';
     case UserRole.cliente:

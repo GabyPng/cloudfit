@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/add_exercises_screen.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/client_detail_screen.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/coach_main_screen.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/create_routine_screen.dart';
 import 'package:flutter_application_cloudfit/sections/auth/register_screen.dart';
 import 'package:flutter_application_cloudfit/sections/auth/splash_screen.dart';
 import 'package:flutter_application_cloudfit/sections/calendar/calendar_screen.dart';
@@ -110,14 +114,34 @@ final appRouter = GoRouter(
       path: '/admin',
       builder: (context, state) => const AdminIndexScreen(),
     ),
-    GoRoute(
-      path: '/coach',
-      builder: (context, state) => const CoachIndexScreen(),
-    ),
+    
     GoRoute(
       path: '/nutriologo',
       builder: (context, state) => const NutriologoIndexScreen(),
     ),
+    GoRoute(
+      path: '/coach-home',
+      name: CoachMainScreen.name,
+      builder: (context, state) => const CoachMainScreen(),
+    ),
+    GoRoute(
+  path: '/client-detail/:id',
+  builder: (context, state) {
+    final id = state.pathParameters['id']!;
+    return ClientDetailScreen(clientId: id);
+  },
+),
+GoRoute(
+  path: '/create-routine/:clientId',
+  builder: (context, state) {
+    final clientId = state.pathParameters['clientId']!;
+    return CreateRoutineScreen(clientId: clientId);
+  },
+),
+GoRoute(
+  path: '/add-exercises/:routineId',
+  builder: (context, state) => AddExercisesScreen(routineId: state.pathParameters['routineId']!),
+),
 
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
