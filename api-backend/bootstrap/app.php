@@ -13,7 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'firebase.auth' => \App\Http\Middleware\VerifyFirebaseToken::class,
+            'supabase.auth' => \App\Http\Middleware\VerifySupabaseToken::class,
             'role'          => \App\Http\Middleware\CheckRole::class,
         ]);
     })

@@ -20,7 +20,7 @@ class MainScreen extends StatelessWidget {
       title: "Calorías",
       value: "1800",
       unit: "kcal",
-      
+
       gradient: const LinearGradient(
         colors: [Color(0xFFFF6B6B), Color(0xFFFF8A8A)],
       ),
@@ -118,52 +118,54 @@ class MainScreen extends StatelessWidget {
   }
 
   // 1. Agrega BuildContext como parámetro para poder usar la navegación
-Widget _buildDateRow(BuildContext context) { 
-  final days = ["9", "10", "11", "14", "13", "12"];
-  final labels = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB"];
+  Widget _buildDateRow(BuildContext context) {
+    final days = ["9", "10", "11", "14", "13", "12"];
+    final labels = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB"];
 
-  // 2. Envuelve todo en un GestureDetector para capturar el toque
-  return GestureDetector(
-    onTap: () => context.push('/calendar'), // Dispara la navegación
-    child: SizedBox(
-      height: 65,
-      child: ListView.builder(
-        // Desactivamos el scroll de la lista para que el GestureDetector 
-        // principal detecte mejor el toque en toda la fila
-        physics: const NeverScrollableScrollPhysics(), 
-        scrollDirection: Axis.horizontal,
-        itemCount: days.length,
-        itemBuilder: (context, index) {
-          bool isSelected = index == 2;
-          return Container(
-            width: 50,
-            margin: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.electricPurple : AppColors.cardGrey,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  days[index],
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+    // 2. Envuelve todo en un GestureDetector para capturar el toque
+    return GestureDetector(
+      onTap: () => context.push('/cliente/calendar'), // Dispara la navegación
+      child: SizedBox(
+        height: 65,
+        child: ListView.builder(
+          // Desactivamos el scroll de la lista para que el GestureDetector
+          // principal detecte mejor el toque en toda la fila
+          physics: const NeverScrollableScrollPhysics(),
+          scrollDirection: Axis.horizontal,
+          itemCount: days.length,
+          itemBuilder: (context, index) {
+            bool isSelected = index == 2;
+            return Container(
+              width: 50,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppColors.electricPurple
+                    : AppColors.cardGrey,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    days[index],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                Text(
-                  labels[index],
-                  style: const TextStyle(fontSize: 10, color: Colors.white70),
-                ),
-              ],
-            ),
-          );
-        },
+                  Text(
+                    labels[index],
+                    style: const TextStyle(fontSize: 10, color: Colors.white70),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildMetricGrid() {
     return GridView.builder(
@@ -217,7 +219,6 @@ Widget _buildDateRow(BuildContext context) {
       ),
     );
   }
-
 
   Widget _buildBarChart() {
     final days = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
@@ -273,7 +274,7 @@ Widget _buildDateRow(BuildContext context) {
           children: [
             _singleBar(40, AppColors.neonGreen), // Ejercicio
             const SizedBox(width: 2),
-            _singleBar(60, const Color(0xFFFF6B6B)), // Calorías 
+            _singleBar(60, const Color(0xFFFF6B6B)), // Calorías
             const SizedBox(width: 2),
             _singleBar(30, AppColors.electricPurple), // Pasos
           ],
@@ -317,54 +318,94 @@ Widget _buildDateRow(BuildContext context) {
       ],
     );
   }
-  Widget _buildFoodSection() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text("Comida", 
-        style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 12),
-      _foodItem("Burrito", "Pizza Burger", "01:00 AM", "20 gm", 
-          "https://images.unsplash.com/photo-1584030373081-f37b7bb4fa8e?q=80&w=100"),
-      const SizedBox(height: 8),
-      _foodItem("Burger", "Pizza Burger", "01:00 AM", "20 gm", 
-          "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=100"),
-    ],
-  );
-}
 
-Widget _foodItem(String name, String collation, String time, String weight, String url) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-    decoration: BoxDecoration(
-      color: AppColors.cardGrey,
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Row(
+  Widget _buildFoodSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CircleAvatar(
-          radius: 20,
-          backgroundImage: NetworkImage(url),
-        ),
-        const SizedBox(width: 15),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-              Text(time, style: const TextStyle(color: Colors.white38, fontSize: 11)),
-            ],
+        const Text(
+          "Comida",
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(collation, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-            Text(weight, style: const TextStyle(color: AppColors.neonGreen, fontSize: 12, fontWeight: FontWeight.bold)),
-          ],
+        const SizedBox(height: 12),
+        _foodItem(
+          "Burrito",
+          "Pizza Burger",
+          "01:00 AM",
+          "20 gm",
+          "https://images.unsplash.com/photo-1584030373081-f37b7bb4fa8e?q=80&w=100",
+        ),
+        const SizedBox(height: 8),
+        _foodItem(
+          "Burger",
+          "Pizza Burger",
+          "01:00 AM",
+          "20 gm",
+          "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=100",
         ),
       ],
-    ),
-  );
-}
+    );
+  }
+
+  Widget _foodItem(
+    String name,
+    String collation,
+    String time,
+    String weight,
+    String url,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.cardGrey,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(radius: 20, backgroundImage: NetworkImage(url)),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  time,
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                collation,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              Text(
+                weight,
+                style: const TextStyle(
+                  color: AppColors.neonGreen,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }

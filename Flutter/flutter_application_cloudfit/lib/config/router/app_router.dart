@@ -7,6 +7,9 @@ import 'package:flutter_application_cloudfit/sections/professionals/professional
 import 'package:flutter_application_cloudfit/sections/progress/progress_screen.dart';
 import 'package:flutter_application_cloudfit/sections/workout/exercise_detail_screen.dart';
 import 'package:flutter_application_cloudfit/sections/workout/workout_summary_screen.dart';
+import 'package:flutter_application_cloudfit/sections/roles/admin_index_screen.dart';
+import 'package:flutter_application_cloudfit/sections/roles/coach_index_screen.dart';
+import 'package:flutter_application_cloudfit/sections/roles/nutriologo_index_screen.dart';
 import 'package:go_router/go_router.dart';
 import '../../sections/dashboard/main_screen.dart';
 import '../../sections/workout/exercise_screen.dart';
@@ -14,12 +17,60 @@ import '../../sections/rewards/reward_screen.dart';
 import '../../sections/profile/profile_screen.dart';
 import '../../shared/widgets/custom_bottom_nav.dart';
 import 'package:flutter_application_cloudfit/sections/auth/login_screen.dart';
+import '../../core/auth_service.dart';
+import '../../core/user_role.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+
+bool _isPublicRoute(String location) {
+  return location == '/splash' ||
+      location == '/login' ||
+      location == '/register';
+}
+
+bool _isClienteRoute(String location) {
+  return location == '/cliente' || location.startsWith('/cliente/');
+}
+
+String? _redirectByAuthAndRole(GoRouterState state) {
+  final isLoggedIn = AuthService.currentUser != null;
+  final location = state.matchedLocation;
+
+  if (!isLoggedIn) {
+    if (_isPublicRoute(location)) return null;
+    return '/login';
+  }
+
+  final role = AuthService.currentRole;
+  final home = roleHomeRoute(role);
+
+  if (_isPublicRoute(location)) {
+    return home;
+  }
+
+  if (location.startsWith('/admin') && role != UserRole.admin) {
+    return home;
+  }
+
+  if (location.startsWith('/coach') && role != UserRole.coach) {
+    return home;
+  }
+
+  if (location.startsWith('/nutriologo') && role != UserRole.nutriologo) {
+    return home;
+  }
+
+  if (_isClienteRoute(location) && role != UserRole.cliente) {
+    return home;
+  }
+
+  return null;
+}
 
 final appRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: '/splash',
+  redirect: (context, state) => _redirectByAuthAndRole(state),
   routes: [
     GoRoute(
       path: '/splash',
@@ -39,27 +90,33 @@ final appRouter = GoRouter(
     ),
 
     GoRoute(
-      path: '/exercise-detail',
+      path: '/cliente/exercise-detail',
       name: ExerciseDetailScreen.name,
       builder: (context, state) => const ExerciseDetailScreen(),
     ),
 
     GoRoute(
-      path: '/summary',
+      path: '/cliente/summary',
       name: WorkoutSummaryScreen.name,
       builder: (context, state) => const WorkoutSummaryScreen(),
     ),
     GoRoute(
-      path: '/calendar',
+      path: '/cliente/calendar',
       name: CalendarScreen.name,
       builder: (context, state) => const CalendarScreen(),
     ),
-    
 
     GoRoute(
-      path: '/progress',
-      name: ProgressScreen.name,
-      builder: (context, state) => const ProgressScreen(),
+      path: '/admin',
+      builder: (context, state) => const AdminIndexScreen(),
+    ),
+    GoRoute(
+      path: '/coach',
+      builder: (context, state) => const CoachIndexScreen(),
+    ),
+    GoRoute(
+      path: '/nutriologo',
+      builder: (context, state) => const NutriologoIndexScreen(),
     ),
 
     StatefulShellRoute.indexedStack(
@@ -75,13 +132,16 @@ final appRouter = GoRouter(
       branches: [
         StatefulShellBranch(
           routes: [
-            GoRoute(path: '/', builder: (context, state) => MainScreen()),
+            GoRoute(
+              path: '/cliente',
+              builder: (context, state) => MainScreen(),
+            ),
           ],
         ),
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/exercises',
+              path: '/cliente/exercises',
               builder: (context, state) => const ExerciseScreen(),
             ),
           ],
@@ -89,7 +149,7 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/nutrition',
+              path: '/cliente/nutrition',
               builder: (context, state) => const NutritionScreen(),
             ),
           ],
@@ -98,7 +158,7 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/progress',
+              path: '/cliente/progress',
               builder: (context, state) => const ProgressScreen(),
             ),
           ],
@@ -106,7 +166,7 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/rewards',
+              path: '/cliente/rewards',
               builder: (context, state) => const RewardScreen(),
             ),
           ],
@@ -114,7 +174,7 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/profile',
+              path: '/cliente/profile',
               builder: (context, state) => const ProfileScreen(),
             ),
           ],
@@ -122,7 +182,7 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/professionals',
+              path: '/cliente/professionals',
               builder: (context, state) => const ProfessionalsScreen(),
             ),
           ],

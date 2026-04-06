@@ -12,7 +12,10 @@ class CalendarScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text("Mi Actividad", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Mi Actividad",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: Column(
         children: [
@@ -33,8 +36,10 @@ class CalendarScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Historial de Sesiones", 
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "Historial de Sesiones",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 20),
                   Expanded(child: _buildHistoryList()),
                 ],
@@ -52,13 +57,22 @@ class CalendarScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text("Marzo 2026", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            "Marzo 2026",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           Row(
             children: [
-              IconButton(icon: const Icon(Icons.chevron_left), onPressed: () {}),
-              IconButton(icon: const Icon(Icons.chevron_right), onPressed: () {}),
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: () {},
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -75,7 +89,10 @@ class CalendarScreen extends StatelessWidget {
         bool isToday = index == 1; // Lunes 16 de Marzo
         return Column(
           children: [
-            Text(labels[index], style: const TextStyle(color: Colors.white38, fontSize: 12)),
+            Text(
+              labels[index],
+              style: const TextStyle(color: Colors.white38, fontSize: 12),
+            ),
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(12),
@@ -124,23 +141,37 @@ class CalendarScreen extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 15),
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: AppColors.electricPurple.withOpacity(0.2),
-                child: Icon(item.icon, color: AppColors.electricPurple, size: 20),
+                backgroundColor: AppColors.electricPurple.withValues(
+                  alpha: 0.2,
+                ),
+                child: Icon(
+                  item.icon,
+                  color: AppColors.electricPurple,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 15),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.workoutTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text("${item.duration} • ${item.calories} kcal", 
-                      style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                    Text(
+                      item.workoutTitle,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "${item.duration} • ${item.calories} kcal",
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),

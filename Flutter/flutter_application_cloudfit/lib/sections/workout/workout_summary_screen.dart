@@ -36,10 +36,19 @@ class WorkoutSummaryScreen extends StatelessWidget {
       children: [
         const Icon(Icons.check_circle, color: AppColors.neonGreen, size: 80),
         const SizedBox(height: 20),
-        const Text("¡ENTRENAMIENTO COMPLETO!", 
+        const Text(
+          "¡ENTRENAMIENTO COMPLETO!",
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic)),
-        Text("Has superado tus límites de hoy", style: TextStyle(color: Colors.white.withOpacity(0.5))),
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+        Text(
+          "Has superado tus límites de hoy",
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+        ),
       ],
     );
   }
@@ -47,9 +56,19 @@ class WorkoutSummaryScreen extends StatelessWidget {
   Widget _buildMainStats() {
     return Row(
       children: [
-        _statCard("TIEMPO", "45:12", Icons.timer_outlined, AppColors.electricPurple),
+        _statCard(
+          "TIEMPO",
+          "45:12",
+          Icons.timer_outlined,
+          AppColors.electricPurple,
+        ),
         const SizedBox(width: 15),
-        _statCard("CALORÍAS", "340", Icons.local_fire_department, AppColors.neonGreen),
+        _statCard(
+          "CALORÍAS",
+          "340",
+          Icons.local_fire_department,
+          AppColors.neonGreen,
+        ),
       ],
     );
   }
@@ -67,8 +86,18 @@ class WorkoutSummaryScreen extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 20),
             const SizedBox(height: 15),
-            Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            Text(label, style: const TextStyle(fontSize: 10, color: Colors.white38, letterSpacing: 1.5)),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.white38,
+                letterSpacing: 1.5,
+              ),
+            ),
           ],
         ),
       ),
@@ -86,19 +115,33 @@ class WorkoutSummaryScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("RENDIMIENTO POR SET", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          const Text(
+            "RENDIMIENTO POR SET",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          ),
           const SizedBox(height: 30),
           // Simulación de gráfico de barras minimalista
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: List.generate(8, (index) {
-              double height = [40, 60, 45, 80, 55, 90, 70, 85][index].toDouble();
+              double height = [
+                40,
+                60,
+                45,
+                80,
+                55,
+                90,
+                70,
+                85,
+              ][index].toDouble();
               return Container(
                 width: 15,
                 height: height,
                 decoration: BoxDecoration(
-                  gradient: index % 2 == 0 ? AppColors.greenGradient : AppColors.purpleGradient,
+                  gradient: index % 2 == 0
+                      ? AppColors.greenGradient
+                      : AppColors.purpleGradient,
                   borderRadius: BorderRadius.circular(5),
                 ),
               );
@@ -114,13 +157,21 @@ class WorkoutSummaryScreen extends StatelessWidget {
       width: double.infinity,
       height: 60,
       child: ElevatedButton(
-        onPressed: () => context.go('/'),
+        onPressed: () => context.go('/cliente'),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.neonGreen,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
         ),
-        child: const Text("VOLVER AL INICIO", 
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+        child: const Text(
+          "VOLVER AL INICIO",
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
       ),
     );
   }

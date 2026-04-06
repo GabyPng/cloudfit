@@ -63,7 +63,8 @@ class ExerciseScreen extends StatelessWidget {
   Widget _workoutCard(BuildContext context, WorkoutModel workout) {
     // Añadimos context
     return GestureDetector(
-      onTap: () => context.push('/exercise-detail'), // Navega al detalle
+      onTap: () =>
+          context.push('/cliente/exercise-detail'), // Navega al detalle
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
         height: 200,

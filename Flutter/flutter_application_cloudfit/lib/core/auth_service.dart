@@ -1,19 +1,71 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'constants.dart';
+import 'user_role.dart';
 
 class AuthService {
-  static final _auth = FirebaseAuth.instance;
+  static final _client = Supabase.instance.client;
 
-  static User? get currentUser => _auth.currentUser;
+  static User? get currentUser => _client.auth.currentUser;
 
-  static Future<UserCredential> login(String email, String password) {
-    return _auth.signInWithEmailAndPassword(email: email, password: password);
+  static Future<AuthResponse> login(String email, String password) {
+    return _client.auth.signInWithPassword(email: email, password: password);
   }
 
-  static Future<UserCredential> register(String email, String password) {
-    return _auth.createUserWithEmailAndPassword(email: email, password: password);
+  static Future<AuthResponse> register(
+    String email,
+    String password, {
+    Map<String, dynamic>? metadata,
+  }) {
+    return _client.auth.signUp(
+      email: email,
+      password: password,
+      data: metadata,
+    );
   }
 
-  static Future<void> logout() => _auth.signOut();
+  static Future<void> logout() => _client.auth.signOut();
 
-  static Future<String?> getIdToken() async => await _auth.currentUser?.getIdToken();
+  static Future<String?> getIdToken() async {
+    return _client.auth.currentSession?.accessToken;
+  }
+
+  static UserRole get currentRole {
+    final user = _client.auth.currentUser;
+    final roleFromMetadata = user?.userMetadata?['role'] as String?;
+    final roleFromAppMetadata = user?.appMetadata['role'] as String?;
+
+    return parseUserRole(roleFromMetadata ?? roleFromAppMetadata);
+  }
+
+  static String get homeRouteForCurrentUser => roleHomeRoute(currentRole);
+
+  static Future<void> updateUserMetadata(Map<String, dynamic> metadata) async {
+    await _client.auth.updateUser(
+      UserAttributes(data: metadata),
+    );
+  }
+
+  static Future<void> syncCurrentUser({String? name, String? role}) async {
+    final token = _client.auth.currentSession?.accessToken;
+    if (token == null) return;
+
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/sync'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        'role': role ?? 'cliente',
+      }),
+    );
+
+    if (response.statusCode >= 400) {
+      throw Exception('Sync failed: ${response.statusCode} ${response.body}');
+    }
+  }
 }

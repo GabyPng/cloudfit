@@ -8,13 +8,21 @@
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
+        "@vitejs/plugin-react": "^4.3.4",
+        "autoprefixer": "^10.4.27",
         "axios": "^1.11.0",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^2.0.0",
-        "tailwindcss": "^4.0.0",
+        "postcss": "^8.5.8",
+        "tailwindcss": "^4.2.2",
         "vite": "^7.0.7"
     },
     "dependencies": {
-        "@dataconnect/generated": "file:src/dataconnect-generated"
+        "@dataconnect/generated": "file:src/dataconnect-generated",
+        "@supabase/supabase-js": "^2.100.0",
+        "lucide-react": "^1.0.1",
+        "react": "^19.2.4",
+        "react-dom": "^19.2.4",
+        "react-router-dom": "^7.13.2"
     }
 }

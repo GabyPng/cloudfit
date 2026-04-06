@@ -306,32 +306,40 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
   }
 
   Widget _buildBottomActions() {
-  return Row(
-    children: [
-      Expanded(
-        child: GestureDetector(
-          // Al presionar finalizar, navegamos al resumen
-          onTap: () => context.push('/summary'), 
-          child: _buildSmallButton("FINALIZAR", Colors.white10, height: 60),
-        ),
-      ),
-      const SizedBox(width: 15),
-      Expanded(
-        child: ElevatedButton(
-          onPressed: () {
-            // Aquí podrías programar el salto al siguiente ejercicio de la lista
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.neonGreen,
-            minimumSize: const Size(0, 60),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            // Al presionar finalizar, navegamos al resumen
+            onTap: () => context.push('/cliente/summary'),
+            child: _buildSmallButton("FINALIZAR", Colors.white10, height: 60),
           ),
-          child: const Text("SIGUIENTE", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         ),
-      ),
-    ],
-  );
-}
+        const SizedBox(width: 15),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () {
+              // Aquí podrías programar el salto al siguiente ejercicio de la lista
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.neonGreen,
+              minimumSize: const Size(0, 60),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+            child: const Text(
+              "SIGUIENTE",
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildSmallButton(String text, Color color, {double height = 35}) {
     return Container(
@@ -359,7 +367,7 @@ class CircularProgressPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     Paint circlePaint = Paint()
-      ..color = Colors.white.withOpacity(0.05)
+      ..color = Colors.white.withValues(alpha: 0.05)
       ..strokeWidth = 10
       ..style = PaintingStyle.stroke;
 

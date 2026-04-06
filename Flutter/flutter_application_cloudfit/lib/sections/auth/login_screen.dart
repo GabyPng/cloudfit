@@ -1,17 +1,17 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_service.dart';
 
 class _CF {
-  static const bg        = Color(0xFF0D0D0D);
-  static const card      = Color(0xFF1A1A1A);
-  static const neon      = Color(0xFFCCFF00);
-  static const white     = Colors.white;
-  static const hint      = Color(0xFF555555);
-  static const border    = Color(0xFF2A2A2A);
+  static const bg = Color(0xFF0D0D0D);
+  static const card = Color(0xFF1A1A1A);
+  static const neon = Color(0xFFCCFF00);
+  static const white = Colors.white;
+  static const hint = Color(0xFF555555);
+  static const border = Color(0xFF2A2A2A);
   static const labelGrey = Color(0xFF888888);
-  static const error     = Color(0xFFFF4444);
+  static const error = Color(0xFFFF4444);
 }
 
 class LoginScreen extends StatefulWidget {
@@ -23,10 +23,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailCtrl    = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  bool _obscure  = true;
-  bool _loading  = false;
+  bool _obscure = true;
+  bool _loading = false;
   String? _error;
 
   @override
@@ -37,26 +37,34 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await AuthService.login(_emailCtrl.text.trim(), _passwordCtrl.text);
-      if (mounted) context.go('/');
-    } on FirebaseAuthException catch (e) {
-      setState(() => _error = _mensajeError(e.code));
+      await AuthService.syncCurrentUser();
+      if (mounted) context.go(AuthService.homeRouteForCurrentUser);
+    } on AuthException catch (e) {
+      setState(() => _error = _mensajeError(e.message));
+    } catch (_) {
+      setState(() => _error = 'Error al iniciar sesión.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  String _mensajeError(String code) {
-    switch (code) {
-      case 'user-not-found':
-      case 'invalid-credential':  return 'Correo o contraseña incorrectos.';
-      case 'wrong-password':      return 'Contraseña incorrecta.';
-      case 'invalid-email':       return 'Correo no válido.';
-      case 'too-many-requests':   return 'Demasiados intentos. Intenta más tarde.';
-      default:                    return 'Error al iniciar sesión.';
+  String _mensajeError(String message) {
+    if (message.contains('Invalid login credentials')) {
+      return 'Correo o contraseña incorrectos.';
     }
+    if (message.contains('Email not confirmed')) {
+      return 'Confirma tu correo antes de iniciar sesión.';
+    }
+    if (message.contains('Too many requests')) {
+      return 'Demasiados intentos. Intenta más tarde.';
+    }
+    return 'Error al iniciar sesión.';
   }
 
   @override
@@ -108,7 +116,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _emailCtrl,
                 hint: 'ejemplo@correo.com',
                 keyboardType: TextInputType.emailAddress,
-                suffix: const Icon(Icons.email_outlined, color: _CF.hint, size: 20),
+                suffix: const Icon(
+                  Icons.email_outlined,
+                  color: _CF.hint,
+                  size: 20,
+                ),
               ),
 
               const SizedBox(height: 18),
@@ -130,7 +142,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: _CF.error, fontSize: 13)),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: _CF.error, fontSize: 13),
+                ),
               ],
 
               Align(
@@ -148,30 +163,38 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
 
               _loading
-                ? const Center(child: CircularProgressIndicator(color: _CF.neon))
-                : _CFButton(label: 'INGRESAR', onTap: _login),
+                  ? const Center(
+                      child: CircularProgressIndicator(color: _CF.neon),
+                    )
+                  : _CFButton(label: 'INGRESAR', onTap: _login),
 
               const SizedBox(height: 28),
 
-              Row(children: [
-                const Expanded(child: Divider(color: _CF.border)),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('o continúa con',
-                    style: TextStyle(color: _CF.labelGrey, fontSize: 11)),
-                ),
-                const Expanded(child: Divider(color: _CF.border)),
-              ]),
+              Row(
+                children: [
+                  const Expanded(child: Divider(color: _CF.border)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'o continúa con',
+                      style: TextStyle(color: _CF.labelGrey, fontSize: 11),
+                    ),
+                  ),
+                  const Expanded(child: Divider(color: _CF.border)),
+                ],
+              ),
 
               const SizedBox(height: 20),
 
-              const Row(children: [
-                _SocialBtn(label: 'G'),
-                SizedBox(width: 12),
-                _SocialBtn(label: 'f'),
-                SizedBox(width: 12),
-                _SocialBtn(label: 'Apple'),
-              ]),
+              const Row(
+                children: [
+                  _SocialBtn(label: 'G'),
+                  SizedBox(width: 12),
+                  _SocialBtn(label: 'f'),
+                  SizedBox(width: 12),
+                  _SocialBtn(label: 'Apple'),
+                ],
+              ),
 
               const SizedBox(height: 32),
 
@@ -218,15 +241,17 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text,
-          style: const TextStyle(
-            color: _CF.labelGrey,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.1,
-          )),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: _CF.labelGrey,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1.1,
+      ),
+    ),
+  );
 }
 
 class _CFTextField extends StatelessWidget {
@@ -246,31 +271,31 @@ class _CFTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TextField(
-        controller: controller,
-        obscureText: isPassword,
-        keyboardType: keyboardType,
-        style: const TextStyle(color: _CF.white, fontSize: 14),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: _CF.hint, fontSize: 14),
-          filled: true,
-          fillColor: _CF.card,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: _CF.border, width: 1),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: _CF.border, width: 1),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: _CF.neon, width: 1.5),
-          ),
-          suffixIcon: suffix,
-        ),
-      );
+    controller: controller,
+    obscureText: isPassword,
+    keyboardType: keyboardType,
+    style: const TextStyle(color: _CF.white, fontSize: 14),
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: _CF.hint, fontSize: 14),
+      filled: true,
+      fillColor: _CF.card,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: _CF.border, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: _CF.border, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: _CF.neon, width: 1.5),
+      ),
+      suffixIcon: suffix,
+    ),
+  );
 }
 
 class _CFButton extends StatelessWidget {
@@ -280,24 +305,26 @@ class _CFButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: ElevatedButton(
-          onPressed: onTap,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _CF.neon,
-            foregroundColor: Colors.black,
-            elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-          ),
-          child: Text(label,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.8,
-            )),
+    width: double.infinity,
+    height: 52,
+    child: ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _CF.neon,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.8,
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _SocialBtn extends StatelessWidget {
@@ -306,22 +333,26 @@ class _SocialBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-        child: SizedBox(
-          height: 46,
-          child: OutlinedButton(
-            onPressed: () {},
-            style: OutlinedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E1E1E),
-              side: const BorderSide(color: _CF.border),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: Text(label,
-              style: const TextStyle(
-                color: _CF.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              )),
+    child: SizedBox(
+      height: 46,
+      child: OutlinedButton(
+        onPressed: () {},
+        style: OutlinedButton.styleFrom(
+          backgroundColor: const Color(0xFF1E1E1E),
+          side: const BorderSide(color: _CF.border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
         ),
-      );
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: _CF.white,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    ),
+  );
 }
