@@ -32,6 +32,10 @@ Route::middleware('supabase.auth')
     ->prefix('chatbot')
     ->group(base_path('routes/api/chatbot.php'));
 
+// ── Ejercicios (públicos - sin autenticación) ────────────────────────────
+Route::prefix('exercises')
+    ->group(base_path('routes/api/exercises.php'));
+
 // ── Administrador ────────────────────────────────────────────────────────
 Route::middleware(['supabase.auth', 'role:ADMINISTRADOR'])
     ->prefix('admin')
