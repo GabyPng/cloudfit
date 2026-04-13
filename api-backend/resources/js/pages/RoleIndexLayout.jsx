@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import Chatbot from '../components/Chatbot';
 
 export default function RoleIndexLayout({ title, subtitle, accentClass = 'text-[#CCFF00]' }) {
   const navigate = useNavigate();
@@ -34,6 +35,8 @@ export default function RoleIndexLayout({ title, subtitle, accentClass = 'text-[
           <p className="text-lg text-gray-300 leading-relaxed">{subtitle}</p>
         </div>
       </main>
+
+      <Chatbot />
     </div>
   );
 }
