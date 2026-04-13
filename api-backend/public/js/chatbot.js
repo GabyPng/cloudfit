@@ -13,6 +13,7 @@
   const sendBtn      = document.getElementById('chat-send');
   const typing       = document.getElementById('typing-indicator');
   const fabBadge     = document.getElementById('fab-badge');
+  const quickReplies = document.getElementById('quick-replies');
 
   /* ── State ────────────────────────────────────────── */
   let isOpen       = false;
@@ -69,6 +70,9 @@
 
     appendBotMessage(text);
     showBadge();
+
+    // Carga botones de intents cuando hay sesión activa.
+    loadIntentButtons();
   }
 
   /* ── Send message ────────────────────────────────── */
@@ -81,14 +85,16 @@
     }
   });
 
-  async function sendMessage() {
-    const text = input.value.trim();
+  async function sendMessage(explicit = null) {
+    const text = explicit?.text ?? input.value.trim();
+    const intent = explicit?.intent ?? null;
+    const userLabel = explicit?.label ?? text;
     if (!text || sendBtn.disabled) return;
 
-    input.value    = '';
+    input.value      = '';
     sendBtn.disabled = true;
 
-    appendUserMessage(text);
+    appendUserMessage(userLabel);
     showTyping();
 
     try {
@@ -111,7 +117,7 @@
           'Authorization': `Bearer ${idToken}`,
           'Accept':        'application/json',
         },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify(intent ? { intent, message: text } : { message: text }),
       });
 
       const data = await res.json();
@@ -123,6 +129,7 @@
         appendBotMessage(`⚠️ ${errMsg}`);
       } else {
         appendBotMessage(data.reply ?? '...', data.role);
+        renderIntentButtons(data.buttons);
       }
     } catch (err) {
       hideTyping();
@@ -134,12 +141,57 @@
   }
 
   /* ── Quick reply chips ───────────────────────────── */
-  document.querySelectorAll('.chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      input.value = chip.dataset.msg;
-      sendMessage();
-    });
+  quickReplies?.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+
+    const intent = chip.dataset.intent;
+    const text = chip.dataset.msg;
+    const label = chip.textContent?.trim() || text;
+
+    if (intent) {
+      sendMessage({ text: text || label, intent, label });
+      return;
+    }
+
+    input.value = text || label;
+    sendMessage();
   });
+
+  async function loadIntentButtons() {
+    const idToken = window.CloudFit?.idToken;
+    if (!idToken) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/chatbot/buttons`, {
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!res.ok) return;
+      const data = await res.json();
+      renderIntentButtons(data.buttons);
+    } catch (_) {
+      // Silencioso: si falla, se mantienen los chips por defecto.
+    }
+  }
+
+  function renderIntentButtons(buttons) {
+    if (!quickReplies || !Array.isArray(buttons) || buttons.length === 0) return;
+
+    quickReplies.innerHTML = '';
+
+    buttons.forEach(btn => {
+      const el = document.createElement('button');
+      el.className = 'chip whitespace-nowrap px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-full border border-blue-100 transition-colors shadow-sm';
+      el.dataset.intent = btn.intent;
+      el.dataset.msg = btn.label;
+      el.textContent = btn.label;
+      quickReplies.appendChild(el);
+    });
+  }
 
   /* ── Message renderers ───────────────────────────── */
   function appendUserMessage(text) {
