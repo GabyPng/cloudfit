@@ -1,12 +1,25 @@
-import React from 'react';
-import RoleIndexLayout from '../RoleIndexLayout';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
+import NutriologoLayout from './NutriologoLayout';
+import Dashboard from './Dashboard';
 
 export default function NutriologoIndexPage() {
-return (
-<RoleIndexLayout
-title="Panel Nutriólogo"
-subtitle="Este es tu index de nutriólogo. Aquí podrás administrar planes nutricionales y seguimiento de pacientes."
-accentClass="text-emerald-400"
-/>
-);
+  const [nutriologoName, setNutriologoName] = useState('Nutriólogo');
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const name =
+        session?.user?.user_metadata?.full_name ||
+        session?.user?.user_metadata?.name ||
+        session?.user?.email?.split('@')[0] ||
+        'Nutriólogo';
+      setNutriologoName(name);
+    });
+  }, []);
+
+  return (
+    <NutriologoLayout nutriologoName={nutriologoName}>
+      <Dashboard />
+    </NutriologoLayout>
+  );
 }

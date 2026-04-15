@@ -7,9 +7,21 @@ use App\Models\Role;
 use App\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class AuthController extends Controller
 {
+    private function usersHasColumn(string $column): bool
+    {
+        static $userColumns = null;
+
+        if ($userColumns === null) {
+            $userColumns = array_flip(Schema::getColumnListing('users'));
+        }
+
+        return isset($userColumns[$column]);
+    }
+
     private function normalizeRoleValue(?string $rawRole): ?string
     {
         if (!$rawRole) {
@@ -55,7 +67,7 @@ class AuthController extends Controller
         if ($email) {
             $localUser = User::query()
                 ->with([
-                    'role:id,name,description',
+                    'role:role_id,name,description',
                     'nutriologoProfile:id,user_id,license_number,focus,certificate_uploads',
                 ])
                 ->where('email', $email)
@@ -94,11 +106,11 @@ class AuthController extends Controller
             $user->name = $validated['name'] ?: $user->name;
         }
 
-        if (array_key_exists('objective', $validated)) {
+        if (array_key_exists('objective', $validated) && $this->usersHasColumn('objective')) {
             $user->objective = $validated['objective'];
         }
 
-        if (array_key_exists('avatar_url', $validated)) {
+        if (array_key_exists('avatar_url', $validated) && $this->usersHasColumn('avatar_url')) {
             $user->avatar_url = $validated['avatar_url'];
         }
 
@@ -106,7 +118,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Perfil actualizado',
-            'user' => $user->load('role:id,name,description'),
+            'user' => $user->load('role:role_id,name,description'),
         ]);
     }
 
@@ -123,7 +135,7 @@ class AuthController extends Controller
 
         $role = $this->resolveRoleFromRequest($request);
 
-        $roleId = Role::query()->where('name', $role)->value('id');
+        $roleId = Role::query()->where('name', $role)->value('role_id');
         if (!$roleId) {
             return response()->json(['error' => 'Role not found'], 422);
         }
@@ -132,11 +144,11 @@ class AuthController extends Controller
         $user->name = $request->input('name', explode('@', $email)[0]);
         $user->role_id = $roleId;
 
-        if ($request->filled('avatar_url')) {
+        if ($request->filled('avatar_url') && $this->usersHasColumn('avatar_url')) {
             $user->avatar_url = $request->input('avatar_url');
         }
 
-        if ($request->filled('objective')) {
+        if ($request->filled('objective') && $this->usersHasColumn('objective')) {
             $user->objective = $request->input('objective');
         }
 
@@ -148,14 +160,16 @@ class AuthController extends Controller
 
         if ($role === 'nutriologo') {
             $profile = $request->input('profile', []);
-            $licenseNumber = trim((string) data_get($profile, 'licenseNumber', ''));
-            $focus = trim((string) data_get($profile, 'focus', ''));
-            $certificateUploads = data_get($profile, 'certificateUploads');
+            $licenseNumber = trim((string) data_get($profile, 'licenseNumber', data_get($profile, 'license_number', 'PENDIENTE')));
+            $focus = trim((string) data_get($profile, 'focus', 'General'));
+            $certificateUploads = data_get($profile, 'certificateUploads', data_get($profile, 'certificate_uploads'));
 
-            if ($licenseNumber === '' || $focus === '') {
-                return response()->json([
-                    'error' => 'Faltan datos requeridos del perfil de nutriologo (licenseNumber y focus).',
-                ], 422);
+            if ($licenseNumber === '') {
+                $licenseNumber = 'PENDIENTE';
+            }
+
+            if ($focus === '') {
+                $focus = 'General';
             }
 
             Nutriologo::query()->updateOrCreate(
@@ -170,7 +184,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Usuario sincronizado en base de datos',
-            'user' => $user->load('role:id,name,description')
+            'user' => $user->load('role:role_id,name,description')
         ]);
     }
 }

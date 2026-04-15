@@ -11,6 +11,8 @@ class IntentClassifier
             return null;
         }
 
+        $text = str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $text);
+
         $intents = IntentRegistry::forRole($roleName);
         $bestIntent = null;
         $bestScore = 0;
@@ -18,13 +20,23 @@ class IntentClassifier
         foreach ($intents as $intent => $config) {
             $score = 0;
             $keywords = $config['keywords'] ?? [];
+            $label = mb_strtolower((string) ($config['label'] ?? ''));
 
             foreach ($keywords as $keyword) {
                 $kw = mb_strtolower((string) $keyword);
+                $kw = str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $kw);
+
                 if ($kw !== '' && str_contains($text, $kw)) {
                     $score += mb_strlen($kw);
                 }
             }
+
+            if ($label !== '' && str_contains($text, $label)) {
+                $score += 8;
+            }
+
+            similar_text($text, $label, $labelSimilarity);
+            $score += (int) round($labelSimilarity / 12);
 
             if ($score > $bestScore) {
                 $bestScore = $score;
@@ -32,6 +44,6 @@ class IntentClassifier
             }
         }
 
-        return $bestScore >= 4 ? $bestIntent : null;
+        return $bestScore >= 3 ? $bestIntent : null;
     }
 }

@@ -12,10 +12,10 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(({ data: { session: nextSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: nextSession } }) => {
       if (!active) return;
       if (nextSession) {
-        syncLocalUserProfile(nextSession).catch(() => null);
+        await syncLocalUserProfile(nextSession).catch(() => null);
       } else {
         clearCachedLocalUser();
       }
@@ -23,10 +23,10 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
       setLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       if (!active) return;
       if (nextSession) {
-        syncLocalUserProfile(nextSession).catch(() => null);
+        await syncLocalUserProfile(nextSession).catch(() => null);
       } else {
         clearCachedLocalUser();
       }

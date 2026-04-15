@@ -1,6 +1,63 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { MessageCircle, X, Send, Loader2, Bot } from 'lucide-react';
+import { MessageCircle, X, Bot } from 'lucide-react';
+
+const renderMessageContent = (content) => {
+  const lines = content.split('\n').filter((l) => l !== '');
+  if (lines.length <= 1) {
+    return <p className="text-sm leading-relaxed">{content}</p>;
+  }
+  const hasBullets = lines.some((l) => l.startsWith('•') || l.startsWith('▸') || l.startsWith('-'));
+  return (
+    <div className="space-y-1.5">
+      {lines.map((line, i) => {
+        const isBullet = line.startsWith('•') || line.startsWith('▸') || (line.startsWith('-') && line.length > 1);
+        const isHeader = !isBullet && i === 0 && hasBullets;
+        if (isBullet) {
+          const text = line.replace(/^[•▸\-]\s*/, '');
+          return (
+            <div key={i} className="flex gap-2 items-start">
+              <span className="text-[#CCFF00] text-[8px] mt-[5px] leading-none flex-shrink-0">▶</span>
+              <span className="text-sm text-gray-200 leading-snug">{text}</span>
+            </div>
+          );
+        }
+        if (isHeader) {
+          return (
+            <p key={i} className="text-[11px] font-semibold uppercase tracking-wider text-[#9ecf00] mb-0.5">
+              {line}
+            </p>
+          );
+        }
+        return <p key={i} className="text-sm text-gray-300 leading-snug">{line}</p>;
+      })}
+    </div>
+  );
+};
+
+const normalizeRole = (rawRole) => {
+  const role = (rawRole || '').toString().trim().toLowerCase();
+  if (role === 'administrador') return 'admin';
+  if (role === 'nutriólogo') return 'nutriologo';
+  return role || 'cliente';
+};
+
+const filterButtonsByRole = (buttons, role) => {
+  const normalizedRole = normalizeRole(role);
+  const prefixMap = {
+    admin: 'admin.',
+    coach: 'coach.',
+    nutriologo: 'nutri.',
+    cliente: 'client.',
+  };
+
+  const prefix = prefixMap[normalizedRole];
+  if (!prefix) return [];
+
+  return (Array.isArray(buttons) ? buttons : []).filter((btn) =>
+    typeof btn?.intent === 'string' && btn.intent.startsWith(prefix)
+  );
+};
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,8 +71,8 @@ export default function Chatbot() {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [selectedRoutineId, setSelectedRoutineId] = useState('');
   const [selectedPlanId, setSelectedPlanId] = useState('');
-  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [currentRole, setCurrentRole] = useState('cliente');
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -37,8 +94,15 @@ export default function Chatbot() {
 
   const loadButtons = async () => {
     try {
-      const token = await getToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       if (!token) return;
+
+      const role = normalizeRole(
+        session?.user?.user_metadata?.role ||
+        session?.user?.app_metadata?.role
+      );
+      setCurrentRole(role);
 
       const response = await fetch('/api/chatbot/buttons', {
         headers: {
@@ -49,7 +113,9 @@ export default function Chatbot() {
 
       if (!response.ok) return;
       const data = await response.json();
-      setButtons(Array.isArray(data.buttons) ? data.buttons : []);
+      const resolvedRole = normalizeRole(data?.role || role);
+      setCurrentRole(resolvedRole);
+      setButtons(filterButtonsByRole(data.buttons, resolvedRole));
     } catch {
       // no-op
     }
@@ -244,8 +310,10 @@ export default function Chatbot() {
       const { response, data } = await postMessage({ intent, message: label, params });
 
       if (response.ok) {
+        const resolvedRole = normalizeRole(data?.role || currentRole);
+        setCurrentRole(resolvedRole);
         setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
-        if (Array.isArray(data.buttons)) setButtons(data.buttons);
+        if (Array.isArray(data.buttons)) setButtons(filterButtonsByRole(data.buttons, resolvedRole));
         updateSelectorData(intent, data.data);
       } else {
         const errorMsg = data.message || data.error || JSON.stringify(data);
@@ -260,68 +328,50 @@ export default function Chatbot() {
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || loading) return;
-
-    const userMessage = input.trim();
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-    setLoading(true);
-
-    try {
-      const { response, data } = await postMessage({ message: userMessage });
-
-      if (response.ok) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
-        if (Array.isArray(data.buttons)) setButtons(data.buttons);
-      } else {
-        const errorMsg = data.message || data.error || JSON.stringify(data);
-        setMessages(prev => [...prev, { role: 'assistant', content: `Error API (${response.status}): ${errorMsg}` }]);
-      }
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: `Error local: ${error.message}` }]);
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
     <>
-      {/* Botón Flotante */}
+      {/* Botón flotante */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 w-14 h-14 bg-[#CCFF00] text-black rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(204,255,0,0.3)] hover:scale-110 transition-transform z-40 ${isOpen ? 'scale-0' : 'scale-100'}`}
+        className={`fixed bottom-6 right-6 w-14 h-14 bg-[#CCFF00] text-black rounded-full flex items-center justify-center shadow-[0_0_0_4px_rgba(204,255,0,0.15),0_4px_24px_rgba(204,255,0,0.4)] hover:scale-110 transition-all duration-200 z-[9990] ${isOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'}`}
+        aria-label="Abrir asistente"
       >
         <MessageCircle className="w-6 h-6" />
       </button>
 
-      {/* Ventana de Chat */}
-      <div className={`fixed bottom-6 right-6 w-[350px] sm:w-[380px] h-[500px] bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl shadow-2xl flex flex-col overflow-hidden z-50 transition-all duration-300 origin-bottom-right ${isOpen ? 'scale-100 opacity-100' : 'scale-0 opacity-0 pointer-events-none'}`}>
-
+      {/* Ventana de chat */}
+      <div
+        className={`fixed bottom-6 right-6 flex flex-col bg-[#141414] border border-[#222] rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.75),0_0_0_1px_rgba(204,255,0,0.06)] overflow-hidden z-[9999] transition-all duration-300 origin-bottom-right w-[360px] sm:w-[400px] ${isOpen ? 'scale-100 opacity-100' : 'scale-0 opacity-0 pointer-events-none'}`}
+        style={{ height: '520px' }}
+      >
         {/* Header */}
-        <div className="bg-[#0D0D0D] p-4 flex items-center justify-between border-b border-[#2A2A2A]">
+        <div className="flex-shrink-0 bg-[#0A0A0A] border-b border-[#1e1e1e] px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#CCFF00]/10 flex items-center justify-center text-[#CCFF00] border border-[#CCFF00]/20">
-              <Bot className="w-6 h-6" />
+            <div className="relative">
+              <div className="w-9 h-9 rounded-full bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center">
+                <Bot className="w-4.5 h-4.5 text-[#CCFF00]" style={{ width: 18, height: 18 }} />
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#CCFF00] rounded-full border-2 border-[#0A0A0A]" />
             </div>
             <div>
-              <h3 className="text-white font-bold text-sm tracking-wide">Asistente CloudFit</h3>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-2 h-2 rounded-full bg-[#CCFF00] animate-pulse"></span>
-                <p className="text-xs text-gray-400 font-medium">En línea (Gemini AI)</p>
-              </div>
+              <h3 className="text-white font-semibold text-sm leading-tight">Asistente CloudFit</h3>
+              <p className="text-[11px] text-[#CCFF00]/60 leading-tight mt-0.5">En línea · Consultas por rol</p>
             </div>
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#2A2A2A] text-gray-400 hover:text-white transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#555] hover:text-white hover:bg-[#1e1e1e] transition-all"
+            aria-label="Cerrar"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Context selectors */}
         {(clientOptions.length > 0 || routineOptions.length > 0 || planOptions.length > 0) && (
-          <div className="px-3 py-2 bg-[#111] border-b border-[#2A2A2A] space-y-2">
+          <div className="flex-shrink-0 px-3 py-2.5 bg-[#0e0e0e] border-b border-[#1e1e1e] space-y-1.5">
             {clientOptions.length > 0 && (
               <select
                 value={selectedClientId}
@@ -332,35 +382,33 @@ export default function Chatbot() {
                   setRoutineOptions([]);
                   setPlanOptions([]);
                 }}
-                className="w-full text-xs bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg px-2 py-2 text-gray-200"
+                className="w-full text-[11px] bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#CCFF00]/40 transition-colors"
               >
-                <option value="">Selecciona cliente...</option>
+                <option value="">Selecciona un cliente…</option>
                 {clientOptions.map((opt) => (
                   <option key={opt.id} value={opt.id}>{opt.label}</option>
                 ))}
               </select>
             )}
-
             {routineOptions.length > 0 && (
               <select
                 value={selectedRoutineId}
                 onChange={(e) => setSelectedRoutineId(e.target.value)}
-                className="w-full text-xs bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg px-2 py-2 text-gray-200"
+                className="w-full text-[11px] bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#CCFF00]/40 transition-colors"
               >
-                <option value="">Selecciona rutina...</option>
+                <option value="">Selecciona una rutina…</option>
                 {routineOptions.map((opt) => (
                   <option key={opt.id} value={opt.id}>{opt.label}</option>
                 ))}
               </select>
             )}
-
             {planOptions.length > 0 && (
               <select
                 value={selectedPlanId}
                 onChange={(e) => setSelectedPlanId(e.target.value)}
-                className="w-full text-xs bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg px-2 py-2 text-gray-200"
+                className="w-full text-[11px] bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#CCFF00]/40 transition-colors"
               >
-                <option value="">Selecciona plan...</option>
+                <option value="">Selecciona un plan…</option>
                 {planOptions.map((opt) => (
                   <option key={opt.id} value={opt.id}>{opt.label}</option>
                 ))}
@@ -369,70 +417,67 @@ export default function Chatbot() {
           </div>
         )}
 
-        {/* Intent buttons */}
-        {buttons.length > 0 && (
-          <div className="px-3 py-2 bg-[#101010] border-b border-[#2A2A2A] flex flex-wrap gap-2 max-h-[110px] overflow-y-auto">
-            {buttons.map((btn) => (
-              <button
-                key={btn.intent}
-                type="button"
-                onClick={() => runIntent(btn.intent, btn.label)}
-                disabled={loading}
-                className="text-xs px-2.5 py-1.5 rounded-full border border-[#333] bg-[#1A1A1A] text-gray-200 hover:bg-[#242424] disabled:opacity-50"
-              >
-                {btn.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Mensajes */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-[#1A1A1A] to-[#0D0D0D] custom-scrollbar">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
           {messages.map((msg, idx) => (
-            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start items-start gap-2'}`}>
+              {msg.role === 'assistant' && (
+                <div className="w-6 h-6 rounded-full bg-[#CCFF00]/10 border border-[#CCFF00]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Bot style={{ width: 12, height: 12 }} className="text-[#CCFF00]" />
+                </div>
+              )}
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${msg.role === 'user'
-                    ? 'bg-[#CCFF00] text-black rounded-br-sm font-medium'
-                    : 'bg-[#2A2A2A] text-gray-200 rounded-bl-sm border border-[#333]'
-                  }`}
-                style={{ whiteSpace: 'pre-wrap' }}
+                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                  msg.role === 'user'
+                    ? 'bg-[#CCFF00] text-black rounded-br-sm font-semibold text-sm shadow-[0_2px_16px_rgba(204,255,0,0.2)]'
+                    : 'bg-[#1e1e1e] text-gray-200 rounded-tl-sm border border-[#2a2a2a]'
+                }`}
               >
-                {msg.content}
+                {msg.role === 'user'
+                  ? <p className="text-sm leading-relaxed">{msg.content}</p>
+                  : renderMessageContent(msg.content)}
               </div>
             </div>
           ))}
+
           {loading && (
-            <div className="flex justify-start">
-              <div className="max-w-[80%] bg-[#2A2A2A] rounded-2xl rounded-bl-sm px-4 py-3 border border-[#333] flex items-center gap-2">
-                <Loader2 className="w-4 h-4 text-[#CCFF00] animate-spin" />
-                <span className="text-xs text-gray-400 font-medium">El asistente está analizando...</span>
+            <div className="flex justify-start items-start gap-2">
+              <div className="w-6 h-6 rounded-full bg-[#CCFF00]/10 border border-[#CCFF00]/20 flex items-center justify-center flex-shrink-0">
+                <Bot style={{ width: 12, height: 12 }} className="text-[#CCFF00]" />
+              </div>
+              <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl rounded-tl-sm px-4 py-3.5 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#CCFF00]/70 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#CCFF00]/70 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#CCFF00]/70 animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input */}
-        <div className="p-3 bg-[#0D0D0D] border-t border-[#2A2A2A]">
-          <form onSubmit={sendMessage} className="relative flex items-center rounded-xl bg-[#1A1A1A] border border-[#2A2A2A] focus-within:border-[#CCFF00] transition-colors overflow-hidden">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Pregúntame algo..."
-              className="w-full bg-transparent text-white text-sm pl-4 pr-12 py-3.5 focus:outline-none placeholder-gray-500"
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || loading}
-              className="absolute right-2 w-9 h-9 flex items-center justify-center bg-[#CCFF00] text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#bbf000] focus:scale-95 transition-all"
-            >
-              <Send className="w-4 h-4 ml-0.5" />
-            </button>
-          </form>
+        {/* Footer */}
+        <div className="flex-shrink-0 bg-[#0A0A0A] border-t border-[#1e1e1e]">
+          {buttons.length > 0 && (
+            <div className="px-3 pt-3 pb-2">
+              <p className="text-[9px] uppercase tracking-[0.22em] text-[#3a3a3a] mb-2 px-0.5">Consultas disponibles</p>
+              <div className="flex flex-wrap gap-1.5 max-h-[90px] overflow-y-auto pr-0.5">
+                {buttons.map((btn) => (
+                  <button
+                    key={btn.intent}
+                    type="button"
+                    onClick={() => runIntent(btn.intent, btn.label)}
+                    disabled={loading}
+                    className="text-[11px] px-3 py-1.5 rounded-full bg-[#1a1a1a] border border-[#2a2a2a] text-gray-300 hover:bg-[#CCFF00] hover:text-black hover:border-[#CCFF00] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="text-center text-[10px] text-[#2e2e2e] py-2.5">CloudFit · Asistente con IA</p>
         </div>
       </div>
-
     </>
   );
 }

@@ -48,13 +48,26 @@ class ChatbotController extends Controller
         $allowed = IntentRegistry::forRole($roleName);
         if ($intent === '' || ! isset($allowed[$intent])) {
             return response()->json([
-                'reply' => $this->genericReply($roleName),
+                'reply' => $this->genericReply($roleName, (string) $request->input('message', '')),
+                'role' => $roleName,
                 'buttons' => IntentRegistry::buttonsForRole($roleName),
             ]);
         }
 
         $params = (array) $request->input('params', []);
-        $data = QueryExecutor::execute($intent, $localUser, $params);
+
+        try {
+            $data = QueryExecutor::execute($intent, $localUser, $params);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'reply' => 'Ocurrió un problema al procesar esa consulta. Intenta con otra opción disponible.',
+                'intent' => $intent,
+                'role' => $roleName,
+                'buttons' => IntentRegistry::buttonsForRole($roleName),
+            ], 200);
+        }
 
         $email = (string) ($request->attributes->get('supabase_email') ?? $localUser->email ?? 'Usuario');
         $nameFromEmail = explode('@', $email)[0] ?? 'Usuario';
@@ -65,6 +78,7 @@ class ChatbotController extends Controller
         return response()->json([
             'reply' => $reply,
             'intent' => $intent,
+            'role' => $roleName,
             'data' => $data,
             'buttons' => IntentRegistry::buttonsForRole($roleName),
         ]);
@@ -76,6 +90,7 @@ class ChatbotController extends Controller
         $roleName = $this->resolveRoleName($request, $localUser);
 
         return response()->json([
+            'role' => $roleName,
             'buttons' => IntentRegistry::buttonsForRole($roleName),
         ]);
     }
@@ -87,19 +102,32 @@ class ChatbotController extends Controller
             return null;
         }
 
-        return User::query()->with('role:id,name')->where('email', $email)->first();
+        return User::query()->with('role:role_id,name')->where('email', $email)->first();
     }
 
     private function resolveRoleName(Request $request, ?User $user): string
     {
-        $localRole = $user?->role?->name;
-        if ($localRole) {
-            return (string) $localRole;
+        $tokenRole = mb_strtolower((string) ($request->attributes->get('supabase_role') ?? ''));
+
+        if (in_array($tokenRole, ['admin', 'administrador'], true)) {
+            return 'admin';
         }
 
-        $tokenRole = mb_strtolower((string) ($request->attributes->get('supabase_role') ?? 'cliente'));
+        if ($tokenRole === 'coach') {
+            return 'coach';
+        }
 
-        return match ($tokenRole) {
+        if (in_array($tokenRole, ['nutriologo', 'nutriólogo'], true)) {
+            return 'nutriologo';
+        }
+
+        if ($tokenRole === 'cliente') {
+            return 'cliente';
+        }
+
+        $localRole = mb_strtolower((string) ($user?->role?->name ?? 'cliente'));
+
+        return match ($localRole) {
             'administrador' => 'admin',
             'coach' => 'coach',
             'nutriologo', 'nutriólogo' => 'nutriologo',
@@ -115,13 +143,15 @@ class ChatbotController extends Controller
         return IntentRegistry::buttonsForRole($roleName);
     }
 
-    private function genericReply(string $roleName): string
+    private function genericReply(string $roleName, string $message = ''): string
     {
+        $hint = trim($message) !== '' ? "Tu mensaje fue: '{$message}'." : 'No pude identificar claramente tu intención.';
+
         return match ($roleName) {
-            'coach' => 'No pude entender tu pregunta. Usa una opcion para consultar clientes, rutinas o progreso.',
-            'nutriologo' => 'No pude entender tu pregunta. Usa una opcion para consultar clientes y planes nutricionales.',
-            'cliente' => 'No pude entender tu pregunta. Usa una opcion para revisar tus rutinas, nutricion o contactos asignados.',
-            default => 'No pude entender tu pregunta. Intenta con una de las opciones sugeridas.',
+            'coach' => $hint . " Puedo ayudarte con clientes, rutinas, progreso o búsqueda de ejercicios. Prueba con algo como: 'muéstrame mis clientes' o usa uno de los botones.",
+            'nutriologo' => $hint . " Puedo ayudarte con pacientes, planes nutricionales, macros y comidas. Prueba con algo como: 'muéstrame mis pacientes' o 'ver macros del plan'.",
+            'cliente' => $hint . " Puedo ayudarte con tus rutinas, tu plan nutricional, tus macros o tus especialistas asignados. Intenta reformularlo o usar los botones sugeridos.",
+            default => $hint . ' Intenta con una de las opciones sugeridas para que pueda ayudarte mejor.',
         };
     }
 }
