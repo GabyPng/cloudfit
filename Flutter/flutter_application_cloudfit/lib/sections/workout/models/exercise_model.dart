@@ -1,76 +1,34 @@
-class Exercise {
+class RoutineExercise {
   final int id;
-  final String name;
-  final String category;
-  final String description;
-  final String imageUrl;
+  final int routineId;
+  final String exerciseName;
   final int sets;
-  final int reps;
-  final String difficulty;
-  final int duration;
-  final String instructions;
+  final String reps;
+  final String? restTime;
+  final String? notes;
+  final int order;
 
-  Exercise({
+  RoutineExercise({
     required this.id,
-    required this.name,
-    required this.category,
-    required this.description,
-    required this.imageUrl,
+    required this.routineId,
+    required this.exerciseName,
     required this.sets,
     required this.reps,
-    required this.difficulty,
-    required this.duration,
-    required this.instructions,
+    this.restTime,
+    this.notes,
+    required this.order,
   });
 
-  /// Convertir JSON de Supabase a modelo Exercise
-  factory Exercise.fromJson(Map<String, dynamic> json) {
-    final String name = (json['name'] ?? '').toLowerCase();
-    String imageUrl = (json['imageUrl'] ?? '').toString().trim();
-    
-    // Si no tiene imageUrl, asignar uno automático basado en el nombre
-    if (imageUrl.isEmpty) {
-      if (name.contains('dominada')) {
-        imageUrl = 'assets/images/Dominada.jpg';
-      } else if (name.contains('flexion')) {
-        imageUrl = 'assets/images/Flexiones.webp';
-      } else if (name.contains('sentadilla')) {
-        imageUrl = 'assets/images/Sentadilla.jpg';
-      } else if (name.contains('jona')) {
-        imageUrl = 'assets/images/Jona.png';
-      } else if (name.contains('efra')) {
-        imageUrl = 'assets/images/Efra.jpg';
-      } else {
-        imageUrl = 'assets/images/Dominada.jpg'; // default
-      }
-    }
-    
-    return Exercise(
-      id: json['id'] ?? 0,
-      name: json['name'] ?? '',
-      category: json['category'] ?? '',
-      description: json['description'] ?? '',
-      imageUrl: imageUrl,
-      sets: json['sets'] ?? 3,
-      reps: json['reps'] ?? 10,
-      difficulty: json['difficulty'] ?? 'Intermedio',
-      duration: json['duration'] ?? 60,
-      instructions: json['instructions'] ?? '',
+  factory RoutineExercise.fromMap(Map<String, dynamic> map) {
+    return RoutineExercise(
+      id: map['id'] as int,
+      routineId: map['routine_id'] as int,
+      exerciseName: map['exercise_name'] ?? '',
+      sets: map['sets'] as int? ?? 0,
+      reps: map['reps']?.toString() ?? '0',
+      restTime: map['rest_time'],
+      notes: map['notes'],
+      order: map['order'] as int? ?? 0,
     );
-  }
-
-  /// Convertir modelo a JSON para Supabase
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'category': category,
-      'description': description,
-      'imageUrl': imageUrl,
-      'sets': sets,
-      'reps': reps,
-      'difficulty': difficulty,
-      'duration': duration,
-      'instructions': instructions,
-    };
   }
 }
