@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,24 +17,58 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class CheckRole
 {
+    private function normalizeRole(?string $rawRole): ?string
+    {
+        if ($rawRole === null || trim((string) $rawRole) === '') {
+            return null;
+        }
+
+        $role = mb_strtoupper(trim((string) $rawRole));
+        $role = str_replace(['Á', 'É', 'Í', 'Ó', 'Ú'], ['A', 'E', 'I', 'O', 'U'], $role);
+
+        return match ($role) {
+            'ADMIN', 'ADMINISTRADOR' => 'ADMINISTRADOR',
+            'COACH' => 'COACH',
+            'NUTRIOLOGO' => 'NUTRIOLOGO',
+            'CLIENTE' => 'CLIENTE',
+            default => null,
+        };
+    }
+
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        $role = $request->attributes->get('supabase_role');
+        $requiredRoles = array_values(array_filter(array_map(fn ($role) => $this->normalizeRole($role), $roles)));
+        $requestRole = $this->normalizeRole($request->attributes->get('supabase_role'));
 
-        if (! $role) {
+        if ($requestRole && in_array($requestRole, $requiredRoles, true)) {
+            return $next($request);
+        }
+
+        $email = (string) ($request->attributes->get('supabase_email') ?? '');
+        if ($email !== '') {
+            $localRole = User::query()
+                ->with('role:role_id,name')
+                ->where('email', $email)
+                ->first()?->role?->name;
+
+            $normalizedLocalRole = $this->normalizeRole($localRole);
+
+            if ($normalizedLocalRole && in_array($normalizedLocalRole, $requiredRoles, true)) {
+                $request->attributes->set('supabase_role', $normalizedLocalRole);
+                return $next($request);
+            }
+        }
+
+        if (! $requestRole) {
             return response()->json([
-                'message' => 'No se encontró el rol del usuario en el token.',
+                'message' => 'No se encontró el rol del usuario en el token ni en la base local.',
             ], 403);
         }
 
-        if (! in_array($role, $roles)) {
-            return response()->json([
-                'message'        => 'No tienes permiso para acceder a este recurso.',
-                'required_roles' => $roles,
-                'your_role'      => $role,
-            ], 403);
-        }
-
-        return $next($request);
+        return response()->json([
+            'message'        => 'No tienes permiso para acceder a este recurso.',
+            'required_roles' => $requiredRoles,
+            'your_role'      => $requestRole,
+        ], 403);
     }
 }

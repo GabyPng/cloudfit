@@ -7,16 +7,16 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
-        // Create a temporary catalog of exercises
-        Schema::create('exercise_catalog', function (Blueprint $table) {
-            $table->id('exercise_id');
-            $table->string('name')->unique();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('exercise_catalog')) {
+            Schema::create('exercise_catalog', function (Blueprint $table) {
+                $table->id('exercise_id');
+                $table->string('name')->unique();
+                $table->timestamps();
+            });
+        }
 
-        // Insert unique exercise names from routine_exercises
         DB::statement("
             INSERT INTO exercise_catalog (name, created_at, updated_at)
             SELECT DISTINCT exercise_name, NOW(), NOW()
@@ -25,12 +25,12 @@ return new class extends Migration
             ON CONFLICT (name) DO NOTHING
         ");
 
-        // Add exercise_id column
-        Schema::table('routine_exercises', function (Blueprint $table) {
-            $table->unsignedBigInteger('exercise_id')->nullable();
-        });
+        if (!Schema::hasColumn('routine_exercises', 'exercise_id')) {
+            Schema::table('routine_exercises', function (Blueprint $table) {
+                $table->unsignedBigInteger('exercise_id')->nullable();
+            });
+        }
 
-        // Update exercise_id from catalog
         DB::statement("
             UPDATE routine_exercises re
             SET exercise_id = ec.exercise_id
@@ -38,23 +38,32 @@ return new class extends Migration
             WHERE re.exercise_name = ec.name
         ");
 
-        // Make exercise_id NOT NULL, drop old PK, add composite PK
+        DB::statement('ALTER TABLE routine_exercises ALTER COLUMN exercise_id SET NOT NULL');
+        DB::statement('ALTER TABLE routine_exercises DROP CONSTRAINT IF EXISTS routine_exercises_pkey');
+        DB::statement('ALTER TABLE routine_exercises DROP CONSTRAINT IF EXISTS routine_exercises_exercise_id_foreign');
+
         Schema::table('routine_exercises', function (Blueprint $table) {
-            $table->unsignedBigInteger('exercise_id')->nullable(false)->change();
-            $table->dropPrimary('routine_exercises_pkey'); // adjust name if needed
-            $table->primary(['exercise_id', 'routine_id']);
             $table->foreign('exercise_id')->references('exercise_id')->on('exercise_catalog')->cascadeOnDelete();
         });
+
+        DB::statement('ALTER TABLE routine_exercises ADD PRIMARY KEY (exercise_id, routine_id)');
     }
 
-    public function down()
+    public function down(): void
     {
-        Schema::table('routine_exercises', function (Blueprint $table) {
-            $table->dropForeign(['exercise_id']);
-            $table->dropPrimary(['exercise_id', 'routine_id']);
-            $table->dropColumn('exercise_id');
-            $table->id()->first();
-        });
+        DB::statement('ALTER TABLE routine_exercises DROP CONSTRAINT IF EXISTS routine_exercises_exercise_id_foreign');
+        DB::statement('ALTER TABLE routine_exercises DROP CONSTRAINT IF EXISTS routine_exercises_pkey');
+
+        if (Schema::hasColumn('routine_exercises', 'exercise_id')) {
+            Schema::table('routine_exercises', function (Blueprint $table) {
+                $table->dropColumn('exercise_id');
+            });
+        }
+
+        if (Schema::hasColumn('routine_exercises', 'id')) {
+            DB::statement('ALTER TABLE routine_exercises ADD PRIMARY KEY (id)');
+        }
+
         Schema::dropIfExists('exercise_catalog');
     }
 };

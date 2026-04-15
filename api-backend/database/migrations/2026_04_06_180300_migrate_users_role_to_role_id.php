@@ -9,9 +9,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->foreignId('role_id')->nullable()->after('email')->constrained('roles')->nullOnDelete();
-        });
+        if (!Schema::hasColumn('users', 'role_id')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->foreignId('role_id')->nullable()->after('email')->constrained('roles')->nullOnDelete();
+            });
+        }
 
         DB::statement("\n            UPDATE users\n            SET role_id = roles.id\n            FROM roles\n            WHERE LOWER(CAST(users.role AS TEXT)) = LOWER(roles.name)\n        ");
 
@@ -20,22 +22,29 @@ return new class extends Migration
             DB::table('users')->whereNull('role_id')->update(['role_id' => $clienteRoleId]);
         }
 
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('role');
-        });
+        if (Schema::hasColumn('users', 'role')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropColumn('role');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->enum('role', ['admin', 'coach', 'nutriologo', 'cliente'])->default('cliente')->after('email');
-        });
+        if (!Schema::hasColumn('users', 'role')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->enum('role', ['admin', 'coach', 'nutriologo', 'cliente'])->default('cliente')->after('email');
+            });
+        }
 
         DB::statement("\n            UPDATE users\n            SET role = roles.name\n            FROM roles\n            WHERE users.role_id = roles.id\n        ");
 
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropForeign(['role_id']);
-            $table->dropColumn('role_id');
-        });
+        DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_id_foreign');
+
+        if (Schema::hasColumn('users', 'role_id')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropColumn('role_id');
+            });
+        }
     }
 };

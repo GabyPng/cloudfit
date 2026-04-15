@@ -12,6 +12,8 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $primaryKey = 'user_id';
+
     /**
      * The attributes that are mass assignable.
      * Roles disponibles: admin, coach, nutriologo, cliente
@@ -50,14 +52,19 @@ class User extends Authenticatable
         ];
     }
 
+    public function getIdAttribute(): ?int
+    {
+        return $this->attributes['user_id'] ?? null;
+    }
+
     public function role()
     {
-        return $this->belongsTo(Role::class);
+        return $this->belongsTo(Role::class, 'role_id', 'role_id');
     }
 
     public function nutriologoProfile()
     {
-        return $this->hasOne(Nutriologo::class);
+        return $this->hasOne(Nutriologo::class, 'user_id', 'user_id');
     }
 
     public function hasRole($roleName)
