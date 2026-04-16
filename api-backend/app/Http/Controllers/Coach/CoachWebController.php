@@ -5,44 +5,34 @@ namespace App\Http\Controllers\Coach;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Routine;
-use App\Models\User;
 use App\Models\WorkoutLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class CoachController extends Controller
+class CoachWebController extends Controller
 {
     /**
-     * Resuelve el user_id local del coach a partir del supabase_uid del token.
+     * Dashboard principal del Coach.
      */
-    private function resolveCoachId(Request $request): ?int
+    public function inicio(Request $request)
     {
-        $email = $request->attributes->get('supabase_email');
-        if (!$email) {
-            return null;
-        }
+        $coachId = Auth::id();
+        $today   = Carbon::today();
 
-        return User::where('email', $email)->value('user_id');
-    }
+        // ── KPIs ────────────────────────────────────────────────────────
 
-    public function dashboard(Request $request)
-    {
-        $coachId = $this->resolveCoachId($request);
-        if (!$coachId) {
-            return response()->json(['error' => 'Coach no encontrado'], 404);
-        }
-
-        $today = Carbon::today();
-
-        // ── KPIs ────────────────────────────────────────────────────
+        // Total de atletas asignados a este coach
         $totalAtletas = Client::where('coach_id', $coachId)->count();
 
+        // Nuevos clientes este mes
         $nuevosEsteMes = Client::where('coach_id', $coachId)
             ->whereYear('created_at', $today->year)
             ->whereMonth('created_at', $today->month)
             ->count();
 
+        // Cumplimiento diario: % de clientes que completaron su rutina hoy
         $clientIds = Client::where('coach_id', $coachId)->pluck('user_id');
 
         $clientesConRutinaActiva = Routine::where('coach_id', $coachId)
@@ -50,16 +40,17 @@ class CoachController extends Controller
             ->distinct('client_id')
             ->count('client_id');
 
-        $entrenaronHoy = WorkoutLog::whereIn('client_id', $clientIds)
+        $entrenaronsHoy = WorkoutLog::whereIn('client_id', $clientIds)
             ->where('date', $today)
             ->where('is_complete', true)
             ->distinct('client_id')
             ->count('client_id');
 
         $porcentajeCumplimiento = $clientesConRutinaActiva > 0
-            ? round(($entrenaronHoy / $clientesConRutinaActiva) * 100)
+            ? round(($entrenaronsHoy / $clientesConRutinaActiva) * 100)
             : 0;
 
+        // Alertas de inactividad: clientes sin workout_log en los últimos 7 días
         $clientesActivos = WorkoutLog::whereIn('client_id', $clientIds)
             ->where('date', '>=', $today->copy()->subDays(7))
             ->distinct('client_id')
@@ -67,11 +58,13 @@ class CoachController extends Controller
 
         $alertasInactividad = $clientIds->diff($clientesActivos)->count();
 
+        // Planes (rutinas) activos
         $planesActivos = Routine::where('coach_id', $coachId)
             ->where('is_active', true)
             ->count();
 
-        // ── Clientes ────────────────────────────────────────────────
+        // ── Tabla: Monitoreo de Clientes ─────────────────────────────────
+
         $clientes = Client::where('clients.coach_id', $coachId)
             ->join('users', 'users.user_id', '=', 'clients.user_id')
             ->leftJoin('routines', function ($join) {
@@ -87,7 +80,7 @@ class CoachController extends Controller
                 'last_progress.client_id', '=', 'clients.user_id'
             )
             ->select([
-                'clients.user_id as id',
+                'clients.user_id',
                 'users.name as nombre',
                 'users.avatar_url as avatar',
                 'routines.name as plan_nombre',
@@ -105,37 +98,36 @@ class CoachController extends Controller
                 'last_progress.body_fat'
             )
             ->orderBy('users.name')
-            ->get()
-            ->map(function ($row) use ($today) {
+            ->paginate(10)
+            ->through(function ($row) use ($today) {
                 $lastDate = $row->last_date ? Carbon::parse($row->last_date) : null;
                 $inactive = !$lastDate || $lastDate->lt($today->copy()->subDays(7));
 
-                return [
-                    'id'           => $row->id,
-                    'nombre'       => $row->nombre,
-                    'avatar'       => $row->avatar,
-                    'plan_nombre'  => $row->plan_nombre ?? 'Sin plan',
-                    'estado'       => $inactive ? 'inactivo' : 'activo',
-                    'estado_label' => $inactive ? 'Inactivo' : 'Entrenado',
-                    'peso'         => $row->peso ? (float) $row->peso : null,
-                    'grasa'        => $row->grasa ? (float) $row->grasa : null,
-                ];
+                $row->estado       = $inactive ? 'inactivo' : 'activo';
+                $row->estado_label = $inactive ? 'Inactivo' : 'Entrenado';
+                $row->plan_nombre  = $row->plan_nombre ?? 'Sin plan';
+                $row->peso         = $row->peso ?? '—';
+                $row->grasa        = $row->grasa ?? '—';
+
+                return $row;
             });
 
-        // ── Actividad Reciente ──────────────────────────────────────
+        // ── Actividad Reciente ────────────────────────────────────────────
+
         $actividades = collect();
 
+        // Rutinas completadas hoy/ayer
         $completadas = WorkoutLog::whereIn('workout_logs.client_id', $clientIds)
             ->where('workout_logs.is_complete', true)
             ->where('workout_logs.date', '>=', $today->copy()->subDays(3))
             ->join('clients', 'clients.user_id', '=', 'workout_logs.client_id')
             ->join('users', 'users.user_id', '=', 'clients.user_id')
             ->join('routines', 'routines.id', '=', 'workout_logs.routine_id')
-            ->select('users.name as cliente_nombre', 'routines.name as rutina_nombre', 'workout_logs.created_at')
+            ->select('users.name as cliente_nombre', 'routines.name as rutina_nombre', 'workout_logs.date', 'workout_logs.created_at')
             ->orderByDesc('workout_logs.date')
             ->limit(5)
             ->get()
-            ->map(fn ($log) => [
+            ->map(fn ($log) => (object) [
                 'tipo'           => 'rutina_completada',
                 'cliente_nombre' => $log->cliente_nombre,
                 'detalle'        => "completó {$log->rutina_nombre}",
@@ -143,6 +135,7 @@ class CoachController extends Controller
             ]);
         $actividades = $actividades->merge($completadas);
 
+        // Registros de peso recientes
         $pesoReciente = DB::table('progress')
             ->whereIn('progress.client_id', $clientIds)
             ->where('progress.date', '>=', $today->copy()->subDays(7))
@@ -152,7 +145,7 @@ class CoachController extends Controller
             ->orderByDesc('progress.date')
             ->limit(3)
             ->get()
-            ->map(fn ($p) => [
+            ->map(fn ($p) => (object) [
                 'tipo'           => 'peso_registrado',
                 'cliente_nombre' => $p->cliente_nombre,
                 'detalle'        => "registró {$p->weight} kg",
@@ -160,6 +153,7 @@ class CoachController extends Controller
             ]);
         $actividades = $actividades->merge($pesoReciente);
 
+        // Nuevos clientes recientes
         $nuevos = Client::where('clients.coach_id', $coachId)
             ->where('clients.created_at', '>=', $today->copy()->subDays(30))
             ->join('users', 'users.user_id', '=', 'clients.user_id')
@@ -167,7 +161,7 @@ class CoachController extends Controller
             ->orderByDesc('clients.created_at')
             ->limit(3)
             ->get()
-            ->map(fn ($c) => [
+            ->map(fn ($c) => (object) [
                 'tipo'           => 'nuevo_cliente',
                 'cliente_nombre' => $c->cliente_nombre,
                 'detalle'        => 'se unió a tu equipo',
@@ -175,26 +169,54 @@ class CoachController extends Controller
             ]);
         $actividades = $actividades->merge($nuevos);
 
-        $actividades = $actividades->take(8)->values();
+        // Ordenar por más reciente
+        $actividades = $actividades->sortByDesc('tiempo_hace')->take(8)->values();
 
-        return response()->json([
-            'totalAtletas'           => $totalAtletas,
-            'nuevosEsteMes'          => $nuevosEsteMes,
-            'porcentajeCumplimiento' => $porcentajeCumplimiento,
-            'alertasInactividad'     => $alertasInactividad,
-            'planesActivos'          => $planesActivos,
-            'clientes'               => $clientes,
-            'actividades'            => $actividades,
-        ]);
+        return view('pages.coach.inicio', compact(
+            'totalAtletas',
+            'nuevosEsteMes',
+            'porcentajeCumplimiento',
+            'alertasInactividad',
+            'planesActivos',
+            'clientes',
+            'actividades',
+        ));
     }
 
     public function clientes(Request $request)
     {
-        return response()->json(['message' => 'Listado de clientes — por implementar.'], 501);
+        // TODO: implementar vista de clientes
+        return view('pages.coach.inicio', $this->emptyDashboardData());
     }
 
-    public function planes(Request $request)
+    public function rutinas(Request $request)
     {
-        return response()->json(['message' => 'Planes de entrenamiento — por implementar.']);
+        // TODO: implementar vista de rutinas
+        return view('pages.coach.inicio', $this->emptyDashboardData());
+    }
+
+    public function progreso(Request $request)
+    {
+        // TODO: implementar vista de progreso
+        return view('pages.coach.inicio', $this->emptyDashboardData());
+    }
+
+    public function perfil(Request $request)
+    {
+        // TODO: implementar vista de perfil
+        return view('pages.coach.inicio', $this->emptyDashboardData());
+    }
+
+    private function emptyDashboardData(): array
+    {
+        return [
+            'totalAtletas'           => 0,
+            'nuevosEsteMes'          => 0,
+            'porcentajeCumplimiento' => 0,
+            'alertasInactividad'     => 0,
+            'planesActivos'          => 0,
+            'clientes'               => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10),
+            'actividades'            => collect(),
+        ];
     }
 }

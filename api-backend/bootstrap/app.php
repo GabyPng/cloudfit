@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'supabase.auth' => \App\Http\Middleware\VerifySupabaseToken::class,
             'role'          => \App\Http\Middleware\CheckRole::class,
+            'coach.web'     => \App\Http\Middleware\AuthenticateCoachWeb::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

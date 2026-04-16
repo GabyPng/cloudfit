@@ -67,6 +67,16 @@ class User extends Authenticatable
         return $this->hasOne(Nutriologo::class, 'user_id', 'user_id');
     }
 
+    public function coachProfile()
+    {
+        return $this->hasOne(Coach::class, 'user_id', 'user_id');
+    }
+
+    public function clientProfile()
+    {
+        return $this->hasOne(Client::class, 'user_id', 'user_id');
+    }
+
     public function hasRole($roleName)
     {
         return $this->role && $this->role->name === (string) $roleName;
