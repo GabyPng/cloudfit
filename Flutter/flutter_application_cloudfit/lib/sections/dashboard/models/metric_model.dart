@@ -1,17 +1,18 @@
-import 'package:flutter/material.dart';
-
 class MetricModel {
   final String title;
-  final String value;
-  final String unit;
-  final Gradient? gradient;
-  final IconData icon;
+  final double value;
+  final double previousValue;
 
-  const MetricModel({
+  MetricModel({
     required this.title,
     required this.value,
-    required this.unit,
-    this.gradient,
-    required this.icon,
+    required this.previousValue,
   });
+
+  double get percentageChange {
+    if (previousValue == 0) return 0;
+    return ((value - previousValue) / previousValue) * 100;
+  }
+
+  bool get isPositive => percentageChange >= 0;
 }

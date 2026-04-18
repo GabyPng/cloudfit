@@ -4,10 +4,39 @@ import '../../core/services/exercise_service.dart';
 import '../../shared/widgets/exercise_card.dart';
 import 'models/exercise_model.dart';
 
-class ExerciseScreen extends StatelessWidget {
+class ExerciseScreen extends StatefulWidget {
   static const String name = 'exercise_screen';
 
   const ExerciseScreen({super.key});
+
+  @override
+  State<ExerciseScreen> createState() => _ExerciseScreenState();
+}
+
+class _ExerciseScreenState extends State<ExerciseScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<RoutineExercise> _applySearch(List<RoutineExercise> exercises) {
+    if (_searchQuery.isEmpty) return exercises;
+    return exercises
+        .where((e) => e.exerciseName .toLowerCase().contains(_searchQuery))
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,8 +44,9 @@ class ExerciseScreen extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           _buildAppBar(),
+          SliverToBoxAdapter(child: _buildSearchBar()),
           SliverPadding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
             sliver: StreamBuilder<List<RoutineExercise>>(
               stream: ExerciseService.getExercisesStream(),
               builder: (context, snapshot) {
@@ -52,9 +82,10 @@ class ExerciseScreen extends StatelessWidget {
                   );
                 }
 
-                final exercises = snapshot.data ?? [];
+                final allExercises = snapshot.data ?? [];
+                final exercises = _applySearch(allExercises);
 
-                if (exercises.isEmpty) {
+                if (allExercises.isEmpty) {
                   return const SliverFillRemaining(
                     child: Center(
                       child: Column(
@@ -65,6 +96,25 @@ class ExerciseScreen extends StatelessWidget {
                           Text(
                             'No hay ejercicios disponibles',
                             style: TextStyle(color: Colors.white70, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                if (exercises.isEmpty) {
+                  return SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.search_off, size: 64, color: Colors.white24),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Sin resultados para "$_searchQuery"',
+                            style: const TextStyle(color: Colors.white38, fontSize: 15),
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),
@@ -95,6 +145,34 @@ class ExerciseScreen extends StatelessWidget {
         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
       ),
       centerTitle: false,
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: 'Buscar ejercicio...',
+          hintStyle: const TextStyle(color: Colors.white38),
+          prefixIcon: const Icon(Icons.search, color: Colors.white38),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.white38),
+                  onPressed: () => _searchController.clear(),
+                )
+              : null,
+          filled: true,
+          fillColor: AppColors.cardGrey,
+          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
     );
   }
 }
