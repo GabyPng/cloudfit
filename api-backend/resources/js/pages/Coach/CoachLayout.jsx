@@ -41,7 +41,10 @@ export default function CoachLayout({ children, coachName = 'Coach', coachRole =
 
         <nav className="flex-1 px-4 space-y-2">
           {navItems.map((item) => {
-            const active = location.pathname === item.path;
+            const active =
+              item.path === '/coach'
+                ? location.pathname === '/coach'
+                : location.pathname.startsWith(item.path);
             const Icon = item.icon;
             return (
               <button

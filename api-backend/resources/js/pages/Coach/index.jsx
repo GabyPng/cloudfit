@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import CoachLayout from './CoachLayout';
 import Dashboard from './Dashboard';
+import Rutinas from './Rutinas';
 
 export default function CoachIndexPage() {
   const [coachName, setCoachName] = useState('Coach');
@@ -19,7 +21,10 @@ export default function CoachIndexPage() {
 
   return (
     <CoachLayout coachName={coachName}>
-      <Dashboard />
+      <Routes>
+        <Route index element={<Dashboard />} />
+        <Route path="rutinas" element={<Rutinas />} />
+      </Routes>
     </CoachLayout>
   );
 }
