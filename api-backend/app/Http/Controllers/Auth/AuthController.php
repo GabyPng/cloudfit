@@ -9,9 +9,21 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class AuthController extends Controller
 {
+    private function usersHasColumn(string $column): bool
+    {
+        static $userColumns = null;
+
+        if ($userColumns === null) {
+            $userColumns = array_flip(Schema::getColumnListing('users'));
+        }
+
+        return isset($userColumns[$column]);
+    }
+
     private function normalizeRoleValue(?string $rawRole): ?string
     {
         if (!$rawRole) {
@@ -96,11 +108,11 @@ class AuthController extends Controller
             $user->name = $validated['name'] ?: $user->name;
         }
 
-        if (array_key_exists('objective', $validated)) {
+        if (array_key_exists('objective', $validated) && $this->usersHasColumn('objective')) {
             $user->objective = $validated['objective'];
         }
 
-        if (array_key_exists('avatar_url', $validated)) {
+        if (array_key_exists('avatar_url', $validated) && $this->usersHasColumn('avatar_url')) {
             $user->avatar_url = $validated['avatar_url'];
         }
 
@@ -117,59 +129,68 @@ class AuthController extends Controller
      * Esto reemplaza la necesidad de un DB Trigger manual.
      */
     public function sync(Request $request)
-{
-    $email = $request->attributes->get('supabase_email');
-    if (!$email) {
-        return response()->json(['error' => 'No email in token'], 400);
-    }
-
-    $existingUser = User::where('email', $email)->first();
-
-    if ($existingUser && $existingUser->role_id) {
-        $roleModel = Role::find($existingUser->role_id);
-        if (!$roleModel) {
-            return response()->json(['error' => 'Rol inválido para el usuario'], 422);
+    {
+        $email = $request->attributes->get('supabase_email');
+        if (!$email) {
+            return response()->json(['error' => 'No email in token'], 400);
         }
-        $roleId = $existingUser->role_id;
-        $role = $roleModel->name;
-    } else {
-        $role = $this->resolveRoleFromRequest($request);
-        $roleId = Role::where('name', $role)->value('role_id');
-        if (!$roleId) {
-            return response()->json(['error' => 'Role not found'], 422);
+
+        $existingUser = User::where('email', $email)->first();
+
+        if ($existingUser && $existingUser->role_id) {
+            $roleModel = Role::find($existingUser->role_id);
+            if (!$roleModel) {
+                return response()->json(['error' => 'Rol inválido para el usuario'], 422);
+            }
+            $roleId = $existingUser->role_id;
+            $role = $roleModel->name;
+        } else {
+            $role = $this->resolveRoleFromRequest($request);
+
+            $roleId = Role::query()->where('name', $role)->value('role_id');
+            if (!$roleId) {
+                return response()->json(['error' => 'Role not found'], 422);
+            }
         }
-    }
 
-    $user = User::firstOrNew(['email' => $email]);
-    $user->name = $request->input('name', explode('@', $email)[0]);
-    $user->avatar_url = $request->input('avatar_url');
-    $user->objective = $request->input('objective');
+        $user = User::firstOrNew(['email' => $email]);
+        $user->name = $request->input('name', explode('@', $email)[0]);
 
-    $supabaseUid = $request->attributes->get('supabase_uid');
-    if ($supabaseUid && empty($user->supabase_id)) {
-        $user->supabase_id = $supabaseUid;
-    }
+        $supabaseUid = $request->attributes->get('supabase_uid');
+        if ($supabaseUid && empty($user->supabase_id)) {
+            $user->supabase_id = $supabaseUid;
+        }
 
-    if (!$existingUser) {
-        $user->role_id = $roleId;
-    }
+        if (!$existingUser) {
+            $user->role_id = $roleId;
+        }
 
-    if (!$user->exists) {
-        $user->password = '';
-    }
-    $user->save();
+        if ($request->filled('avatar_url') && $this->usersHasColumn('avatar_url')) {
+            $user->avatar_url = $request->input('avatar_url');
+        }
 
+        if ($request->filled('objective') && $this->usersHasColumn('objective')) {
+            $user->objective = $request->input('objective');
+        }
+
+        if (!$user->exists) {
+            $user->password = '';
+        }
+
+        $user->save();
 
         if ($role === 'nutriologo') {
             $profile = $request->input('profile', []);
-            $licenseNumber = trim((string) data_get($profile, 'licenseNumber', ''));
-            $focus = trim((string) data_get($profile, 'focus', ''));
-            $certificateUploads = data_get($profile, 'certificateUploads');
+            $licenseNumber = trim((string) data_get($profile, 'licenseNumber', data_get($profile, 'license_number', 'PENDIENTE')));
+            $focus = trim((string) data_get($profile, 'focus', 'General'));
+            $certificateUploads = data_get($profile, 'certificateUploads', data_get($profile, 'certificate_uploads'));
 
-            if ($licenseNumber === '' || $focus === '') {
-                return response()->json([
-                    'error' => 'Faltan datos requeridos del perfil de nutriologo (licenseNumber y focus).',
-                ], 422);
+            if ($licenseNumber === '') {
+                $licenseNumber = 'PENDIENTE';
+            }
+
+            if ($focus === '') {
+                $focus = 'General';
             }
 
             Nutriologo::query()->updateOrCreate(
@@ -182,39 +203,41 @@ class AuthController extends Controller
             );
         }
 
-// Actualizar metadatos en Supabase
-    $supabaseUid = $request->attributes->get('supabase_uid');
-    if ($supabaseUid) {
-        $this->updateSupabaseMetadata($supabaseUid, $role);
-    } else {
-        Log::warning('No supabase_uid found for user', ['email' => $email]);
-    }
-    
+        // Actualizar metadatos en Supabase
+        if ($supabaseUid) {
+            $this->updateSupabaseMetadata($supabaseUid, $role);
+        } else {
+            Log::warning('No supabase_uid found for user', ['email' => $email]);
+        }
+
         return response()->json([
             'message' => 'Usuario sincronizado en base de datos',
-            'user' => $user->load('role:role_id,name,description')
+            'user' => $user->load('role:role_id,name,description'),
         ]);
     }
+
     private function updateSupabaseMetadata($supabaseUid, $role)
-{
-    if (!$supabaseUid) return;
-
-    try {
-        $response = Http::withoutVerifying()->withHeaders([
-            'Authorization' => 'Bearer ' . config('supabase.service_role_key'),
-            'Content-Type' => 'application/json',
-        ])->patch(config('supabase.url') . '/auth/v1/admin/users/' . $supabaseUid, [
-            'user_metadata' => ['role' => $role],
-        ]);
-
-        if ($response->successful()) {
-            Log::info("Metadatos actualizados para $supabaseUid con role=$role");
-        } else {
-
-            Log::error("Error al actualizar metadatos: " . $response->body());
+    {
+        if (!$supabaseUid) {
+            return;
         }
-    } catch (\Exception $e) {
-        Log::error('Excepción al actualizar metadatos: ' . $e->getMessage());
+
+        try {
+            $response = Http::withoutVerifying()->withHeaders([
+                'Authorization' => 'Bearer ' . config('supabase.service_role_key'),
+                'Content-Type' => 'application/json',
+            ])->patch(config('supabase.url') . '/auth/v1/admin/users/' . $supabaseUid, [
+                'user_metadata' => ['role' => $role],
+            ]);
+
+            if ($response->successful()) {
+                Log::info("Metadatos actualizados para $supabaseUid con role=$role");
+            } else {
+                Log::error("Error al actualizar metadatos: " . $response->body());
+            }
+        } catch (\Exception $e) {
+            Log::error('Excepción al actualizar metadatos: ' . $e->getMessage());
+        }
     }
 }
-}
+

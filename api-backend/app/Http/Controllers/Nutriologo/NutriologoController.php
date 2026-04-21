@@ -10,9 +10,21 @@ use App\Models\NutritionPlanMeal;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class NutriologoController extends Controller
 {
+    private function userColumnExists(string $column): bool
+    {
+        static $userColumns = null;
+
+        if ($userColumns === null) {
+            $userColumns = array_flip(Schema::getColumnListing('users'));
+        }
+
+        return isset($userColumns[$column]);
+    }
+
     private function currentNutriologo(Request $request): ?Nutriologo
     {
         $email = $request->attributes->get('supabase_email');
@@ -20,12 +32,27 @@ class NutriologoController extends Controller
             return null;
         }
 
-        $user = User::query()->where('email', $email)->first();
+        $user = User::query()->with('role:role_id,name')->where('email', $email)->first();
         if (!$user) {
             return null;
         }
 
-        return Nutriologo::query()->where('user_id', $user->id)->first();
+        $profile = Nutriologo::query()->where('user_id', $user->id)->first();
+        if ($profile) {
+            return $profile;
+        }
+
+        $roleName = mb_strtolower((string) ($user->role?->name ?? ''));
+        if ($roleName === 'nutriologo') {
+            return Nutriologo::query()->create([
+                'user_id' => $user->id,
+                'license_number' => 'PENDIENTE',
+                'focus' => 'General',
+                'certificate_uploads' => null,
+            ]);
+        }
+
+        return null;
     }
 
     public function dashboard(Request $request)
@@ -35,24 +62,126 @@ class NutriologoController extends Controller
             return response()->json(['error' => 'No user in token'], 401);
         }
 
+        $assignmentsBase = NutritionPlanAssignment::query()
+            ->where('nutriologo_id', $nutriologo->id);
+
+        $totalAssignments = (clone $assignmentsBase)->count();
+        $activeAssignments = (clone $assignmentsBase)
+            ->where('status', 'active')
+            ->count();
+
         $stats = [
-            'clientes_asignados' => NutritionPlanAssignment::query()
-                ->where('nutriologo_id', $nutriologo->id)
+            'total_pacientes' => (clone $assignmentsBase)
                 ->distinct('client_id')
                 ->count('client_id'),
-            'planes_totales' => NutritionPlan::query()
-                ->where('nutriologo_id', $nutriologo->id)
+            'nuevos_este_mes' => (clone $assignmentsBase)
+                ->where(function ($query) {
+                    $query->whereBetween('assigned_at', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
+                        ->orWhereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
+                })
+                ->distinct('client_id')
+                ->count('client_id'),
+            'adherencia_promedio' => $totalAssignments > 0
+                ? (int) round(($activeAssignments / $totalAssignments) * 100)
+                : 0,
+            'alertas_nutricionales' => (clone $assignmentsBase)
+                ->where(function ($query) {
+                    $query->whereIn('status', ['paused', 'cancelled'])
+                        ->orWhere(function ($subQuery) {
+                            $subQuery->whereNotNull('ends_at')
+                                ->whereDate('ends_at', '<', now()->toDateString());
+                        });
+                })
                 ->count(),
-            'asignaciones_activas' => NutritionPlanAssignment::query()
+            'planes_activos' => NutritionPlan::query()
                 ->where('nutriologo_id', $nutriologo->id)
-                ->where('status', 'active')
+                ->where('is_active', true)
                 ->count(),
         ];
+
+        $statusLabels = [
+            'active' => 'Seguimiento activo',
+            'paused' => 'Plan pausado',
+            'completed' => 'Objetivo cumplido',
+            'cancelled' => 'Requiere atención',
+        ];
+
+        $userFields = ['user_id', 'name', 'email'];
+
+        if ($this->userColumnExists('avatar_url')) {
+            $userFields[] = 'avatar_url';
+        }
+
+        if ($this->userColumnExists('objective')) {
+            $userFields[] = 'objective';
+        }
+
+        $patientAssignments = NutritionPlanAssignment::query()
+            ->with(['client:' . implode(',', $userFields), 'nutritionPlan:id,title'])
+            ->where('nutriologo_id', $nutriologo->id)
+            ->latest('updated_at')
+            ->get();
+
+        $clientGoals = DB::table('clients')
+            ->whereIn('user_id', $patientAssignments->pluck('client_id')->filter()->unique())
+            ->pluck('goal', 'user_id');
+
+        $pacientes = $patientAssignments
+            ->unique('client_id')
+            ->take(8)
+            ->values()
+            ->map(function ($assignment) use ($statusLabels, $clientGoals) {
+                $status = $assignment->status ?? 'active';
+                $isAlert = in_array($status, ['paused', 'cancelled'], true)
+                    || ($assignment->ends_at && $assignment->ends_at->isPast());
+
+                return [
+                    'id' => $assignment->client?->id,
+                    'nombre' => $assignment->client?->name ?? 'Paciente sin nombre',
+                    'avatar_url' => $assignment->client?->avatar_url ?? null,
+                    'plan_nombre' => $assignment->nutritionPlan?->title ?? 'Sin plan asignado',
+                    'estado' => $isAlert ? 'alerta' : 'activo',
+                    'estado_label' => $statusLabels[$status] ?? 'Seguimiento activo',
+                    'ultimo_registro' => optional($assignment->updated_at)->diffForHumans() ?? 'Sin registro reciente',
+                    'objetivo' => $assignment->client?->objective
+                        ?: ($clientGoals->get($assignment->client_id) ?: 'Sin objetivo registrado'),
+                ];
+            });
+
+        $actividades = NutritionPlanAssignment::query()
+            ->with(['client:user_id,name', 'nutritionPlan:id,title'])
+            ->where('nutriologo_id', $nutriologo->id)
+            ->latest('updated_at')
+            ->take(6)
+            ->get()
+            ->map(function ($assignment) {
+                $type = match ($assignment->status) {
+                    'completed' => 'objetivo_cumplido',
+                    'paused', 'cancelled' => 'alerta_nutricional',
+                    default => 'plan_asignado',
+                };
+
+                $detail = match ($assignment->status) {
+                    'completed' => 'completó su plan ' . ($assignment->nutritionPlan?->title ?? 'nutricional'),
+                    'paused' => 'tiene su plan en pausa',
+                    'cancelled' => 'requiere revisión de seguimiento',
+                    default => 'tiene activo el plan ' . ($assignment->nutritionPlan?->title ?? 'nutricional'),
+                };
+
+                return [
+                    'tipo' => $type,
+                    'cliente_nombre' => $assignment->client?->name ?? 'Paciente',
+                    'detalle' => $detail,
+                    'tiempo_hace' => optional($assignment->updated_at)->diffForHumans() ?? 'Hace un momento',
+                ];
+            });
 
         return response()->json([
             'message' => 'Bienvenido al panel de Nutriologo.',
             'section' => 'nutriologo',
             'stats' => $stats,
+            'pacientes' => $pacientes,
+            'actividades' => $actividades,
         ]);
     }
 
@@ -67,12 +196,23 @@ class NutriologoController extends Controller
         $perPage = (int) $request->query('per_page', 10);
         $perPage = max(1, min($perPage, 50));
 
+        $clientSelects = [
+            'users.user_id as id',
+            'users.name',
+            'users.email',
+            $this->userColumnExists('avatar_url') ? 'users.avatar_url' : DB::raw('NULL as avatar_url'),
+            $this->userColumnExists('objective')
+                ? DB::raw("COALESCE(users.objective, clients.goal, 'Sin objetivo registrado') as objective")
+                : DB::raw("COALESCE(clients.goal, 'Sin objetivo registrado') as objective"),
+        ];
+
         $clientsQuery = User::query()
-            ->select('users.id', 'users.name', 'users.email', 'users.avatar_url', 'users.objective')
+            ->leftJoin('clients', 'clients.user_id', '=', 'users.user_id')
+            ->select($clientSelects)
             ->whereExists(function ($query) use ($nutriologo) {
                 $query->select(DB::raw(1))
                     ->from('nutrition_plan_assignments as npa')
-                    ->whereColumn('npa.client_id', 'users.id')
+                    ->whereColumn('npa.client_id', 'users.user_id')
                     ->where('npa.nutriologo_id', $nutriologo->id);
             });
 
@@ -147,7 +287,7 @@ class NutriologoController extends Controller
         }
 
         $plan = NutritionPlan::query()
-            ->with(['meals', 'assignments.client:id,name,email'])
+            ->with(['meals', 'assignments.client:user_id,name,email'])
             ->where('id', $planId)
             ->where('nutriologo_id', $nutriologo->id)
             ->first();

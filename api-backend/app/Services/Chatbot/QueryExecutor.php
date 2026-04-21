@@ -39,10 +39,11 @@ class QueryExecutor
 
     private static function coachClientList(int $coachUserId): array
     {
-        return DB::table('users')
-            ->where('coach_id', $coachUserId)
-            ->select('id', 'name', 'email', 'created_at')
-            ->orderBy('name')
+        return DB::table('clients as c')
+            ->join('users as u', 'u.user_id', '=', 'c.user_id')
+            ->where('c.coach_id', $coachUserId)
+            ->select('u.user_id as id', 'u.name', 'u.email', 'u.created_at')
+            ->orderBy('u.name')
             ->get()
             ->toArray();
     }
@@ -54,8 +55,8 @@ class QueryExecutor
             return ['error' => 'Se requiere client_id.'];
         }
 
-        $owns = DB::table('users')
-            ->where('id', $clientId)
+        $owns = DB::table('clients')
+            ->where('user_id', $clientId)
             ->where('coach_id', $coachUserId)
             ->exists();
 
@@ -64,7 +65,7 @@ class QueryExecutor
         }
 
         return DB::table('routines')
-            ->where('user_id', $clientId)
+            ->where('client_id', $clientId)
             ->where('coach_id', $coachUserId)
             ->select('id', 'name', 'description', 'is_active', 'created_at')
             ->latest('created_at')
@@ -108,8 +109,8 @@ class QueryExecutor
             return ['error' => 'Se requiere client_id.'];
         }
 
-        $owns = DB::table('users')
-            ->where('id', $clientId)
+        $owns = DB::table('clients')
+            ->where('user_id', $clientId)
             ->where('coach_id', $coachUserId)
             ->exists();
 
@@ -118,7 +119,7 @@ class QueryExecutor
         }
 
         $routines = DB::table('routines')
-            ->where('user_id', $clientId)
+            ->where('client_id', $clientId)
             ->where('coach_id', $coachUserId)
             ->select('id', 'name', 'is_active', 'created_at')
             ->get();
@@ -160,9 +161,9 @@ class QueryExecutor
         }
 
         return DB::table('nutrition_plan_assignments as npa')
-            ->join('users', 'users.id', '=', 'npa.client_id')
+            ->join('users', 'users.user_id', '=', 'npa.client_id')
             ->where('npa.nutriologo_id', $nutriologoId)
-            ->select('users.id', 'users.name', 'users.email')
+            ->select('users.user_id as id', 'users.name', 'users.email')
             ->distinct()
             ->orderBy('users.name')
             ->get()
@@ -311,7 +312,7 @@ class QueryExecutor
     private static function clientMyRoutines(int $userId): array
     {
         return DB::table('routines')
-            ->where('user_id', $userId)
+            ->where('client_id', $userId)
             ->select('id', 'name', 'description', 'is_active', 'created_at')
             ->latest('created_at')
             ->get()
@@ -327,7 +328,7 @@ class QueryExecutor
 
         $routine = DB::table('routines')
             ->where('id', $routineId)
-            ->where('user_id', $userId)
+            ->where('client_id', $userId)
             ->first();
 
         if (! $routine) {
@@ -395,14 +396,14 @@ class QueryExecutor
 
     private static function clientMyCoach(int $userId): mixed
     {
-        $coachId = DB::table('users')->where('id', $userId)->value('coach_id');
+        $coachId = DB::table('clients')->where('user_id', $userId)->value('coach_id');
         if (! $coachId) {
             return ['error' => 'No tienes coach asignado.'];
         }
 
         return DB::table('users')
-            ->where('id', $coachId)
-            ->select('id', 'name', 'email')
+            ->where('user_id', $coachId)
+            ->select('user_id as id', 'name', 'email')
             ->first();
     }
 
@@ -410,10 +411,10 @@ class QueryExecutor
     {
         $nutri = DB::table('nutrition_plan_assignments as npa')
             ->join('nutriologos as n', 'n.id', '=', 'npa.nutriologo_id')
-            ->join('users as u', 'u.id', '=', 'n.user_id')
+            ->join('users as u', 'u.user_id', '=', 'n.user_id')
             ->where('npa.client_id', $userId)
             ->where('npa.status', 'active')
-            ->select('u.id', 'u.name', 'u.email', 'n.focus')
+            ->select('u.user_id as id', 'u.name', 'u.email', 'n.focus')
             ->latest('npa.created_at')
             ->first();
 

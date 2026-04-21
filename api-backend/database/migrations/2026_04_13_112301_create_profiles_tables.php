@@ -9,30 +9,33 @@ return new class extends Migration
 {
     public function up()
     {
-        // Coaches table
-        Schema::create('coaches', function (Blueprint $table) {
-            $table->foreignId('user_id')->primary()->constrained('users', 'user_id')->cascadeOnDelete();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('coaches')) {
+            Schema::create('coaches', function (Blueprint $table) {
+                $table->foreignId('user_id')->primary()->constrained('users', 'user_id')->cascadeOnDelete();
+                $table->timestamps();
+            });
+        }
 
-        // Admins table
-        Schema::create('admins', function (Blueprint $table) {
-            $table->foreignId('user_id')->primary()->constrained('users', 'user_id')->cascadeOnDelete();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('admins')) {
+            Schema::create('admins', function (Blueprint $table) {
+                $table->foreignId('user_id')->primary()->constrained('users', 'user_id')->cascadeOnDelete();
+                $table->timestamps();
+            });
+        }
 
-        // Clients table
-        Schema::create('clients', function (Blueprint $table) {
-            $table->foreignId('user_id')->primary()->constrained('users', 'user_id')->cascadeOnDelete();
-            $table->foreignId('coach_id')->nullable()->constrained('coaches', 'user_id')->nullOnDelete();
-            $table->foreignId('nutritionist_id')->nullable()->constrained('nutriologos', 'user_id')->nullOnDelete();
-            $table->date('birth_date')->nullable();
-            $table->decimal('height', 5, 2)->nullable();
-            $table->string('goal')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('clients')) {
+            Schema::create('clients', function (Blueprint $table) {
+                $table->foreignId('user_id')->primary()->constrained('users', 'user_id')->cascadeOnDelete();
+                $table->foreignId('coach_id')->nullable()->constrained('coaches', 'user_id')->nullOnDelete();
+                $table->foreignId('nutritionist_id')->nullable()->constrained('nutriologos', 'user_id')->nullOnDelete();
+                $table->date('birth_date')->nullable();
+                $table->decimal('height', 5, 2)->nullable();
+                $table->string('goal')->nullable();
+                $table->timestamps();
+            });
+        }
 
-        // Migrate existing users based on role names (English role names: 'admin', 'coach', 'nutritionist', 'client')
+        // Migrate existing users based on role names
         DB::statement("
             INSERT INTO coaches (user_id, created_at, updated_at)
             SELECT u.user_id, u.created_at, u.updated_at

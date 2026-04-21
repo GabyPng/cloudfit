@@ -9,17 +9,20 @@ class Role extends Model
 {
     use HasFactory;
 
+    protected $primaryKey = 'role_id';
+
     protected $fillable = [
         'name',
         'description',
     ];
 
-    protected $primaryKey = 'role_id';
-public $incrementing = true; // si es autoincremental
-protected $keyType = 'int';
+    public function getIdAttribute(): ?int
+    {
+        return $this->attributes['role_id'] ?? null;
+    }
 
     public function users()
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(User::class, 'role_id', 'role_id');
     }
 }

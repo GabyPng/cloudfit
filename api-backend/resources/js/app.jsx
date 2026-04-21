@@ -27,7 +27,7 @@ function App() {
                     )}
                 />
                 <Route
-                    path="/coach"
+                    path="/coach/*"
                     element={(
                         <ProtectedRoute allowedRoles={['coach']}>
                             <CoachIndexPage />

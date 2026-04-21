@@ -1,33 +1,75 @@
-import { Users, CheckCircle, AlertTriangle, FileText, TrendingUp, Clock } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Users, CheckCircle, AlertTriangle, FileText, TrendingUp, Clock, Loader2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import KpiCard from './components/KpiCard';
 import ClientTable from './components/ClientTable';
 import ActivityFeed from './components/ActivityFeed';
 
-// ── Demo data (used until the API endpoints are wired up) ──────────
-const DEMO_DATA = {
-  totalAtletas: 24,
-  nuevosEsteMes: 2,
-  porcentajeCumplimiento: 78,
-  alertasInactividad: 3,
-  planesActivos: 18,
-  clientes: [
-    { id: 1, nombre: 'Carlos Ruiz', avatar: null, plan_nombre: 'Fuerza Max', estado: 'activo', estado_label: 'Entrenado', peso: 82.5, grasa: 14 },
-    { id: 2, nombre: 'Ana G.', avatar: null, plan_nombre: 'Cardio HIIT', estado: 'activo', estado_label: 'Sesión Activa', peso: 64.0, grasa: 19 },
-    { id: 3, nombre: 'Pedro S.', avatar: null, plan_nombre: 'Resistencia', estado: 'inactivo', estado_label: 'Inactivo 48h', peso: 91.2, grasa: 22 },
-  ],
-  actividades: [
-    { tipo: 'rutina_completada', cliente_nombre: 'Carlos Ruiz', detalle: 'completó su rutina', tiempo_hace: 'Hace 5 min • Pierna A' },
-    { tipo: 'peso_registrado', cliente_nombre: 'Ana G.', detalle: 'registró nuevo peso: 64kg', tiempo_hace: 'Hace 22 min' },
-    { tipo: 'record_personal', cliente_nombre: 'Pedro S.', detalle: 'récord personal detectado', tiempo_hace: 'Hace 1 hora • Press Banca' },
-    { tipo: 'nuevo_cliente', cliente_nombre: 'Laura M.', detalle: 'nuevo cliente asignado', tiempo_hace: 'Hace 3 horas' },
-  ],
+const EMPTY_DATA = {
+  totalAtletas: 0,
+  nuevosEsteMes: 0,
+  porcentajeCumplimiento: 0,
+  alertasInactividad: 0,
+  planesActivos: 0,
+  clientes: [],
+  actividades: [],
 };
 
-// TODO: Replace DEMO_DATA with real API call using supabase.auth.getSession()
-// and fetch('/api/coach/dashboard', { headers: { Authorization: `Bearer ${token}` } })
-
 export default function Dashboard() {
-  const data = DEMO_DATA;
+  const [data, setData] = useState(EMPTY_DATA);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    async function fetchDashboard() {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) {
+          setError('No hay sesión activa');
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch('/api/coach/dashboard', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error(`Error ${res.status}`);
+        }
+
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        console.error('Error fetching dashboard:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDashboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={32} className="animate-spin text-[#cafd00]" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-[#ff7351] text-sm">Error al cargar dashboard: {error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-12 gap-8">
