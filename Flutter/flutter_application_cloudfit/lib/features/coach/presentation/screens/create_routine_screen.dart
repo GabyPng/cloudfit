@@ -25,18 +25,18 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
     // 1. Obtenemos el ID numérico del Coach
     final coachData = await _supabase
         .from('users')
-        .select('id')
+        .select('user_id')
         .eq('supabase_id', _supabase.auth.currentUser!.id)
         .single();
 
     // 2. REEMPLAZO: Agregamos .select().single() para obtener el registro creado
     final routineResponse = await _supabase.from('routines').insert({
-      'name': _nameCtrl.text.trim(),
-      'description': _descCtrl.text.trim(),
-      'user_id': widget.clientId,
-      'coach_id': coachData['id'],
-      'is_active': true,
-    }).select().single(); // Esto nos devuelve el mapa de la rutina recién creada
+  'name': _nameCtrl.text.trim(),
+  'description': _descCtrl.text.trim(),
+  'client_id': widget.clientId,  // antes 'user_id'
+  'coach_id': coachData['user_id'], // usa 'user_id' (nueva columna)
+  'is_active': true,
+}).select().single();
 
     final newRoutineId = routineResponse['id'].toString(); // Extraemos el ID
 

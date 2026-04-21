@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/add_client_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/add_exercises_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/client_detail_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/coach_main_screen.dart';
@@ -123,6 +124,11 @@ final appRouter = GoRouter(
       path: '/coach-home',
       name: CoachMainScreen.name,
       builder: (context, state) => const CoachMainScreen(),
+    ),
+    GoRoute(
+      path: '/add-client',
+      name: AddClientScreen.name,
+      builder: (context, state) => const AddClientScreen(),
     ),
     GoRoute(
   path: '/client-detail/:id',

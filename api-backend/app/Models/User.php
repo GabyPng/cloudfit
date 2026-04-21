@@ -28,7 +28,8 @@ class User extends Authenticatable
         'avatar_url',
         'objective',
     ];
-
+    public $incrementing = true;
+    protected $keyType = 'int';    
     /**
      * The attributes that should be hidden for serialization.
      *
