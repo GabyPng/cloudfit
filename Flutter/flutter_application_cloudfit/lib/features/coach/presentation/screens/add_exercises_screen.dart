@@ -19,38 +19,65 @@ class _AddExercisesScreenState extends State<AddExercisesScreen> {
   bool _isLoading = false;
 
   Future<void> _addExercise() async {
-    if (_nameCtrl.text.isEmpty || _setsCtrl.text.isEmpty) return;
+  if (_nameCtrl.text.isEmpty || _setsCtrl.text.isEmpty) return;
 
-    setState(() => _isLoading = true);
-    try {
-      await _supabase.from('routine_exercises').insert({
-        'routine_id': widget.routineId,
-        'exercise_name': _nameCtrl.text.trim(),
-        'sets': int.parse(_setsCtrl.text),
-        'reps': _repsCtrl.text.trim(),
-        'rest_time': _restCtrl.text.trim(),
-      });
-
-      _nameCtrl.clear();
-      _setsCtrl.clear();
-      _repsCtrl.clear();
-      _restCtrl.clear();
-      
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Ejercicio añadido"), backgroundColor: AppColors.neonGreen)
-      );
-    } catch (e) {
-      print("Error: $e");
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+  setState(() => _isLoading = true);
+  try {
+    // 1. Buscar o crear el ejercicio en exercise_catalog
+    String exerciseName = _nameCtrl.text.trim();
+    var existing = await _supabase
+        .from('exercise_catalog')
+        .select('exercise_id')
+        .eq('name', exerciseName)
+        .maybeSingle();
+    
+    int exerciseId;
+    if (existing == null) {
+      // Crear nuevo ejercicio
+      final newExercise = await _supabase
+          .from('exercise_catalog')
+          .insert({'name': exerciseName})
+          .select()
+          .single();
+      exerciseId = newExercise['exercise_id'];
+    } else {
+      exerciseId = existing['exercise_id'];
     }
+
+    // 2. Insertar en routine_exercises
+    await _supabase.from('routine_exercises').insert({
+      'routine_id': int.parse(widget.routineId), // asegurar que es entero
+      'exercise_id': exerciseId,
+      'exercise_name': exerciseName, // opcional, pero lo guardamos
+      'sets': int.parse(_setsCtrl.text),
+      'reps': _repsCtrl.text.trim(),
+      'rest_time': _restCtrl.text.trim(),
+    });
+
+    // Limpiar campos...
+  } catch (e) {
+    print("Error: $e");
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.transparent, title: const Text("AÑADIR EJERCICIOS")),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent, 
+        title: const Text("AÑADIR EJERCICIOS"),
+        actions: [
+          TextButton.icon(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.check, color: AppColors.neonGreen),
+            label: const Text("TERMINAR", style: TextStyle(color: AppColors.neonGreen, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 10),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(child: _buildCurrentExercisesList()),

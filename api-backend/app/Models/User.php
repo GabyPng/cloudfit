@@ -26,7 +26,9 @@ class User extends Authenticatable
         'avatar_url',
         'objective',
     ];
-
+    protected $primaryKey = 'user_id';
+    public $incrementing = true;
+    protected $keyType = 'int';    
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -51,9 +53,14 @@ class User extends Authenticatable
     }
 
     public function role()
-    {
-        return $this->belongsTo(Role::class);
-    }
+{
+    return $this->belongsTo(Role::class, 'role_id', 'role_id');
+}
+
+public function coach()
+{
+    return $this->belongsTo(User::class, 'coach_id', 'user_id');
+}
 
     public function nutriologoProfile()
     {

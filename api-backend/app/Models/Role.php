@@ -14,6 +14,10 @@ class Role extends Model
         'description',
     ];
 
+    protected $primaryKey = 'role_id';
+public $incrementing = true; // si es autoincremental
+protected $keyType = 'int';
+
     public function users()
     {
         return $this->hasMany(User::class);

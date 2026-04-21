@@ -44,6 +44,16 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await AuthService.login(_emailCtrl.text.trim(), _passwordCtrl.text);
       await AuthService.syncCurrentUser();
+// --- NUEVO BLOQUE: Forzar la recarga del usuario ---
+  // Después del sync, obtenemos la sesión y el usuario de forma explícita
+  final session = Supabase.instance.client.auth.currentSession;
+  if (session != null) {
+    // Esta llamada fuerza al cliente a obtener los datos más recientes del usuario,
+    // incluyendo `user_metadata` actualizado por el backend.
+    await Supabase.instance.client.auth.getUser();
+  }
+  // Después de getUser, el usuario en Supabase.instance.client.auth.currentUser debería estar actualizado.
+  // ------------------------------------------------
       if (mounted) context.go(AuthService.homeRouteForCurrentUser);
     } on AuthException catch (e) {
       setState(() => _error = _mensajeError(e.message));
