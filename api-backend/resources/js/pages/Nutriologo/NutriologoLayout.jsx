@@ -15,13 +15,13 @@ import {
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Inicio', path: '/nutriologo', available: true },
-  { icon: Users, label: 'Pacientes', path: '/nutriologo/pacientes', available: false },
-  { icon: FileText, label: 'Planes Nutricionales', path: '/nutriologo/planes', available: false },
-  { icon: TrendingUp, label: 'Seguimiento', path: '/nutriologo/seguimiento', available: false },
-  { icon: User, label: 'Mi Perfil', path: '/nutriologo/perfil', available: false },
+  { icon: Users, label: 'Pacientes', path: '/nutriologo/pacientes', available: true },
+  { icon: FileText, label: 'Planes Nutricionales', path: '/nutriologo/planes', available: true },
+  { icon: TrendingUp, label: 'Seguimiento', path: '/nutriologo/seguimiento', available: true },
+  { icon: User, label: 'Mi Perfil', path: '/nutriologo/perfil', available: true },
 ];
 
-export default function NutriologoLayout({ children, nutriologoName = 'Nutriólogo', nutriologoRole = 'Especialista en Nutrición' }) {
+export default function NutriologoLayout({ children, nutriologoName = 'Nutriólogo', nutriologoRole = 'Especialista en Nutrición', mainClass }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -93,10 +93,15 @@ export default function NutriologoLayout({ children, nutriologoName = 'Nutriólo
           </div>
         </div>
         <div className="flex items-center gap-6">
-          <button className="flex items-center gap-2 bg-[#cafd00] text-[#3a4a00] px-5 py-2.5 rounded-sm font-headline font-extrabold text-sm hover:opacity-90 transition-opacity uppercase tracking-tight whitespace-nowrap">
-            <Plus size={16} />
-            Asignar Plan
-          </button>
+          {!['/nutriologo/pacientes', '/nutriologo/seguimiento', '/nutriologo/perfil'].includes(location.pathname) && (
+            <button
+              onClick={() => navigate('/nutriologo/pacientes')}
+              className="flex items-center gap-2 bg-[#cafd00] text-[#3a4a00] px-5 py-2.5 rounded-sm font-headline font-extrabold text-sm hover:opacity-90 transition-opacity uppercase tracking-tight whitespace-nowrap"
+            >
+              <Plus size={16} />
+              Asignar Plan
+            </button>
+          )}
           <div className="relative">
             <Bell size={20} className="text-[#adaaaa] hover:text-[#f3ffca] cursor-pointer transition-colors" />
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#ff7351] rounded-full"></span>
@@ -104,7 +109,7 @@ export default function NutriologoLayout({ children, nutriologoName = 'Nutriólo
         </div>
       </header>
 
-      <main className="ml-64 pt-24 p-8 min-h-screen bg-[#0e0e0e]">
+      <main className={mainClass ?? 'ml-64 pt-24 p-8 min-h-screen bg-[#0e0e0e]'}>
         {children}
       </main>
 
