@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_claude-mem_mcp-search__smart_outline",
+      "Read(//mnt/c/CloudFit/cloudfit/**)",
+      "Bash(php artisan *)",
+      "Bash(npx vite *)",
+      "Bash(xargs grep *)",
+      "Bash(node *)",
+      "Bash(git -C /c/CloudFit/cloudfit stash list)",
+      "Bash(git -C /c/CloudFit/cloudfit show HEAD:api-backend/resources/js/pages/Coach/Rutinas.jsx)",
+      "Bash(git -C /c/CloudFit/cloudfit log --all --oneline -- \"api-backend/resources/js/pages/Coach/Rutinas.jsx\")",
+      "Bash(git *)"
+    ]
+  }
+}

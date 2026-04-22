@@ -10,6 +10,9 @@ Route::get('/plan-entrenamiento', [ClienteController::class, 'planEntrenamiento'
 Route::get('/plan-nutricional',   [ClienteController::class, 'planNutricional']);
 Route::get('/progreso',           [ClienteController::class, 'progreso']);
 
+Route::get('/cambios-dieta', [ClienteController::class, 'cambiosDieta']);
+Route::patch('/cambios-dieta/{id}/responder', [ClienteController::class, 'responderCambioDieta']);
+
 // Otras del cliente:
 // Route::post('/progreso',          [ClienteController::class, 'registrarProgreso']);
 // Route::get('/recompensas',        [RecompensaController::class, 'index']);

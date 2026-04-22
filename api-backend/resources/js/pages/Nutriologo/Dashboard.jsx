@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   CheckCircle,
@@ -72,6 +73,7 @@ const typeConfig = {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [data, setData] = useState(initialData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -276,10 +278,16 @@ export default function Dashboard() {
 
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#f3ffca] transition-colors">
+                              <button
+                                onClick={() => navigate('/nutriologo/pacientes', { state: { patientId: paciente.id } })}
+                                className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#f3ffca] transition-colors"
+                              >
                                 Plan
                               </button>
-                              <button className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#ac8aff] transition-colors">
+                              <button
+                                onClick={() => navigate('/nutriologo/pacientes', { state: { patientId: paciente.id } })}
+                                className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#ac8aff] transition-colors"
+                              >
                                 Seguimiento
                               </button>
                             </div>
