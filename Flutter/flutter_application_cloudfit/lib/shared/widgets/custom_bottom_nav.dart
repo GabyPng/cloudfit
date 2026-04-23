@@ -26,13 +26,12 @@ class CustomBottomNav extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-  _navItem(Icons.home_filled, 0),         // Dashboard
-  _navItem(Icons.fitness_center, 1),     // Ejercicios
-  _navItem(Icons.restaurant_menu, 2),    // Nutrición
-  _navItem(Icons.show_chart, 3),         // Progreso
-  _navItem(Icons.workspace_premium, 4),  // Logros
-  _navItem(Icons.groups_outlined, 6),    // Profesionales
-  _navItem(Icons.person_outline, 5),     // Perfil
+  _navItem(Icons.home_filled, 0),         // Dashboard    branch 0
+  _navItem(Icons.restaurant_menu, 2),    // Nutrición    branch 2
+  _navItem(Icons.show_chart, 3),         // Progreso     branch 3
+  _navItem(Icons.workspace_premium, 4),  // Logros       branch 4
+  _navItem(Icons.groups_outlined, 6),    // Profesionales branch 6
+  _navItem(Icons.person_outline, 5),     // Perfil       branch 5
 ],
       ),
     );
