@@ -14,10 +14,22 @@ class Nutriologo extends Model
         'license_number',
         'focus',
         'certificate_uploads',
+        'bio',
+        'specialties',
+        'experience_years',
+        'location',
+        'consultation_price',
+        'profile_visible',
+        'social_links',
+        'phone',
     ];
 
     protected $casts = [
         'certificate_uploads' => 'array',
+        'specialties'         => 'array',
+        'social_links'        => 'array',
+        'profile_visible'     => 'boolean',
+        'consultation_price'  => 'decimal:2',
     ];
 
     public function user()

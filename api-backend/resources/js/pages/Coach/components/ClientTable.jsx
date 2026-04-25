@@ -1,9 +1,5 @@
-<<<<<<< Updated upstream
-import { Filter, Download } from 'lucide-react';
-=======
 import { Filter, Download, Dumbbell, Zap, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
->>>>>>> Stashed changes
 
 const ICON_MAP = { dumbbell: Dumbbell, zap: Zap, heart: Heart };
 
@@ -59,6 +55,8 @@ function RutinasBadges({ rutinas = [], inactive }) {
 }
 
 export default function ClientTable({ clientes = [], totalAtletas = 0 }) {
+  const navigate = useNavigate();
+
   return (
     <section className="bg-[#1a1a1a] rounded-xl overflow-hidden flex flex-col">
       {/* Header */}
@@ -151,16 +149,11 @@ export default function ClientTable({ clientes = [], totalAtletas = 0 }) {
                   {/* Acciones */}
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-<<<<<<< Updated upstream
-                      <button className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#f3ffca] transition-colors">
-                        Rutina
-=======
                       <button
                         onClick={() => navigate(`/coach/clientes?clientId=${cliente.id}`)}
                         className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#f3ffca] transition-colors"
                       >
                         Rutinas
->>>>>>> Stashed changes
                       </button>
                       <button className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#ac8aff] transition-colors">
                         Evolución

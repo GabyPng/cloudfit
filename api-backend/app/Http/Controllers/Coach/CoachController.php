@@ -46,8 +46,9 @@ class CoachController extends Controller
 
         $clientIds = Client::where('coach_id', $coachId)->pluck('user_id');
 
-        $clientesConRutinaActiva = Routine::where('coach_id', $coachId)
-            ->where('is_active', true)
+        $clientesConRutinaActiva = DB::table('routine_assignments')
+            ->where('coach_id', $coachId)
+            ->where('status', 'active')
             ->distinct('client_id')
             ->count('client_id');
 
@@ -75,13 +76,6 @@ class CoachController extends Controller
         // ── Clientes ────────────────────────────────────────────────
         $clientes = Client::where('clients.coach_id', $coachId)
             ->join('users', 'users.user_id', '=', 'clients.user_id')
-<<<<<<< Updated upstream
-            ->leftJoin('routines', function ($join) {
-                $join->on('routines.client_id', '=', 'clients.user_id')
-                     ->where('routines.is_active', true);
-            })
-=======
->>>>>>> Stashed changes
             ->leftJoin(
                 DB::raw('(SELECT client_id, MAX(date) as last_date FROM workout_logs GROUP BY client_id) AS last_log'),
                 'last_log.client_id', '=', 'clients.user_id'

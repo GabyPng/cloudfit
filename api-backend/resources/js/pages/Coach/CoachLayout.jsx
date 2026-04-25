@@ -38,7 +38,10 @@ export default function CoachLayout({ children, coachName = 'Coach', coachRole =
 
         <nav className="flex-1 px-4 space-y-2">
           {navItems.map((item) => {
-            const active = location.pathname === item.path;
+            const active =
+              item.path === '/coach'
+                ? location.pathname === '/coach'
+                : location.pathname.startsWith(item.path);
             const Icon = item.icon;
             return (
               <button
@@ -86,10 +89,7 @@ export default function CoachLayout({ children, coachName = 'Coach', coachRole =
           </div>
         </div>
         <div className="flex items-center gap-6">
-          <button className="flex items-center gap-2 bg-[#cafd00] text-[#3a4a00] px-5 py-2.5 rounded-sm font-headline font-extrabold text-sm hover:opacity-90 transition-opacity uppercase tracking-tight whitespace-nowrap">
-            <Plus size={16} />
-            Asignar Rutina
-          </button>
+
           <div className="relative">
             <Bell size={20} className="text-[#adaaaa] hover:text-[#f3ffca] cursor-pointer transition-colors" />
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#ff7351] rounded-full"></span>

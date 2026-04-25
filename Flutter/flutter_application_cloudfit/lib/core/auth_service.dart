@@ -31,7 +31,12 @@ class AuthService {
     return _client.auth.currentSession?.accessToken;
   }
 
+  static String? _localRoleOverride;
+
   static UserRole get currentRole {
+    if (_localRoleOverride != null) {
+      return parseUserRole(_localRoleOverride);
+    }
     final user = _client.auth.currentUser;
     final roleFromMetadata = user?.userMetadata?['role'] as String?;
     final roleFromAppMetadata = user?.appMetadata['role'] as String?;
@@ -47,30 +52,42 @@ class AuthService {
     );
   }
 
-  static Future<void> syncCurrentUser({
-    String? name,
-    String? role,
-    Map<String, dynamic>? profile,
-  }) async {
-    final token = _client.auth.currentSession?.accessToken;
-    if (token == null) return;
+  static Future<String?> syncCurrentUser({String? name, String? role, Map<String, dynamic>? profile}) async {
+  final token = _client.auth.currentSession?.accessToken;
+  if (token == null) return null;
 
-    final response = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/sync'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
-        'role': role ?? 'cliente',
-        if (profile != null) 'profile': profile,
-      }),
-    );
+  final Map<String, dynamic> body = {};
+  if (name != null && name.trim().isNotEmpty) body['name'] = name.trim();
+  if (role != null) body['role'] = role;
+  if (profile != null) body['profile'] = profile;
 
-    if (response.statusCode >= 400) {
-      throw Exception('Sync failed: ${response.statusCode} ${response.body}');
-    }
+  final response = await http.post(
+    Uri.parse('${ApiConfig.baseUrl}/sync'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+    body: jsonEncode(body),
+  );
+
+  if (response.statusCode >= 400) {
+    throw Exception('Sync failed: ${response.statusCode} ${response.body}');
   }
+
+  await _client.auth.refreshSession();
+  
+  try {
+    final responseData = jsonDecode(response.body);
+    final backendRole = responseData['user']?['role']?['name'] as String?;
+    if (backendRole != null) {
+      _localRoleOverride = backendRole;
+      return backendRole;
+    }
+  } catch (e) {
+    print('Failed to parse role from sync response: $e');
+  }
+  return null;
+}
+
 }

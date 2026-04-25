@@ -59,7 +59,6 @@ class VerifySupabaseToken
         $token = $request->bearerToken();
 
         if (!$token) {
-            \Log::error('No token provided');
             return response()->json(['message' => 'Token requerido.'], 401);
         }
 
@@ -72,38 +71,25 @@ class VerifySupabaseToken
                 }
                 
                 $jwksUrl = "{$supabaseUrl}/auth/v1/.well-known/jwks.json";
-                \Log::info("Obteniendo JWKS desde: {$jwksUrl}");
-                
-                // En desarrollo local, deshabilita la verificación SSL para evitar errores de certificado
-                // En producción, asegúrate de que PHP tenga los certificados raíz actualizados
+
                 $response = Http::timeout(10)
                     ->withoutVerifying()
                     ->get($jwksUrl);
-                
+
                 if (!$response->successful()) {
                     throw new \RuntimeException('Fallo al obtener JWKS: ' . $response->status());
                 }
-                
-                $data = $response->json();
-                \Log::info('JWKS obtenido correctamente. Keys: ' . count($data['keys'] ?? []));
-                return $data;
+
+                return $response->json();
             });
 
             if (!isset($jwks['keys']) || empty($jwks['keys'])) {
                 throw new \RuntimeException('JWKS vacío o sin claves');
             }
 
-            // Convierte JWKS a Key usando firebase/php-jwt
             $keys = JWK::parseKeySet($jwks);
-            \Log::info('JWK parseado correctamente. Claves disponibles: ' . count($keys));
-            
-            // Decodifica el token usando el conjunto de claves
             $decoded = JWT::decode($token, $keys);
-            
-            // Convierte a array
             $payload = (array) $decoded;
-            
-            \Log::info('✓ Token verificado exitosamente. User: ' . ($payload['sub'] ?? 'unknown'));
 
             // Almacena datos en los atributos del request
             $request->attributes->set('supabase_uid', $payload['sub'] ?? null);
@@ -114,17 +100,11 @@ class VerifySupabaseToken
             $request->attributes->set('supabase_role', $this->extractRoleClaim($payload));
 
         } catch (ExpiredException $e) {
-            \Log::error('Token expirado: ' . $e->getMessage());
             return response()->json(['message' => 'Token expirado.'], 401);
         } catch (SignatureInvalidException $e) {
-            \Log::error('Firma JWT inválida: ' . $e->getMessage());
             return response()->json(['message' => 'Firma inválida.'], 401);
         } catch (\Exception $e) {
-            \Log::error('Error JWT: ' . $e->getMessage(), ['exception' => $e]);
-            return response()->json([
-                'message' => 'Token inválido.', 
-                'error' => $e->getMessage()
-            ], 401);
+            return response()->json(['message' => 'Token inválido.'], 401);
         }
 
         return $next($request);
