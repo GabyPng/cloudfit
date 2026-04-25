@@ -28,7 +28,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
           .from('users')
           .select('user_id, name, email, avatar_url')
           .or('name.ilike.%$query%,email.ilike.%$query%')
-          .neq('role', 'coach') // Assuming coaches can't be clients
+          .neq('role_id', 2) // Exclude users with coach role; current schema uses role_id
           .limit(10);
 
       setState(() => _searchResults = List<Map<String, dynamic>>.from(results));
