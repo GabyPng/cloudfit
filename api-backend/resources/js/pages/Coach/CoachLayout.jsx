@@ -8,9 +8,6 @@ import {
   TrendingUp,
   User,
   LogOut,
-  Search,
-  Plus,
-  Bell,
 } from 'lucide-react';
 
 const navItems = [
@@ -79,6 +76,7 @@ export default function CoachLayout({ children, coachName = 'Coach', coachRole =
       </aside>
 
       {/* Top Header */}
+<<<<<<< HEAD
       <header className="fixed top-0 right-0 left-64 flex justify-between items-center px-8 h-20 z-40 bg-[#0e0e0e]/80 backdrop-blur-xl border-b border-[#cafd00]/15 shadow-2xl shadow-black/50">
         <div className="flex items-center gap-6">
           <div className="relative">
@@ -98,6 +96,9 @@ export default function CoachLayout({ children, coachName = 'Coach', coachRole =
           </div>
         </div>
       </header>
+=======
+      <header className="fixed top-0 right-0 left-64 flex items-center px-8 h-20 z-40 bg-[#0e0e0e]/80 backdrop-blur-xl border-b border-[#cafd00]/15 shadow-2xl shadow-black/50" />
+>>>>>>> webCoach
 
       {/* Main Canvas */}
       <main className="ml-64 pt-24 p-8 min-h-screen bg-[#0e0e0e]">

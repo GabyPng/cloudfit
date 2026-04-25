@@ -470,6 +470,7 @@ class RutinasController extends Controller
         $routine = Routine::where('coach_id', $coachId)
             ->findOrFail($data['routineId']);
 
+<<<<<<< HEAD
         // Check for existing active assignment for this client
         $existing = RoutineAssignment::where('client_id', $data['clientId'])
             ->where('coach_id', $coachId)
@@ -479,6 +480,16 @@ class RutinasController extends Controller
         if ($existing) {
             // Mark the previous one as completed before assigning new
             $existing->update(['status' => 'completed']);
+=======
+        // Prevent assigning the same routine twice (active)
+        $duplicate = RoutineAssignment::where('client_id', $data['clientId'])
+            ->where('routine_id', $data['routineId'])
+            ->where('status', 'active')
+            ->exists();
+
+        if ($duplicate) {
+            return response()->json(['error' => 'Esta rutina ya está asignada activamente a este cliente.'], 422);
+>>>>>>> webCoach
         }
 
         $assignment = RoutineAssignment::create([
@@ -561,6 +572,67 @@ class RutinasController extends Controller
     }
 
     /* ══════════════════════════════════════════════════════════════════════
+<<<<<<< HEAD
+=======
+     |  CLIENT ROUTINES (admin view)
+     |══════════════════════════════════════════════════════════════════════ */
+
+    /**
+     * GET /coach/rutinas/clients/{id}/routines
+     * All assignments (active/paused, with routine details + exercises) for a client.
+     */
+    public function clientRoutinesList(Request $request, int $clientId): JsonResponse
+    {
+        $coachId = $this->coachId($request);
+        if (!$coachId) {
+            return response()->json(['error' => 'Coach no encontrado'], 404);
+        }
+
+        $client = Client::where('coach_id', $coachId)
+            ->where('user_id', $clientId)
+            ->with('user')
+            ->first();
+
+        if (!$client) {
+            return response()->json(['error' => 'Cliente no encontrado'], 404);
+        }
+
+        $parts = explode(' ', $client->user->name);
+        $initials = '';
+        foreach (array_slice($parts, 0, 2) as $p) {
+            $initials .= mb_strtoupper(mb_substr($p, 0, 1));
+        }
+
+        $assignments = RoutineAssignment::where('client_id', $clientId)
+            ->where('coach_id', $coachId)
+            ->whereIn('status', ['active', 'paused'])
+            ->with(['routine.exercises'])
+            ->orderByRaw("CASE status WHEN 'active' THEN 0 ELSE 1 END")
+            ->orderByDesc('assigned_at')
+            ->get()
+            ->map(fn ($a) => [
+                'assignmentId' => $a->id,
+                'status'       => $a->status,
+                'assignedAt'   => $a->assigned_at?->toISOString(),
+                'routine'      => $a->routine ? $this->formatRoutine($a->routine) : null,
+            ]);
+
+        return response()->json([
+            'client' => [
+                'id'        => $client->user_id,
+                'name'      => $client->user->name,
+                'email'     => $client->user->email,
+                'avatar'    => $initials,
+                'objective' => $client->goal,
+                'height'    => $client->height,
+                'birthDate' => $client->birth_date?->toDateString(),
+            ],
+            'assignments' => $assignments,
+        ]);
+    }
+
+    /* ══════════════════════════════════════════════════════════════════════
+>>>>>>> webCoach
      |  PRIVATE HELPERS
      |══════════════════════════════════════════════════════════════════════ */
 
