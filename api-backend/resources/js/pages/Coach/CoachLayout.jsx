@@ -8,9 +8,6 @@ import {
   TrendingUp,
   User,
   LogOut,
-  Search,
-  Plus,
-  Bell,
 } from 'lucide-react';
 
 const navItems = [
@@ -79,25 +76,7 @@ export default function CoachLayout({ children, coachName = 'Coach', coachRole =
       </aside>
 
       {/* Top Header */}
-      <header className="fixed top-0 right-0 left-64 flex justify-between items-center px-8 h-20 z-40 bg-[#0e0e0e]/80 backdrop-blur-xl border-b border-[#cafd00]/15 shadow-2xl shadow-black/50">
-        <div className="flex items-center gap-6">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#adaaaa]" />
-            <input
-              type="text"
-              placeholder="Buscar cliente..."
-              className="bg-[#131313] border-none rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-[#adaaaa] focus:outline-none focus:ring-1 focus:ring-[#f3ffca] w-64 transition-all"
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-6">
-
-          <div className="relative">
-            <Bell size={20} className="text-[#adaaaa] hover:text-[#f3ffca] cursor-pointer transition-colors" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#ff7351] rounded-full"></span>
-          </div>
-        </div>
-      </header>
+      <header className="fixed top-0 right-0 left-64 flex items-center px-8 h-20 z-40 bg-[#0e0e0e]/80 backdrop-blur-xl border-b border-[#cafd00]/15 shadow-2xl shadow-black/50" />
 
       {/* Main Canvas */}
       <main className="ml-64 pt-24 p-8 min-h-screen bg-[#0e0e0e]">

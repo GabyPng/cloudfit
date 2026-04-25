@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dumbbell, Zap, Heart, PlusCircle, CheckCircle, Circle,
   Search, Sparkles, X, GripHorizontal, ChevronDown, Loader2, Edit, Trash, AlertCircle
@@ -8,7 +8,50 @@ import { useLocation } from 'react-router-dom';
 
 const ICON_MAP = { dumbbell: Dumbbell, zap: Zap, heart: Heart };
 const REST_OPTIONS = ['30s','45s','60s','90s','120s','150s','180s'];
+const SETS_OPTIONS = [1,2,3,4,5,6,7,8];
+const REPS_OPTIONS = [1,2,3,4,5,6,8,10,12,15,20,25,30];
 const PLAN_OPTIONS = ['Fuerza Max','Cardio Hit','Hipertrofia Funcional','Resistencia Elite'];
+
+function CustomSelect({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`w-full bg-[#262626]/40 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none transition-all cursor-pointer flex items-center justify-center gap-1.5 ${open ? 'ring-1 ring-[#cafd00]' : 'hover:bg-[#262626]/60'}`}
+      >
+        <span className="font-bold">{value}</span>
+        <ChevronDown size={12} className={`text-[#adaaaa] transition-transform duration-200 flex-shrink-0 ${open ? 'rotate-180 text-[#cafd00]' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1.5 left-0 right-0 bg-[#131313] border border-[#484847]/40 rounded-xl shadow-2xl shadow-black/60 overflow-y-auto max-h-44 py-1">
+          {options.map(opt => {
+            const isActive = String(value) === String(opt);
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => { onChange(opt); setOpen(false); }}
+                className={`w-full px-3 py-2 text-sm text-center transition-colors font-bold ${isActive ? 'bg-[#cafd00]/10 text-[#cafd00]' : 'text-[#adaaaa] hover:bg-[#262626] hover:text-white'}`}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 async function apiFetch(path, opts = {}) {
   const { data: s } = await supabase.auth.getSession();
@@ -340,11 +383,11 @@ export default function Rutinas() {
                       </div>
                       <div className="col-span-3 md:col-span-2 space-y-1 text-center">
                         <label className="text-[10px] font-black uppercase text-[#adaaaa] tracking-wider">Series</label>
-                        <input type="number" value={ex.sets} onChange={e=>updateExercise(ex.id,'sets',e.target.value)} className="w-full bg-[#262626]/40 border-none rounded-lg py-2.5 px-3 text-sm text-center text-white focus:outline-none focus:ring-1 focus:ring-[#cafd00] transition-all" />
+                        <CustomSelect value={ex.sets} onChange={v => updateExercise(ex.id, 'sets', v)} options={SETS_OPTIONS} />
                       </div>
                       <div className="col-span-3 md:col-span-2 space-y-1 text-center">
                         <label className="text-[10px] font-black uppercase text-[#adaaaa] tracking-wider">Reps</label>
-                        <input type="number" value={ex.reps} onChange={e=>updateExercise(ex.id,'reps',e.target.value)} className="w-full bg-[#262626]/40 border-none rounded-lg py-2.5 px-3 text-sm text-center text-white focus:outline-none focus:ring-1 focus:ring-[#cafd00] transition-all" />
+                        <CustomSelect value={ex.reps} onChange={v => updateExercise(ex.id, 'reps', v)} options={REPS_OPTIONS} />
                       </div>
                       <div className="col-span-3 md:col-span-2 space-y-1 text-center">
                         <label className="text-[10px] font-black uppercase text-[#adaaaa] tracking-wider">Intensidad (Kg)</label>
@@ -352,9 +395,7 @@ export default function Rutinas() {
                       </div>
                       <div className="col-span-3 md:col-span-2 space-y-1 text-center">
                         <label className="text-[10px] font-black uppercase text-[#adaaaa] tracking-wider">Descanso</label>
-                        <select value={ex.rest} onChange={e=>updateExercise(ex.id,'rest',e.target.value)} className="w-full bg-[#262626]/40 border-none rounded-lg py-2.5 px-3 text-xs text-center text-white focus:outline-none focus:ring-1 focus:ring-[#cafd00] transition-all appearance-none">
-                          {REST_OPTIONS.map(r=>(<option key={r}>{r}</option>))}
-                        </select>
+                        <CustomSelect value={ex.rest} onChange={v => updateExercise(ex.id, 'rest', v)} options={REST_OPTIONS} />
                       </div>
                     </div>
                     <button onClick={()=>removeExercise(ex.id)} className="absolute -right-3 -top-3 w-7 h-7 bg-[#ff7351] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg scale-75 group-hover:scale-100"><X size={14} /></button>

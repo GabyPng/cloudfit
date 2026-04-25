@@ -19,6 +19,7 @@ import 'package:flutter_application_cloudfit/sections/progress/progress_screen.d
 import 'package:flutter_application_cloudfit/sections/workout/exercise_detail_screen.dart';
 import 'package:flutter_application_cloudfit/sections/workout/workout_summary_screen.dart';
 import 'package:flutter_application_cloudfit/sections/roles/admin_index_screen.dart';
+import 'package:flutter_application_cloudfit/sections/roles/nutriologo_index_screen.dart';
 import 'package:go_router/go_router.dart';
 import '../../sections/dashboard/main_screen.dart';
 import '../../sections/workout/exercise_screen.dart';
@@ -221,6 +222,7 @@ GoRoute(
             ),
           ],
         ),
+        // Branch 1: Ejercicios — accesible via mapa muscular, sin tab en el nav
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -237,7 +239,6 @@ GoRoute(
             ),
           ],
         ),
-        // 4ta Rama: Progreso (Índice 3)
         StatefulShellBranch(
           routes: [
             GoRoute(
