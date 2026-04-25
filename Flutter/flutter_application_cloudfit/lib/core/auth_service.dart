@@ -31,6 +31,8 @@ class AuthService {
     return _client.auth.currentSession?.accessToken;
   }
 
+  static String? get accessToken => _client.auth.currentSession?.accessToken;
+
   static String? _localRoleOverride;
 
   static UserRole get currentRole {
