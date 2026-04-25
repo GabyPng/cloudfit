@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import CoachLayout from './CoachLayout';
 import Dashboard from './Dashboard';
+<<<<<<< Updated upstream
+=======
+import Rutinas from './Rutinas';
+import MisClientes from './MisClientes';
+>>>>>>> Stashed changes
 
 export default function CoachIndexPage() {
   const [coachName, setCoachName] = useState('Coach');
@@ -19,7 +24,15 @@ export default function CoachIndexPage() {
 
   return (
     <CoachLayout coachName={coachName}>
+<<<<<<< Updated upstream
       <Dashboard />
+=======
+      <Routes>
+        <Route index element={<Dashboard />} />
+        <Route path="clientes" element={<MisClientes />} />
+        <Route path="rutinas" element={<Rutinas />} />
+      </Routes>
+>>>>>>> Stashed changes
     </CoachLayout>
   );
 }
