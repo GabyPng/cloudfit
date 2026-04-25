@@ -76,14 +76,6 @@ class CoachController extends Controller
         // ── Clientes ────────────────────────────────────────────────
         $clientes = Client::where('clients.coach_id', $coachId)
             ->join('users', 'users.user_id', '=', 'clients.user_id')
-<<<<<<< HEAD
-            ->leftJoin('routine_assignments', function ($join) {
-                $join->on('routine_assignments.client_id', '=', 'clients.user_id')
-                     ->where('routine_assignments.status', 'active');
-            })
-            ->leftJoin('routines', 'routines.id', '=', 'routine_assignments.routine_id')
-=======
->>>>>>> webCoach
             ->leftJoin(
                 DB::raw('(SELECT client_id, MAX(date) as last_date FROM workout_logs GROUP BY client_id) AS last_log'),
                 'last_log.client_id', '=', 'clients.user_id'

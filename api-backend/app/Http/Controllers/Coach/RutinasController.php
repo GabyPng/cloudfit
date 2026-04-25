@@ -470,17 +470,6 @@ class RutinasController extends Controller
         $routine = Routine::where('coach_id', $coachId)
             ->findOrFail($data['routineId']);
 
-<<<<<<< HEAD
-        // Check for existing active assignment for this client
-        $existing = RoutineAssignment::where('client_id', $data['clientId'])
-            ->where('coach_id', $coachId)
-            ->where('status', 'active')
-            ->first();
-
-        if ($existing) {
-            // Mark the previous one as completed before assigning new
-            $existing->update(['status' => 'completed']);
-=======
         // Prevent assigning the same routine twice (active)
         $duplicate = RoutineAssignment::where('client_id', $data['clientId'])
             ->where('routine_id', $data['routineId'])
@@ -489,7 +478,6 @@ class RutinasController extends Controller
 
         if ($duplicate) {
             return response()->json(['error' => 'Esta rutina ya está asignada activamente a este cliente.'], 422);
->>>>>>> webCoach
         }
 
         $assignment = RoutineAssignment::create([
@@ -572,8 +560,6 @@ class RutinasController extends Controller
     }
 
     /* ══════════════════════════════════════════════════════════════════════
-<<<<<<< HEAD
-=======
      |  CLIENT ROUTINES (admin view)
      |══════════════════════════════════════════════════════════════════════ */
 
@@ -632,7 +618,6 @@ class RutinasController extends Controller
     }
 
     /* ══════════════════════════════════════════════════════════════════════
->>>>>>> webCoach
      |  PRIVATE HELPERS
      |══════════════════════════════════════════════════════════════════════ */
 
