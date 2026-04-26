@@ -262,11 +262,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     "Correo",
                     profile['email'] as String,
                   ),
-                  _menuItem(
-                    Icons.verified_user_outlined,
-                    "Rol",
-                    profile['role'] as String,
-                  ),
                 ]),
                 const SizedBox(height: 20),
                 _buildSectionTitle("SISTEMA"),
@@ -302,7 +297,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildAvatarHeader(Map<String, dynamic> profile) {
-    final role = profile['role'] as String;
     final avatarUrl = profile['avatarUrl'] as String;
 
     final ImageProvider avatarImage = avatarUrl.isNotEmpty
@@ -338,7 +332,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           profile['name'] as String,
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
-        Text(role, style: const TextStyle(color: Colors.white38, fontSize: 14)),
+        Text(profile['email'] as String, style: const TextStyle(color: Colors.white38, fontSize: 14)),
       ],
     );
   }
@@ -348,12 +342,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          _statBox("ROL", profile['role'] as String, AppColors.neonGreen),
-          const SizedBox(width: 15),
           _statBox(
             "USUARIO",
             (profile['email'] as String).split('@').first,
             AppColors.electricPurple,
+          ),
+          const SizedBox(width: 15),
+          _statBox(
+            "MIEMBRO",
+            profile['memberSince'] as String,
+            AppColors.neonGreen,
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/constants.dart';
 import '../../core/services/exercise_service.dart';
 import '../../shared/widgets/exercise_card.dart';
@@ -147,7 +148,13 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
                 return SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => ExerciseCard(exercise: exercises[index]),
+                    (context, i) => ExerciseCard(
+                      exercise: exercises[i],
+                      onTap: () => context.push(
+                        '/cliente/exercise-detail',
+                        extra: {'exercises': exercises, 'index': i},
+                      ),
+                    ),
                     childCount: exercises.length,
                   ),
                 );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants.dart';
 
 class ClientDetailScreen extends StatefulWidget {
@@ -291,13 +292,21 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                 ),
                 const SizedBox(height: 15),
                 _buildActionButton(
-                  "ENVIAR MENSAJE (TICKET)",
-                  Colors.white10,
+                  "ENVIAR MENSAJE (WHATSAPP)",
+                  const Color(0xFF25D366),
                   Icons.chat_bubble_outline,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Función de chat en desarrollo")),
-                    );
+                  onTap: () async {
+                    final phone = '521234567890';
+                    final url = Uri.parse('https://wa.me/$phone');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('No se pudo abrir WhatsApp')),
+                        );
+                      }
+                    }
                   },
                 ),
                 const SizedBox(height: 15),
@@ -415,32 +424,35 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     }
     return Column(
       children: routines.map((routine) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: AppColors.cardGrey,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: AppColors.neonGreen.withOpacity(0.3)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.fitness_center, color: AppColors.neonGreen, size: 24),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(routine['name'] ?? 'Rutina', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                    if (routine['description'] != null && routine['description'].toString().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(routine['description'], style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                    ]
-                  ],
+        return GestureDetector(
+          onTap: () => context.push('/routine-detail/${routine['id']}'),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.cardGrey,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: AppColors.neonGreen.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.fitness_center, color: AppColors.neonGreen, size: 24),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(routine['name'] ?? 'Rutina', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      if (routine['description'] != null && routine['description'].toString().isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(routine['description'], style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                      ]
+                    ],
+                  ),
                 ),
-              ),
-              const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 14),
-            ],
+                const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 14),
+              ],
+            ),
           ),
         );
       }).toList(),
