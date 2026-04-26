@@ -10,7 +10,12 @@
       "Bash(git -C /c/CloudFit/cloudfit stash list)",
       "Bash(git -C /c/CloudFit/cloudfit show HEAD:api-backend/resources/js/pages/Coach/Rutinas.jsx)",
       "Bash(git -C /c/CloudFit/cloudfit log --all --oneline -- \"api-backend/resources/js/pages/Coach/Rutinas.jsx\")",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Bash(dart analyze *)",
+      "Bash(php -l app/Http/Controllers/Nutriologo/SeguimientoController.php)",
+      "Bash(php -l app/Http/Controllers/Nutriologo/NutriologoController.php)"
     ]
   }
 }

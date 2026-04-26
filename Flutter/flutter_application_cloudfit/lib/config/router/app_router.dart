@@ -5,6 +5,12 @@ import 'package:flutter_application_cloudfit/features/coach/presentation/screens
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/coach_main_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/create_routine_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/routine_detail_screen.dart';
+import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_home_screen.dart';
+import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_pacientes_screen.dart';
+import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_planes_screen.dart';
+import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_perfil_screen.dart';
+import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_seguimiento_screen.dart';
+import 'package:flutter_application_cloudfit/features/nutriologo/presentation/widgets/nutriologo_bottom_nav.dart';
 import 'package:flutter_application_cloudfit/sections/auth/register_screen.dart';
 import 'package:flutter_application_cloudfit/sections/auth/splash_screen.dart';
 import 'package:flutter_application_cloudfit/sections/calendar/calendar_screen.dart';
@@ -15,7 +21,6 @@ import 'package:flutter_application_cloudfit/sections/workout/exercise_detail_sc
 import 'package:flutter_application_cloudfit/sections/workout/models/exercise_model.dart';
 import 'package:flutter_application_cloudfit/sections/workout/workout_summary_screen.dart';
 import 'package:flutter_application_cloudfit/sections/roles/admin_index_screen.dart';
-import 'package:flutter_application_cloudfit/sections/roles/nutriologo_index_screen.dart';
 import 'package:go_router/go_router.dart';
 import '../../sections/dashboard/main_screen.dart';
 import '../../sections/workout/exercise_screen.dart';
@@ -121,11 +126,60 @@ final appRouter = GoRouter(
       path: '/admin',
       builder: (context, state) => const AdminIndexScreen(),
     ),
-    
-    GoRoute(
-      path: '/nutriologo',
-      builder: (context, state) => const NutriologoIndexScreen(),
+
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) {
+        return Scaffold(
+          body: navigationShell,
+          extendBody: true,
+          bottomNavigationBar: NutriologoBottomNav(
+            navigationShell: navigationShell,
+          ),
+        );
+      },
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/nutriologo',
+              builder: (context, state) => const NutriologoHomeScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/nutriologo/pacientes',
+              builder: (context, state) => const NutriologoPacientesScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/nutriologo/planes',
+              builder: (context, state) => const NutriologoPlanesScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/nutriologo/perfil',
+              builder: (context, state) => const NutriologoPerfilScreen(),
+            ),
+          ],
+        ),
+      ],
     ),
+
+    GoRoute(
+      path: '/nutriologo/seguimiento',
+      builder: (context, state) => NutriologoSeguimientoScreen(
+        initialPatient: state.extra as Map<String, dynamic>?,
+      ),
+    ),
+
     GoRoute(
       path: '/coach-home',
       name: CoachMainScreen.name,

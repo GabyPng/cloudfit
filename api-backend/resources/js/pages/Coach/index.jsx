@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import CoachLayout from './CoachLayout';
 import Dashboard from './Dashboard';
 import Rutinas from './Rutinas';
+import MisClientes from './MisClientes';
 
 export default function CoachIndexPage() {
   const [coachName, setCoachName] = useState('Coach');
@@ -23,6 +24,7 @@ export default function CoachIndexPage() {
     <CoachLayout coachName={coachName}>
       <Routes>
         <Route index element={<Dashboard />} />
+        <Route path="clientes" element={<MisClientes />} />
         <Route path="rutinas" element={<Rutinas />} />
       </Routes>
     </CoachLayout>

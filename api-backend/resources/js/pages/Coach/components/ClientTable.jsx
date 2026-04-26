@@ -1,5 +1,7 @@
-import { Filter, Download } from 'lucide-react';
+import { Filter, Download, Dumbbell, Zap, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+const ICON_MAP = { dumbbell: Dumbbell, zap: Zap, heart: Heart };
 
 const statusDot = (estado) => {
   if (estado === 'inactivo') {
@@ -14,6 +16,43 @@ const statusLabel = (cliente) => {
   }
   return <span className="text-xs text-[#adaaaa]">{cliente.estado_label || 'Entrenado'}</span>;
 };
+
+function RutinasBadges({ rutinas = [], inactive }) {
+  if (!rutinas.length) {
+    return <span className="text-[10px] text-[#adaaaa]/60 italic">Sin rutinas</span>;
+  }
+
+  const visible = rutinas.slice(0, 2);
+  const extra = rutinas.length - 2;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {visible.map((r) => {
+        const Icon = ICON_MAP[r.iconType] || Dumbbell;
+        const color = inactive ? '#adaaaa' : (r.accentColor || '#cafd00');
+        return (
+          <span
+            key={r.id}
+            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-tight w-fit max-w-[160px]"
+            style={{
+              backgroundColor: `${color}18`,
+              color,
+              border: `1px solid ${color}30`,
+            }}
+          >
+            <Icon size={10} style={{ flexShrink: 0 }} />
+            <span className="truncate">{r.name}</span>
+          </span>
+        );
+      })}
+      {extra > 0 && (
+        <span className="text-[10px] text-[#adaaaa] font-bold pl-1">
+          +{extra} más
+        </span>
+      )}
+    </div>
+  );
+}
 
 export default function ClientTable({ clientes = [], totalAtletas = 0 }) {
   const navigate = useNavigate();
@@ -38,7 +77,7 @@ export default function ClientTable({ clientes = [], totalAtletas = 0 }) {
         <table className="w-full text-left">
           <thead className="bg-[#131313]">
             <tr>
-              {['Cliente', 'Plan Actual', 'Estado Hoy', 'Última Métrica', 'Acciones'].map((h, i) => (
+              {['Cliente', 'Rutinas', 'Estado Hoy', 'Última Métrica', 'Acciones'].map((h, i) => (
                 <th
                   key={h}
                   className={`px-6 py-4 text-[10px] font-headline uppercase tracking-widest text-[#adaaaa] ${i === 4 ? 'text-right' : ''}`}
@@ -63,27 +102,28 @@ export default function ClientTable({ clientes = [], totalAtletas = 0 }) {
                           className={`w-8 h-8 rounded-full object-cover ${inactive ? 'grayscale opacity-60' : ''}`}
                         />
                       ) : (
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                           inactive ? 'bg-[#262626] text-[#adaaaa]' : 'bg-[#cafd00] text-[#0e0e0e]'
                         }`}>
                           {cliente.nombre?.charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <span className={`text-sm font-medium ${inactive ? 'text-[#adaaaa]' : ''}`}>
-                        {cliente.nombre}
-                      </span>
+                      <div className="min-w-0">
+                        <span className={`text-sm font-medium block truncate ${inactive ? 'text-[#adaaaa]' : ''}`}>
+                          {cliente.nombre}
+                        </span>
+                        {(cliente.rutinas?.length ?? 0) > 0 && (
+                          <span className="text-[10px] text-[#adaaaa]">
+                            {cliente.rutinas.length} {cliente.rutinas.length === 1 ? 'rutina' : 'rutinas'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
 
-                  {/* Plan */}
+                  {/* Rutinas */}
                   <td className="px-6 py-4">
-                    <span className={`inline-block whitespace-nowrap px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${
-                      inactive
-                        ? 'bg-[#262626] text-[#adaaaa]'
-                        : 'bg-[#5516be] text-[#d9c8ff]'
-                    }`}>
-                      {cliente.plan_nombre}
-                    </span>
+                    <RutinasBadges rutinas={cliente.rutinas} inactive={inactive} />
                   </td>
 
                   {/* Estado */}
@@ -98,20 +138,22 @@ export default function ClientTable({ clientes = [], totalAtletas = 0 }) {
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className={`text-sm font-headline ${inactive ? 'text-[#adaaaa]' : ''}`}>
-                        {cliente.peso} kg
+                        {cliente.peso ? `${cliente.peso} kg` : '—'}
                       </span>
-                      <span className="text-[10px] text-[#adaaaa]">Grasa: {cliente.grasa}%</span>
+                      <span className="text-[10px] text-[#adaaaa]">
+                        {cliente.grasa ? `Grasa: ${cliente.grasa}%` : '—'}
+                      </span>
                     </div>
                   </td>
 
                   {/* Acciones */}
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => navigate(`/coach/rutinas?clientId=${cliente.id}`)}
+                      <button
+                        onClick={() => navigate(`/coach/clientes?clientId=${cliente.id}`)}
                         className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#f3ffca] transition-colors"
                       >
-                        Rutina
+                        Rutinas
                       </button>
                       <button className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#ac8aff] transition-colors">
                         Evolución
