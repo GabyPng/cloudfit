@@ -1,111 +1,238 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants.dart';
 import 'models/achievement.dart';
 
-class RewardScreen extends StatelessWidget {
+// ── Achievement definition ───────────────────────────────────────────────────
+class _AchievementDef {
+  final String title;
+  final String description;
+  final IconData icon;
+  final int threshold;
+  final String type; // 'workout_count' | 'streak'
+
+  const _AchievementDef({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.threshold,
+    required this.type,
+  });
+}
+
+const _defs = [
+  _AchievementDef(
+    title: 'Primer Paso',
+    description: 'Completa tu primer entrenamiento',
+    icon: Icons.directions_run_rounded,
+    threshold: 1,
+    type: 'workout_count',
+  ),
+  _AchievementDef(
+    title: 'Constante',
+    description: 'Completa 5 entrenamientos',
+    icon: Icons.fitness_center_rounded,
+    threshold: 5,
+    type: 'workout_count',
+  ),
+  _AchievementDef(
+    title: 'Racha de Fuego',
+    description: '7 días consecutivos activo',
+    icon: Icons.local_fire_department_rounded,
+    threshold: 7,
+    type: 'streak',
+  ),
+  _AchievementDef(
+    title: 'Dedicado',
+    description: 'Completa 10 entrenamientos',
+    icon: Icons.emoji_events_rounded,
+    threshold: 10,
+    type: 'workout_count',
+  ),
+  _AchievementDef(
+    title: 'Inquebrantable',
+    description: '30 días consecutivos activo',
+    icon: Icons.bolt_rounded,
+    threshold: 30,
+    type: 'streak',
+  ),
+  _AchievementDef(
+    title: 'Veterano',
+    description: 'Completa 30 entrenamientos',
+    icon: Icons.workspace_premium_rounded,
+    threshold: 30,
+    type: 'workout_count',
+  ),
+];
+
+// ── Screen ───────────────────────────────────────────────────────────────────
+class RewardScreen extends StatefulWidget {
   const RewardScreen({super.key});
 
-  static const _level = 5;
-  static const _levelTitle = 'ATACANTE VETERANO';
-  static const _xpCurrent = 2450;
-  static const _xpTarget = 3000;
-  static const _streakDays = 7;
-  static const _weekDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-  // cuántos días de la semana están completados
-  static const _completedDays = 7;
+  @override
+  State<RewardScreen> createState() => _RewardScreenState();
+}
 
-  static final _achievements = [
-    AchievementModel(
-      title: 'Madrugador',
-      description: '5 entrenos antes de las 7 AM',
-      icon: Icons.wb_sunny_rounded,
-      isUnlocked: true,
-      progress: 1.0,
-    ),
-    AchievementModel(
-      title: 'Voluntad de Hierro',
-      description: '10,000 kg levantados en una semana',
-      icon: Icons.fitness_center_rounded,
-      isUnlocked: true,
-      progress: 1.0,
-    ),
-    AchievementModel(
-      title: 'Relámpago',
-      description: 'Corre 5 km en menos de 20 min',
-      icon: Icons.bolt_rounded,
-      isUnlocked: false,
-      progress: 0.6,
-    ),
-    AchievementModel(
-      title: 'Escuadrón',
-      description: 'Organiza 10 sesiones grupales',
-      icon: Icons.groups_rounded,
-      isUnlocked: false,
-      progress: 0.3,
-    ),
-    AchievementModel(
-      title: 'Inquebrantable',
-      description: '30 días consecutivos activo',
-      icon: Icons.local_fire_department_rounded,
-      isUnlocked: true,
-      progress: 1.0,
-    ),
-    AchievementModel(
-      title: 'Gran Maestro',
-      description: 'Alcanza nivel de experiencia 50',
-      icon: Icons.workspace_premium_rounded,
-      isUnlocked: false,
-      progress: 0.1,
-    ),
-  ];
+class _RewardScreenState extends State<RewardScreen> {
+  final _supabase = Supabase.instance.client;
+  late Future<_RewardData> _future;
 
-  int get _unlockedCount => _achievements.where((a) => a.isUnlocked).length;
+  @override
+  void initState() {
+    super.initState();
+    _future = _loadData();
+  }
+
+  Future<_RewardData> _loadData() async {
+    final authId = _supabase.auth.currentUser?.id;
+    if (authId == null) return _RewardData.empty();
+
+    final userData = await _supabase
+        .from('users')
+        .select('user_id')
+        .eq('supabase_id', authId)
+        .maybeSingle();
+    if (userData == null) return _RewardData.empty();
+
+    final clientId = userData['user_id'];
+
+    final logs = await _supabase
+        .from('workout_logs')
+        .select('date, is_complete')
+        .eq('client_id', clientId)
+        .eq('is_complete', true)
+        .order('date', ascending: false);
+
+    final totalWorkouts = logs.length;
+    final streak = _computeStreak(logs);
+    final xp = totalWorkouts * 50;
+    final level = (xp ~/ 500) + 1;
+    final xpTarget = level * 500;
+
+    final achievements = _defs.map((d) {
+      final current = d.type == 'workout_count' ? totalWorkouts : streak;
+      final progress = (current / d.threshold).clamp(0.0, 1.0);
+      return AchievementModel(
+        title: d.title,
+        description: d.description,
+        icon: d.icon,
+        isUnlocked: current >= d.threshold,
+        progress: progress,
+      );
+    }).toList();
+
+    return _RewardData(
+      totalWorkouts: totalWorkouts,
+      streak: streak,
+      xp: xp,
+      level: level,
+      xpTarget: xpTarget,
+      achievements: achievements,
+      weekDays: _computeWeekDays(logs),
+    );
+  }
+
+  int _computeStreak(List logs) {
+    if (logs.isEmpty) return 0;
+    final dates = logs
+        .map((l) {
+          final d = DateTime.tryParse(l['date'].toString());
+          return d == null ? null : DateTime(d.year, d.month, d.day);
+        })
+        .whereType<DateTime>()
+        .toSet();
+
+    int streak = 0;
+    var current = DateTime.now();
+    current = DateTime(current.year, current.month, current.day);
+
+    while (dates.contains(current)) {
+      streak++;
+      current = current.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
+  List<bool> _computeWeekDays(List logs) {
+    final today = DateTime.now();
+    final dates = logs
+        .map((l) {
+          final d = DateTime.tryParse(l['date'].toString());
+          return d == null ? null : DateTime(d.year, d.month, d.day);
+        })
+        .whereType<DateTime>()
+        .toSet();
+
+    // Monday = 0 index in weekDays list
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    return List.generate(7, (i) {
+      final day = DateTime(monday.year, monday.month, monday.day + i);
+      return dates.contains(day);
+    });
+  }
+
+  static const _weekDayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                _buildLevelCard(),
-                const SizedBox(height: 14),
-                _buildStatsRow(),
-                const SizedBox(height: 14),
-                _buildStreakCard(),
-                const SizedBox(height: 24),
-                _sectionTitle('Logros'),
-                const SizedBox(height: 12),
-                _buildAchievementsGrid(),
-              ]),
-            ),
-          ),
-        ],
+      body: FutureBuilder<_RewardData>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: AppColors.neonGreen));
+          }
+
+          final data = snapshot.data ?? _RewardData.empty();
+          final unlocked = data.achievements.where((a) => a.isUnlocked).length;
+
+          return CustomScrollView(
+            slivers: [
+              _buildAppBar(),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _buildLevelCard(data),
+                    const SizedBox(height: 14),
+                    _buildStatsRow(data.xp, data.streak, unlocked, data.achievements.length),
+                    const SizedBox(height: 14),
+                    _buildStreakCard(data.streak, data.weekDays),
+                    const SizedBox(height: 24),
+                    _sectionTitle('Logros'),
+                    const SizedBox(height: 12),
+                    _buildAchievementsGrid(data.achievements),
+                  ]),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  // ── App Bar ──────────────────────────────────────────────────────────────
   Widget _buildAppBar() {
     return SliverAppBar(
       floating: true,
       backgroundColor: AppColors.background,
       expandedHeight: 90,
-      flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh_rounded, color: Colors.white38),
+          onPressed: () => setState(() => _future = _loadData()),
+        ),
+      ],
+      flexibleSpace: const FlexibleSpaceBar(
+        titlePadding: EdgeInsets.fromLTRB(20, 0, 20, 14),
         title: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text('Logros',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 26,
-                    color: Colors.white)),
+                    fontWeight: FontWeight.bold, fontSize: 26, color: Colors.white)),
             Text('Tu progreso y recompensas',
                 style: TextStyle(fontSize: 12, color: Colors.white38)),
           ],
@@ -114,9 +241,10 @@ class RewardScreen extends StatelessWidget {
     );
   }
 
-  // ── Level card ───────────────────────────────────────────────────────────
-  Widget _buildLevelCard() {
-    final xpPct = _xpCurrent / _xpTarget;
+  Widget _buildLevelCard(_RewardData data) {
+    final xpPct = data.xpTarget > 0 ? (data.xp / data.xpTarget).clamp(0.0, 1.0) : 0.0;
+    final levelTitle = _levelTitle(data.level);
+
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -129,38 +257,31 @@ class RewardScreen extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Decorative icon
           Positioned(
             right: -8,
             top: -8,
             child: Icon(Icons.auto_awesome_rounded,
-                size: 90,
-                color: Colors.white.withValues(alpha: 0.08)),
+                size: 90, color: Colors.white.withValues(alpha: 0.08)),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text('NIVEL $_level',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                            letterSpacing: 1.5)),
-                  ),
-                ],
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('NIVEL ${data.level}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        letterSpacing: 1.5)),
               ),
               const SizedBox(height: 10),
-              const Text(_levelTitle,
-                  style: TextStyle(
+              Text(levelTitle,
+                  style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 12,
                       letterSpacing: 1.8,
@@ -169,14 +290,13 @@ class RewardScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('$_xpCurrent XP',
+                  Text('${data.xp} XP',
                       style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 20)),
-                  Text('$_xpTarget XP para Nivel ${_level + 1}',
-                      style: const TextStyle(
-                          color: Colors.white60, fontSize: 12)),
+                  Text('${data.xpTarget} XP para Nivel ${data.level + 1}',
+                      style: const TextStyle(color: Colors.white60, fontSize: 12)),
                 ],
               ),
               const SizedBox(height: 10),
@@ -186,8 +306,8 @@ class RewardScreen extends StatelessWidget {
                   value: xpPct,
                   minHeight: 10,
                   backgroundColor: Colors.black.withValues(alpha: 0.25),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.neonGreen),
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(AppColors.neonGreen),
                 ),
               ),
             ],
@@ -197,100 +317,76 @@ class RewardScreen extends StatelessWidget {
     );
   }
 
-  // ── Stats row ────────────────────────────────────────────────────────────
-  Widget _buildStatsRow() {
+  String _levelTitle(int level) {
+    const titles = [
+      'NOVATO CURIOSO',
+      'PRINCIPIANTE ACTIVO',
+      'ATLETA EN FORMACIÓN',
+      'GUERRERO CONSTANTE',
+      'ATACANTE VETERANO',
+      'ÉLITE FITNESS',
+      'MAESTRO DEL HIERRO',
+    ];
+    final i = (level - 1).clamp(0, titles.length - 1);
+    return titles[i];
+  }
+
+  Widget _buildStatsRow(int xp, int streak, int unlocked, int total) {
     return Row(
       children: [
-        _statCard(
-          icon: Icons.bolt_rounded,
-          color: AppColors.neonGreen,
-          value: '$_xpCurrent',
-          label: 'XP Total',
-        ),
+        _statCard(icon: Icons.bolt_rounded, color: AppColors.neonGreen, value: '$xp', label: 'XP Total'),
         const SizedBox(width: 10),
-        _statCard(
-          icon: Icons.local_fire_department_rounded,
-          color: AppColors.coralOrange,
-          value: '$_streakDays días',
-          label: 'Racha',
-        ),
+        _statCard(icon: Icons.local_fire_department_rounded, color: AppColors.coralOrange, value: '$streak días', label: 'Racha'),
         const SizedBox(width: 10),
-        _statCard(
-          icon: Icons.workspace_premium_rounded,
-          color: AppColors.electricPurple,
-          value: '$_unlockedCount/${_achievements.length}',
-          label: 'Logros',
-        ),
+        _statCard(icon: Icons.workspace_premium_rounded, color: AppColors.electricPurple, value: '$unlocked/$total', label: 'Logros'),
       ],
     );
   }
 
-  Widget _statCard({
-    required IconData icon,
-    required Color color,
-    required String value,
-    required String label,
-  }) {
+  Widget _statCard({required IconData icon, required Color color, required String value, required String label}) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(height: 8),
-          Text(value,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold)),
-          Text(label,
-              style: const TextStyle(color: Colors.white54, fontSize: 11)),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
         ]),
       ),
     );
   }
 
-  // ── Streak card ──────────────────────────────────────────────────────────
-  Widget _buildStreakCard() {
+  Widget _buildStreakCard(int streak, List<bool> completedDays) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: AppColors.neonGreen.withValues(alpha: 0.15), width: 1),
+        border: Border.all(color: AppColors.neonGreen.withValues(alpha: 0.15), width: 1),
       ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(children: [
-                const Icon(Icons.bolt_rounded,
-                    color: AppColors.neonGreen, size: 20),
-                const SizedBox(width: 8),
-                const Text('Racha Semanal',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold)),
+              const Row(children: [
+                Icon(Icons.bolt_rounded, color: AppColors.neonGreen, size: 20),
+                SizedBox(width: 8),
+                Text('Racha Semanal',
+                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
               ]),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.neonGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: AppColors.neonGreen.withValues(alpha: 0.35)),
+                  border: Border.all(color: AppColors.neonGreen.withValues(alpha: 0.35)),
                 ),
-                child: Text('¡$_streakDays Días!',
+                child: Text('¡$streak Días!',
                     style: const TextStyle(
-                        color: AppColors.neonGreen,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12)),
+                        color: AppColors.neonGreen, fontWeight: FontWeight.w700, fontSize: 12)),
               ),
             ],
           ),
@@ -298,44 +394,28 @@ class RewardScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(7, (i) {
-              final completed = i < _completedDays;
+              final done = i < completedDays.length ? completedDays[i] : false;
               return Column(
                 children: [
                   Container(
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: completed
-                          ? AppColors.neonGreen
-                          : AppColors.cardGrey,
+                      color: done ? AppColors.neonGreen : AppColors.cardGrey,
                       shape: BoxShape.circle,
-                      boxShadow: completed
-                          ? [
-                              BoxShadow(
-                                color: AppColors.neonGreen
-                                    .withValues(alpha: 0.35),
-                                blurRadius: 8,
-                                spreadRadius: 1,
-                              ),
-                            ]
+                      boxShadow: done
+                          ? [BoxShadow(color: AppColors.neonGreen.withValues(alpha: 0.35), blurRadius: 8, spreadRadius: 1)]
                           : null,
                     ),
-                    child: Icon(
-                      completed ? Icons.check_rounded : Icons.remove,
-                      color: completed ? Colors.black : Colors.white24,
-                      size: 18,
-                    ),
+                    child: Icon(done ? Icons.check_rounded : Icons.remove,
+                        color: done ? Colors.black : Colors.white24, size: 18),
                   ),
                   const SizedBox(height: 8),
-                  Text(_weekDays[i],
+                  Text(_weekDayLabels[i],
                       style: TextStyle(
                           fontSize: 11,
-                          color: completed
-                              ? Colors.white70
-                              : Colors.white24,
-                          fontWeight: completed
-                              ? FontWeight.w600
-                              : FontWeight.normal)),
+                          color: done ? Colors.white70 : Colors.white24,
+                          fontWeight: done ? FontWeight.w600 : FontWeight.normal)),
                 ],
               );
             }),
@@ -345,16 +425,12 @@ class RewardScreen extends StatelessWidget {
     );
   }
 
-  // ── Achievements section ─────────────────────────────────────────────────
   Widget _sectionTitle(String title) {
     return Text(title,
-        style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold));
+        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold));
   }
 
-  Widget _buildAchievementsGrid() {
+  Widget _buildAchievementsGrid(List<AchievementModel> achievements) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -364,13 +440,52 @@ class RewardScreen extends StatelessWidget {
         mainAxisSpacing: 12,
         childAspectRatio: 0.82,
       ),
-      itemCount: _achievements.length,
-      itemBuilder: (_, i) => _AchievementCard(achievement: _achievements[i]),
+      itemCount: achievements.length,
+      itemBuilder: (_, i) => _AchievementCard(achievement: achievements[i]),
     );
   }
 }
 
-// ── Achievement card widget ──────────────────────────────────────────────────
+// ── Data class ────────────────────────────────────────────────────────────────
+class _RewardData {
+  final int totalWorkouts;
+  final int streak;
+  final int xp;
+  final int level;
+  final int xpTarget;
+  final List<AchievementModel> achievements;
+  final List<bool> weekDays;
+
+  const _RewardData({
+    required this.totalWorkouts,
+    required this.streak,
+    required this.xp,
+    required this.level,
+    required this.xpTarget,
+    required this.achievements,
+    required this.weekDays,
+  });
+
+  factory _RewardData.empty() => _RewardData(
+        totalWorkouts: 0,
+        streak: 0,
+        xp: 0,
+        level: 1,
+        xpTarget: 500,
+        achievements: _defs
+            .map((d) => AchievementModel(
+                  title: d.title,
+                  description: d.description,
+                  icon: d.icon,
+                  isUnlocked: false,
+                  progress: 0.0,
+                ))
+            .toList(),
+        weekDays: List.filled(7, false),
+      );
+}
+
+// ── Achievement card ──────────────────────────────────────────────────────────
 class _AchievementCard extends StatelessWidget {
   final AchievementModel achievement;
   const _AchievementCard({required this.achievement});
@@ -395,7 +510,6 @@ class _AchievementCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Icon badge
           Container(
             width: 56,
             height: 56,
@@ -427,7 +541,6 @@ class _AchievementCard extends StatelessWidget {
                   fontSize: 10,
                   color: unlocked ? Colors.white54 : Colors.white24,
                   height: 1.3)),
-          // Progress bar (only for locked with partial progress)
           if (!unlocked && achievement.progress > 0) ...[
             const SizedBox(height: 10),
             ClipRRect(
@@ -436,33 +549,27 @@ class _AchievementCard extends StatelessWidget {
                 value: achievement.progress,
                 minHeight: 4,
                 backgroundColor: Colors.white10,
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                    AppColors.electricPurple),
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.electricPurple),
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              '${(achievement.progress * 100).toInt()}%',
-              style: const TextStyle(
-                  color: AppColors.electricPurple,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600),
-            ),
+            Text('${(achievement.progress * 100).toInt()}%',
+                style: const TextStyle(
+                    color: AppColors.electricPurple,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600)),
           ],
           if (unlocked) ...[
             const SizedBox(height: 8),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: AppColors.neonGreen.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Text('Completado',
                   style: TextStyle(
-                      color: AppColors.neonGreen,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600)),
+                      color: AppColors.neonGreen, fontSize: 10, fontWeight: FontWeight.w600)),
             ),
           ],
         ],

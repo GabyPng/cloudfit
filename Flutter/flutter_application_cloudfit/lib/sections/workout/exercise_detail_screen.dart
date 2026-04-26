@@ -1,11 +1,21 @@
-import 'dart:async'; // Necesario para el Timer
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants.dart';
+import 'models/exercise_model.dart';
 
 class ExerciseDetailScreen extends StatefulWidget {
   static const String name = 'exercise_detail';
-  const ExerciseDetailScreen({super.key});
+
+  final List<RoutineExercise>? exercises;
+  final int currentIndex;
+
+  const ExerciseDetailScreen({
+    super.key,
+    this.exercises,
+    this.currentIndex = 0,
+  });
 
   @override
   State<ExerciseDetailScreen> createState() => _ExerciseDetailScreenState();
@@ -15,29 +25,47 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
     with SingleTickerProviderStateMixin {
   Timer? _timer;
   late AnimationController _animationController;
-  int _seconds = 90;
+  late int _seconds;
   bool _isRunning = false;
+  final Set<int> _markedSets = {};
+  bool _isSaving = false;
+
+  RoutineExercise? get _currentExercise {
+    final list = widget.exercises;
+    if (list == null || list.isEmpty) return null;
+    if (widget.currentIndex >= list.length) return null;
+    return list[widget.currentIndex];
+  }
+
+  bool get _isLastExercise {
+    final list = widget.exercises;
+    if (list == null) return true;
+    return widget.currentIndex >= list.length - 1;
+  }
+
+  int get _totalExercises => widget.exercises?.length ?? 0;
+  int get _restSeconds {
+    final rt = _currentExercise?.restTime ?? '';
+    final match = RegExp(r'\d+').firstMatch(rt);
+    return match != null ? int.parse(match.group(0)!) : 90;
+  }
 
   @override
   void initState() {
     super.initState();
-    // La animación dura lo mismo que el temporizador (90 seg)
+    _seconds = _restSeconds;
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 90),
+      duration: Duration(seconds: _restSeconds),
     );
   }
 
   void _startTimer() {
     if (_isRunning) return;
     setState(() => _isRunning = true);
-
     _animationController.reverse(
-      from: _animationController.value == 0.0
-          ? 1.0
-          : _animationController.value,
+      from: _animationController.value == 0.0 ? 1.0 : _animationController.value,
     );
-
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_seconds > 0) {
         setState(() => _seconds--);
@@ -56,24 +84,83 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
   void _resetTimer() {
     _pauseTimer();
     _animationController.value = 1.0;
-    setState(() => _seconds = 90);
+    setState(() => _seconds = _restSeconds);
+  }
+
+  void _toggleSet(int setIndex) {
+    setState(() {
+      if (_markedSets.contains(setIndex)) {
+        _markedSets.remove(setIndex);
+      } else {
+        _markedSets.add(setIndex);
+        _resetTimer();
+        _startTimer();
+      }
+    });
+  }
+
+  Future<void> _finishWorkout() async {
+    setState(() => _isSaving = true);
+    try {
+      final supabase = Supabase.instance.client;
+      final authId = supabase.auth.currentUser?.id;
+      if (authId != null) {
+        final userData = await supabase
+            .from('users')
+            .select('user_id')
+            .eq('supabase_id', authId)
+            .single();
+        final clientId = userData['user_id'];
+
+        final routineId = _currentExercise?.routineId;
+        await supabase.from('workout_logs').insert({
+          'client_id': clientId,
+          if (routineId != null) 'routine_id': routineId,
+          'date': DateTime.now().toIso8601String().split('T').first,
+          'is_complete': true,
+        });
+      }
+    } catch (_) {
+      // fail silently — still navigate
+    }
+    if (mounted) context.go('/cliente/summary');
+  }
+
+  void _goToNext() {
+    context.pushReplacement(
+      '/cliente/exercise-detail',
+      extra: {
+        'exercises': widget.exercises,
+        'index': widget.currentIndex + 1,
+      },
+    );
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _animationController.dispose(); // Limpieza de controladores
+    _animationController.dispose();
     super.dispose();
   }
 
   String _formatTime(int totalSeconds) {
-    int minutes = totalSeconds ~/ 60;
-    int seconds = totalSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+    final m = totalSeconds ~/ 60;
+    final s = totalSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final ex = _currentExercise;
+    final exerciseName = ex?.exerciseName.toUpperCase() ?? 'PRESS BANCA';
+    final setsCount = ex?.sets ?? 2;
+    final reps = ex?.reps ?? '10';
+    final routineName = ex?.routineName ?? 'Rutina personalizada';
+
+    final indexLabel = _totalExercises > 0
+        ? 'Ejercicio ${widget.currentIndex + 1} de $_totalExercises'
+        : 'Ejercicio demo';
+
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
@@ -82,11 +169,11 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
           icon: const Icon(Icons.chevron_left, color: Colors.white, size: 30),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "PECHO Y TRÍCEPS",
-          style: TextStyle(
+        title: Text(
+          routineName.toUpperCase(),
+          style: const TextStyle(
             fontWeight: FontWeight.w900,
-            fontSize: 18,
+            fontSize: 16,
             fontStyle: FontStyle.italic,
           ),
         ),
@@ -99,26 +186,26 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
           children: [
             _buildVideoPreview(),
             const SizedBox(height: 25),
-            const Text(
-              "PRESS BANCA",
-              style: TextStyle(
+            Text(
+              exerciseName,
+              style: const TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.w900,
                 color: Colors.white,
               ),
             ),
-            const Text(
-              "Ejercicio 1 de 8",
-              style: TextStyle(color: Colors.white38),
+            Text(
+              indexLabel,
+              style: const TextStyle(color: Colors.white38),
             ),
             const SizedBox(height: 25),
             const Text(
-              "SETS",
+              'SETS',
               style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5),
             ),
             const SizedBox(height: 15),
-            _buildSetCard(1, "60", "12"),
-            _buildSetCard(2, "65", "10"),
+            ...List.generate(setsCount, (i) => _buildSetCard(i, reps)),
+            const SizedBox(height: 20),
             _buildRestTimer(),
             const SizedBox(height: 30),
             _buildBottomActions(),
@@ -131,7 +218,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
 
   Widget _buildVideoPreview() {
     return Container(
-      height: 200,
+      height: 180,
       width: double.infinity,
       decoration: BoxDecoration(
         color: AppColors.cardGrey,
@@ -140,7 +227,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Icon(Icons.play_arrow_outlined, color: AppColors.neonGreen, size: 80),
+          const Icon(Icons.play_arrow_outlined, color: AppColors.neonGreen, size: 80),
           Positioned(
             bottom: 15,
             child: Container(
@@ -150,7 +237,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Text(
-                "Presiona para ver técnica",
+                'Presiona para ver técnica',
                 style: TextStyle(fontSize: 10),
               ),
             ),
@@ -160,35 +247,82 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
     );
   }
 
-  Widget _buildSetCard(int setNum, String weight, String reps) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(20),
+  Widget _buildSetCard(int setIndex, String reps) {
+    final marked = _markedSets.contains(setIndex);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.cardGrey,
-        borderRadius: BorderRadius.circular(20),
+        color: marked
+            ? AppColors.neonGreen.withValues(alpha: 0.10)
+            : AppColors.cardGrey,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: marked
+              ? AppColors.neonGreen.withValues(alpha: 0.60)
+              : Colors.white12,
+          width: 1.5,
+        ),
       ),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Text(
+            'SET ${setIndex + 1}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: marked ? AppColors.neonGreen : Colors.white,
+            ),
+          ),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "SET $setNum",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$reps reps',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              _buildSmallButton("MARCAR", Colors.white12),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Row(
-            children: [
-              Expanded(child: _buildInputControl("PESO (KG)", weight)),
-              const SizedBox(width: 15),
-              Expanded(child: _buildInputControl("REPS", reps)),
+              const SizedBox(width: 10),
+              GestureDetector(
+                onTap: () => _toggleSet(setIndex),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: marked ? AppColors.neonGreen : Colors.white12,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        marked ? Icons.check_rounded : Icons.radio_button_unchecked,
+                        color: marked ? Colors.black : Colors.white54,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        marked ? 'HECHO' : 'MARCAR',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: marked ? Colors.black : Colors.white54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ],
@@ -196,41 +330,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
     );
   }
 
-  Widget _buildInputControl(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white38, fontSize: 10),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: Colors.black26,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Icon(Icons.remove, color: AppColors.neonGreen, size: 18),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Icon(Icons.add, color: AppColors.neonGreen, size: 18),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Actualización del widget del Temporizador
   Widget _buildRestTimer() {
     return Container(
       width: double.infinity,
@@ -242,50 +341,37 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
       child: Column(
         children: [
           const Text(
-            "DESCANSO",
-            style: TextStyle(
-              color: Colors.white38,
-              fontSize: 12,
-              letterSpacing: 2,
-            ),
+            'DESCANSO',
+            style: TextStyle(color: Colors.white38, fontSize: 12, letterSpacing: 2),
           ),
           const SizedBox(height: 20),
           Stack(
             alignment: Alignment.center,
             children: [
-              // El anillo de progreso animado
               SizedBox(
-                width: 180,
-                height: 180,
+                width: 160,
+                height: 160,
                 child: AnimatedBuilder(
                   animation: _animationController,
-                  builder: (context, child) {
-                    return CustomPaint(
-                      painter: CircularProgressPainter(
-                        progress: _animationController.value,
-                        color: AppColors.neonGreen,
-                      ),
-                    );
-                  },
+                  builder: (context, child) => CustomPaint(
+                    painter: CircularProgressPainter(
+                      progress: _animationController.value,
+                      color: AppColors.neonGreen,
+                    ),
+                  ),
                 ),
               ),
-              // El texto del tiempo central
               Column(
                 children: [
                   Text(
                     _formatTime(_seconds),
-                    style: const TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(fontSize: 44, fontWeight: FontWeight.bold),
                   ),
                   IconButton(
                     icon: Icon(
-                      _isRunning
-                          ? Icons.pause_circle_filled
-                          : Icons.play_circle_filled,
+                      _isRunning ? Icons.pause_circle_filled : Icons.play_circle_filled,
                     ),
-                    iconSize: 50,
+                    iconSize: 46,
                     color: Colors.white,
                     onPressed: _isRunning ? _pauseTimer : _startTimer,
                   ),
@@ -296,7 +382,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
           TextButton(
             onPressed: _resetTimer,
             child: const Text(
-              "REINICIAR",
+              'REINICIAR',
               style: TextStyle(color: Colors.white38, fontSize: 10),
             ),
           ),
@@ -306,54 +392,61 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
   }
 
   Widget _buildBottomActions() {
+    final allMarked = _currentExercise != null &&
+        _markedSets.length >= (_currentExercise!.sets);
+
     return Row(
       children: [
         Expanded(
           child: GestureDetector(
-            // Al presionar finalizar, navegamos al resumen
-            onTap: () => context.push('/cliente/summary'),
-            child: _buildSmallButton("FINALIZAR", Colors.white10, height: 60),
-          ),
-        ),
-        const SizedBox(width: 15),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () {
-              // Aquí podrías programar el salto al siguiente ejercicio de la lista
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.neonGreen,
-              minimumSize: const Size(0, 60),
-              shape: RoundedRectangleBorder(
+            onTap: _isSaving ? null : _finishWorkout,
+            child: Container(
+              height: 60,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white10,
                 borderRadius: BorderRadius.circular(15),
               ),
-            ),
-            child: const Text(
-              "SIGUIENTE",
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'FINALIZAR',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
             ),
           ),
         ),
+        if (!_isLastExercise) ...[
+          const SizedBox(width: 15),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: allMarked ? _goToNext : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: allMarked ? AppColors.neonGreen : Colors.white12,
+                minimumSize: const Size(0, 60),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              child: Text(
+                'SIGUIENTE',
+                style: TextStyle(
+                  color: allMarked ? Colors.black : Colors.white38,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
-    );
-  }
-
-  Widget _buildSmallButton(String text, Color color, {double height = 35}) {
-    return Container(
-      height: height,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-      ),
     );
   }
 }
@@ -366,29 +459,27 @@ class CircularProgressPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    Paint circlePaint = Paint()
+    final circlePaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.05)
       ..strokeWidth = 10
       ..style = PaintingStyle.stroke;
 
-    Paint progressPaint = Paint()
+    final progressPaint = Paint()
       ..color = color
       ..strokeWidth = 10
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3); // Efecto Neón
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3);
 
-    Offset center = Offset(size.width / 2, size.height / 2);
-    double radius = size.width / 2;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
 
-    // Dibujar fondo gris suave
     canvas.drawCircle(center, radius, circlePaint);
 
-    // Dibujar arco de progreso
-    double angle = 2 * 3.14159265 * progress;
+    final angle = 2 * 3.14159265 * progress;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
-      -3.14159265 / 2, // Empezar arriba (-90 grados)
+      -3.14159265 / 2,
       angle,
       false,
       progressPaint,
