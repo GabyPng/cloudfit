@@ -3,15 +3,25 @@ import 'dart:ui';
 class NutritionPlanModel {
   final int id;
   final String title;
+  final String? description;
   final String? goal;
   final int? dailyCalories;
+  final Map<String, dynamic>? macroTargets;
+  final bool isActive;
+  final String? startsAt;
+  final String? endsAt;
   final List<MealModel> meals;
 
   NutritionPlanModel({
     required this.id,
     required this.title,
+    this.description,
     this.goal,
     this.dailyCalories,
+    this.macroTargets,
+    this.isActive = true,
+    this.startsAt,
+    this.endsAt,
     required this.meals,
   });
 
@@ -20,21 +30,28 @@ class NutritionPlanModel {
     return NutritionPlanModel(
       id: (map['id'] as num).toInt(),
       title: map['title']?.toString() ?? 'Plan Nutricional',
+      description: map['description']?.toString(),
       goal: map['goal']?.toString(),
       dailyCalories: (map['daily_calories'] as num?)?.toInt(),
+      macroTargets: map['macro_targets'] as Map<String, dynamic>?,
+      isActive: map['is_active'] as bool? ?? true,
+      startsAt: map['starts_at']?.toString(),
+      endsAt: map['ends_at']?.toString(),
       meals: rawMeals
           .cast<Map<String, dynamic>>()
           .map(MealModel.fromMap)
-          .toList(),
+          .toList()
+        ..sort((a, b) => a.position.compareTo(b.position)),
     );
   }
 
-  // Macros totales calculados desde las comidas
   int get totalProtein => meals.fold(0, (s, m) => s + m.protein);
   int get totalCarbs => meals.fold(0, (s, m) => s + m.carbs);
   int get totalFats => meals.fold(0, (s, m) => s + m.fats);
-  int get totalCaloriesFromMeals =>
-      totalProtein * 4 + totalCarbs * 4 + totalFats * 9;
+  int get totalCaloriesFromMeals => meals.fold(0, (s, m) => s + m.caloriesInt);
+
+  int get effectiveDailyCalories =>
+      dailyCalories ?? totalCaloriesFromMeals;
 
   double get proteinPct {
     final t = totalCaloriesFromMeals;
@@ -67,47 +84,65 @@ class MacroModel {
 }
 
 class MealModel {
+  final int id;
   final String title;
   final String description;
-  final String time;
-  final String calories;
-  final String? imageUrl;
+  final String? portion;
+  final String? notes;
+  final int caloriesInt;
   final int protein;
   final int carbs;
   final int fats;
+  final String mealType;
+  final int position;
 
   MealModel({
+    required this.id,
     required this.title,
     required this.description,
-    required this.time,
-    required this.calories,
-    this.imageUrl,
+    this.portion,
+    this.notes,
+    required this.caloriesInt,
     required this.protein,
     required this.carbs,
     required this.fats,
+    required this.mealType,
+    required this.position,
   });
+
+  String get caloriesLabel => '$caloriesInt kcal';
 
   factory MealModel.fromMap(Map<String, dynamic> map) {
     final cal = (map['calories'] as num?)?.toInt() ?? 0;
-    final rawTime = map['time']?.toString() ?? '';
+    final mealType = map['meal_type']?.toString() ?? '';
     return MealModel(
-      title: _mealTypeLabel(map['meal_type']?.toString()) ??
-          map['name']?.toString() ??
-          'Comida',
-      description: map['description']?.toString() ??
-          map['name']?.toString() ??
-          '',
-      time: rawTime.length >= 5 ? rawTime.substring(0, 5) : rawTime,
-      calories: '$cal kcal',
-      imageUrl: map['image_url']?.toString(),
-      protein: (map['protein'] as num?)?.toInt() ?? 0,
-      carbs: (map['carbs'] as num?)?.toInt() ?? 0,
-      fats: (map['fats'] as num?)?.toInt() ?? 0,
+      id: (map['id'] as num?)?.toInt() ?? 0,
+      title: _mealTypeLabel(mealType) ?? map['name']?.toString() ?? 'Comida',
+      description: map['name']?.toString() ?? '',
+      portion: map['portion']?.toString(),
+      notes: map['notes']?.toString(),
+      caloriesInt: cal,
+      protein: (map['protein_g'] as num?)?.toInt() ?? 0,
+      carbs: (map['carbs_g'] as num?)?.toInt() ?? 0,
+      fats: (map['fat_g'] as num?)?.toInt() ?? 0,
+      mealType: mealType,
+      position: (map['position'] as num?)?.toInt() ?? 0,
     );
   }
 
   static String? _mealTypeLabel(String? type) {
     switch (type) {
+      case 'desayuno':
+        return 'Desayuno';
+      case 'colacion_1':
+        return 'Colación Mañana';
+      case 'comida':
+        return 'Comida';
+      case 'colacion_2':
+        return 'Colación Tarde';
+      case 'cena':
+        return 'Cena';
+      // Legacy English types
       case 'breakfast':
         return 'Desayuno';
       case 'lunch':
