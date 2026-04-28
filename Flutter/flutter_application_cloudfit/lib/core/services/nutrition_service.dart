@@ -6,7 +6,7 @@ class NutritionService {
   /// Retorna el plan nutricional activo asignado al cliente logueado,
   /// o null si no tiene ninguno.
   static Future<NutritionPlanModel?> getAssignedPlan() async {
-    final response = await ApiClient.get('/cliente/mi-plan');
+    final response = await ApiClient.get('/cliente/plan-nutricional');
 
     if (response.statusCode == 404) return null;
 
@@ -22,6 +22,10 @@ class NutritionService {
     }
 
     if (response.body.isEmpty) return null;
+
+    // Si la respuesta no es JSON (ej: Laravel redirige a HTML por auth)
+    final contentType = response.headers['content-type'] ?? '';
+    if (!contentType.contains('application/json')) return null;
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     final data = body['data'] as Map<String, dynamic>?;
