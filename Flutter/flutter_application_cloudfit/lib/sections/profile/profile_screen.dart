@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:convert';
-import '../../core/api_client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/auth_service.dart';
 import '../../core/constants.dart';
 
@@ -24,37 +23,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<Map<String, dynamic>> _loadProfile() async {
-    final response = await ApiClient.get('/me');
+    final authId = Supabase.instance.client.auth.currentUser?.id;
+    if (authId == null) throw Exception('Usuario no autenticado');
 
-    if (response.statusCode >= 400) {
-      throw Exception('No se pudo cargar el perfil: ${response.statusCode}');
-    }
+    final row = await Supabase.instance.client
+        .from('users')
+        .select('user_id,name,email,avatar_url,objective,created_at,roles(name)')
+        .eq('supabase_id', authId)
+        .maybeSingle();
 
-    final Map<String, dynamic> data = jsonDecode(response.body);
-    final Map<String, dynamic>? localUser =
-        data['local_user'] as Map<String, dynamic>?;
-    final Map<String, dynamic>? localRole =
-        localUser?['role'] as Map<String, dynamic>?;
+    if (row == null) throw Exception('Perfil no encontrado');
 
     final roleRaw =
-        localRole?['name']?.toString() ?? data['role']?.toString() ?? 'cliente';
-    final role = roleRaw.toUpperCase();
-    final email =
-        localUser?['email']?.toString() ??
-        data['email']?.toString() ??
-        'sin-correo';
-    final name = localUser?['name']?.toString() ?? email.split('@').first;
-    final avatarUrl = localUser?['avatar_url']?.toString() ?? '';
-    final objective = localUser?['objective']?.toString() ?? '';
-    final createdAt = localUser?['created_at']?.toString();
+        (row['roles'] as Map?)?['name']?.toString() ?? 'cliente';
 
     return {
-      'name': name,
-      'email': email,
-      'role': role,
-      'avatarUrl': avatarUrl,
-      'objective': objective,
-      'memberSince': _memberSince(createdAt),
+      'user_id': row['user_id'] as int,
+      'name': row['name']?.toString() ?? authId.split('-').first,
+      'email': row['email']?.toString() ?? 'sin-correo',
+      'role': roleRaw.toUpperCase(),
+      'avatarUrl': row['avatar_url']?.toString() ?? '',
+      'objective': row['objective']?.toString() ?? '',
+      'memberSince': _memberSince(row['created_at']?.toString()),
     };
   }
 
@@ -150,14 +140,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     };
 
                     try {
-                      final response = await ApiClient.put('/me', payload);
-                      if (response.statusCode >= 400) {
-                        setDialogState(() {
-                          errorText =
-                              'No se pudo guardar (${response.statusCode})';
-                        });
-                        return;
-                      }
+                      final userId = profile['user_id'] as int;
+                      await Supabase.instance.client
+                          .from('users')
+                          .update(payload)
+                          .eq('user_id', userId);
 
                       await AuthService.updateUserMetadata({
                         'nombre': nameCtrl.text.trim(),
