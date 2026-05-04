@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Coach\CoachController;
+use App\Http\Controllers\Coach\ProgresoController;
 use App\Http\Controllers\Coach\RutinasController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,3 +35,10 @@ Route::delete('/rutinas/exercises/{id}',                 [RutinasController::cla
 Route::post('/rutinas/assignments',              [RutinasController::class, 'assignmentStore']);
 Route::get('/rutinas/assignments',               [RutinasController::class, 'assignmentsList']);
 Route::patch('/rutinas/assignments/{id}/status', [RutinasController::class, 'assignmentStatus']);
+
+// ── Progreso Module ────────────────────────────────────────────────────
+
+Route::get('/progreso/clients',                            [ProgresoController::class, 'clientsList']);
+Route::get('/progreso/clients/{id}/composicion',           [ProgresoController::class, 'composicion']);
+Route::get('/progreso/clients/{id}/fuerza',                [ProgresoController::class, 'fuerza']);
+Route::get('/progreso/clients/{id}/fatiga',                [ProgresoController::class, 'fatiga']);
