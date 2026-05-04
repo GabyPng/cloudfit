@@ -7,10 +7,10 @@ import {
 import { supabase } from '../../lib/supabase';
 
 const ICON_MAP = { dumbbell: Dumbbell, zap: Zap, heart: Heart };
-const REST_OPTIONS = ['30s','45s','60s','90s','120s','150s','180s'];
-const SETS_OPTIONS = [1,2,3,4,5,6,7,8];
-const REPS_OPTIONS = [1,2,3,4,5,6,8,10,12,15,20,25,30];
-const PLAN_OPTIONS = ['Fuerza Max','Cardio Hit','Hipertrofia Funcional','Resistencia Elite'];
+const REST_OPTIONS = ['30s', '45s', '60s', '90s', '120s', '150s', '180s'];
+const SETS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];
+const REPS_OPTIONS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30];
+const PLAN_OPTIONS = ['Fuerza Max', 'Cardio Hit', 'Hipertrofia Funcional', 'Resistencia Elite'];
 
 function CustomSelect({ value, onChange, options }) {
   const [open, setOpen] = useState(false);
@@ -110,7 +110,7 @@ export default function Rutinas() {
   };
   const removeExercise = (id) => { setExercises(prev => prev.filter(e => e.id !== id)); };
 
-  const totalVolume = exercises.reduce((s, e) => s + (Number(e.sets)||0)*(Number(e.reps)||0), 0);
+  const totalVolume = exercises.reduce((s, e) => s + (Number(e.sets) || 0) * (Number(e.reps) || 0), 0);
   const estDuration = exercises.length * 15;
 
   const openNewForm = () => {
@@ -212,11 +212,10 @@ export default function Rutinas() {
       {/* Toast */}
       {toast && (
         <div className="fixed top-8 right-8 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border shadow-2xl backdrop-blur-xl ${
-            toast.type === 'success'
+          <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border shadow-2xl backdrop-blur-xl ${toast.type === 'success'
               ? 'bg-[#cafd00]/10 border-[#cafd00]/20 text-[#cafd00]'
               : 'bg-[#ff7351]/10 border-[#ff7351]/20 text-[#ff7351]'
-          }`}>
+            }`}>
             <div className={`p-2 rounded-lg ${toast.type === 'success' ? 'bg-[#cafd00]/20' : 'bg-[#ff7351]/20'}`}>
               {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
             </div>
@@ -241,9 +240,9 @@ export default function Rutinas() {
             </div>
             <div className="flex items-center gap-3">
               <div className="flex gap-2">
-                {['all','basics','advanced'].map(lvl => (
-                  <button key={lvl} onClick={() => changeFilter(lvl)} className={`text-[10px] font-bold uppercase px-3 py-2 rounded-lg transition-all ${filterLevel===lvl?'bg-[#cafd00] text-[#4a5e00]':'border border-[#767575] text-white hover:border-[#cafd00]'}`}>
-                    {lvl==='all'?'Todos':lvl==='basics'?'Básico':'Avanzado'}
+                {['all', 'basics', 'advanced'].map(lvl => (
+                  <button key={lvl} onClick={() => changeFilter(lvl)} className={`text-[10px] font-bold uppercase px-3 py-2 rounded-lg transition-all ${filterLevel === lvl ? 'bg-[#cafd00] text-[#4a5e00]' : 'border border-[#767575] text-white hover:border-[#cafd00]'}`}>
+                    {lvl === 'all' ? 'Todos' : lvl === 'basics' ? 'Básico' : 'Avanzado'}
                   </button>
                 ))}
               </div>
@@ -377,7 +376,7 @@ export default function Rutinas() {
                 </div>
                 <div className="space-y-4">
                   {exercises.map((ex, idx) => (
-                    <div key={ex.id} className={`bg-[#131313] p-6 rounded-2xl group relative transition-all hover:bg-[#1a1a1a] border border-[#484847]/5 ${idx===0?'border-l-4 border-l-[#cafd00]':'border-l-4 border-l-transparent'}`}>
+                    <div key={ex.id} className={`bg-[#131313] p-6 rounded-2xl group relative transition-all hover:bg-[#1a1a1a] border border-[#484847]/5 ${idx === 0 ? 'border-l-4 border-l-[#cafd00]' : 'border-l-4 border-l-transparent'}`}>
                       <div className="grid grid-cols-12 gap-4">
                         <div className="col-span-12 md:col-span-4 space-y-1">
                           <label className="text-[10px] font-black uppercase text-[#adaaaa] tracking-wider">Nombre del Ejercicio</label>
@@ -385,7 +384,7 @@ export default function Rutinas() {
                             <input
                               type="text"
                               value={ex.name}
-                              onChange={e => updateExercise(ex.id,'name',e.target.value)}
+                              onChange={e => updateExercise(ex.id, 'name', e.target.value)}
                               className="w-full bg-[#262626]/40 border-none rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#cafd00] transition-all"
                             />
                             <Search size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#adaaaa]" />
@@ -393,25 +392,25 @@ export default function Rutinas() {
                         </div>
                         <div className="col-span-3 md:col-span-2 space-y-1 text-center">
                           <label className="text-[10px] font-black uppercase text-[#adaaaa] tracking-wider">Series</label>
-                          <CustomSelect value={ex.sets} onChange={v => updateExercise(ex.id,'sets',v)} options={SETS_OPTIONS} />
+                          <CustomSelect value={ex.sets} onChange={v => updateExercise(ex.id, 'sets', v)} options={SETS_OPTIONS} />
                         </div>
                         <div className="col-span-3 md:col-span-2 space-y-1 text-center">
                           <label className="text-[10px] font-black uppercase text-[#adaaaa] tracking-wider">Reps</label>
-                          <CustomSelect value={ex.reps} onChange={v => updateExercise(ex.id,'reps',v)} options={REPS_OPTIONS} />
+                          <CustomSelect value={ex.reps} onChange={v => updateExercise(ex.id, 'reps', v)} options={REPS_OPTIONS} />
                         </div>
                         <div className="col-span-3 md:col-span-2 space-y-1 text-center">
                           <label className="text-[10px] font-black uppercase text-[#adaaaa] tracking-wider">Intensidad (Kg)</label>
                           <input
                             type="text"
                             value={ex.weight}
-                            onChange={e => updateExercise(ex.id,'weight',e.target.value)}
+                            onChange={e => updateExercise(ex.id, 'weight', e.target.value)}
                             placeholder="Ej: 80 Kg"
                             className="w-full bg-[#262626]/40 border-none rounded-lg py-2.5 px-3 text-sm text-center text-white placeholder-[#767575] focus:outline-none focus:ring-1 focus:ring-[#cafd00] transition-all"
                           />
                         </div>
                         <div className="col-span-3 md:col-span-2 space-y-1 text-center">
                           <label className="text-[10px] font-black uppercase text-[#adaaaa] tracking-wider">Descanso</label>
-                          <CustomSelect value={ex.rest} onChange={v => updateExercise(ex.id,'rest',v)} options={REST_OPTIONS} />
+                          <CustomSelect value={ex.rest} onChange={v => updateExercise(ex.id, 'rest', v)} options={REST_OPTIONS} />
                         </div>
                       </div>
                       <button
@@ -495,16 +494,16 @@ export default function Rutinas() {
                     <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
                       {exercises.map((ex, idx) => (
                         <div key={ex.id} className="flex items-center gap-3 p-3 bg-[#000000] border border-[#484847]/10 rounded-xl hover:bg-[#1a1a1a] transition-colors group cursor-grab">
-                          <div className="w-8 h-8 flex-shrink-0 bg-[#262626] rounded-lg flex items-center justify-center font-black text-[#cafd00] text-xs">{String(idx+1).padStart(2,'0')}</div>
+                          <div className="w-8 h-8 flex-shrink-0 bg-[#262626] rounded-lg flex items-center justify-center font-black text-[#cafd00] text-xs">{String(idx + 1).padStart(2, '0')}</div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold truncate">{ex.name||'Sin nombre'}</p>
-                            <p className="text-[10px] text-[#adaaaa]">{ex.sets} x {ex.reps} @ {ex.weight||'Kg ?'}</p>
+                            <p className="text-xs font-bold truncate">{ex.name || 'Sin nombre'}</p>
+                            <p className="text-[10px] text-[#adaaaa]">{ex.sets} x {ex.reps} @ {ex.weight || 'Kg ?'}</p>
                           </div>
                           <GripHorizontal size={14} className="text-[#484847] group-hover:text-white transition-colors" />
                         </div>
                       ))}
                       <div className="flex items-center gap-3 p-3 bg-[#000000] border border-dashed border-[#484847]/30 rounded-xl">
-                        <div className="w-8 h-8 flex-shrink-0 bg-[#262626]/50 rounded-lg flex items-center justify-center font-black text-[#adaaaa]/30 text-xs">{String(exercises.length+1).padStart(2,'0')}</div>
+                        <div className="w-8 h-8 flex-shrink-0 bg-[#262626]/50 rounded-lg flex items-center justify-center font-black text-[#adaaaa]/30 text-xs">{String(exercises.length + 1).padStart(2, '0')}</div>
                         <div className="flex-1"><p className="text-[10px] text-[#adaaaa]/40 italic">Añadiendo...</p></div>
                       </div>
                     </div>

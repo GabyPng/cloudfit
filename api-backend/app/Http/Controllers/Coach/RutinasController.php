@@ -50,7 +50,7 @@ class RutinasController extends Controller
                 'clients.user_id as id',
                 'users.name',
                 'users.avatar_url',
-                'clients.goal as objective',
+                DB::raw('COALESCE(clients.goal, users.objective) as objective'),
             ])
             ->orderBy('users.name')
             ->get()
@@ -105,7 +105,7 @@ class RutinasController extends Controller
             'name'      => $client->user->name,
             'email'     => $client->user->email,
             'badge'     => null,
-            'objective' => $client->goal,
+            'objective' => $client->goal ?? $client->user->objective,
             'avatar'    => $initials,
             'height'    => $client->height,
             'birthDate' => $client->birth_date?->toDateString(),
@@ -595,13 +595,34 @@ class RutinasController extends Controller
             ->with(['routine.exercises'])
             ->orderByRaw("CASE status WHEN 'active' THEN 0 ELSE 1 END")
             ->orderByDesc('assigned_at')
+            ->get();
+
+        $assignedRoutineIds = $assignments->pluck('routine_id')->filter()->toArray();
+
+        $formattedAssignments = $assignments->map(fn ($a) => [
+            'assignmentId' => $a->id,
+            'status'       => $a->status,
+            'assignedAt'   => $a->assigned_at?->toISOString(),
+            'source'       => 'web',
+            'routine'      => $a->routine ? $this->formatRoutine($a->routine) : null,
+        ])->values();
+
+        // Include routines created directly from mobile (client_id set, no assignment record)
+        $mobileRoutines = Routine::where('client_id', $clientId)
+            ->where('is_active', true)
+            ->whereNotIn('id', $assignedRoutineIds)
+            ->with('exercises')
+            ->orderByDesc('created_at')
             ->get()
-            ->map(fn ($a) => [
-                'assignmentId' => $a->id,
-                'status'       => $a->status,
-                'assignedAt'   => $a->assigned_at?->toISOString(),
-                'routine'      => $a->routine ? $this->formatRoutine($a->routine) : null,
+            ->map(fn ($r) => [
+                'assignmentId' => null,
+                'status'       => 'active',
+                'assignedAt'   => $r->created_at?->toISOString(),
+                'source'       => 'mobile',
+                'routine'      => $this->formatRoutine($r),
             ]);
+
+        $allAssignments = $formattedAssignments->concat($mobileRoutines)->values();
 
         return response()->json([
             'client' => [
@@ -609,11 +630,11 @@ class RutinasController extends Controller
                 'name'      => $client->user->name,
                 'email'     => $client->user->email,
                 'avatar'    => $initials,
-                'objective' => $client->goal,
+                'objective' => $client->goal ?? $client->user->objective,
                 'height'    => $client->height,
                 'birthDate' => $client->birth_date?->toDateString(),
             ],
-            'assignments' => $assignments,
+            'assignments' => $allAssignments,
         ]);
     }
 

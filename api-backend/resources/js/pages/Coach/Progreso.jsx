@@ -33,7 +33,7 @@ async function authFetch(path) {
 
 function KpiCard({ label, value, unit, delta, icon: Icon, iconColor, positive = true }) {
   const isPositive = delta > 0;
-  const isNeutral  = delta === 0;
+  const isNeutral = delta === 0;
   const good = positive ? isPositive : !isPositive;
 
   const DeltaIcon = isNeutral ? Minus : isPositive ? TrendingUp : TrendingDown;
@@ -80,18 +80,18 @@ function CustomDot({ cx, cy, fill }) {
 const TABS = ['Composición', 'Fatiga Muscular'];
 
 export default function Progreso() {
-  const [clients, setClients]           = useState([]);
-  const [selectedClient, setSelected]   = useState(null);
+  const [clients, setClients] = useState([]);
+  const [selectedClient, setSelected] = useState(null);
   const location = useLocation();
-  const [tab, setTab]                   = useState(0);
+  const [tab, setTab] = useState(0);
   const [loadingClients, setLoadingClients] = useState(true);
 
   // Composición state
-  const [compData, setCompData]         = useState(null);
-  const [loadingComp, setLoadingComp]   = useState(false);
+  const [compData, setCompData] = useState(null);
+  const [loadingComp, setLoadingComp] = useState(false);
 
   // Fatiga state
-  const [fatigaData, setFatigaData]     = useState(null);
+  const [fatigaData, setFatigaData] = useState(null);
   const [loadingFatiga, setLoadingFatiga] = useState(false);
 
   // Load clients list, then pre-select if clientId is in the URL
@@ -176,11 +176,10 @@ export default function Progreso() {
                   onClick={() => setSelected(client)}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
-                    active
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${active
                       ? 'bg-[#cafd00]/10 border-[#cafd00] text-white'
                       : 'bg-[#1a1a1a] border-[#222] text-[#adaaaa] hover:border-[#444] hover:text-white'
-                  }`}
+                    }`}
                 >
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-[#0e0e0e] flex-shrink-0"
@@ -220,11 +219,10 @@ export default function Progreso() {
                 <button
                   key={t}
                   onClick={() => setTab(i)}
-                  className={`px-5 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${
-                    tab === i
+                  className={`px-5 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${tab === i
                       ? 'bg-[#cafd00] text-[#0e0e0e]'
                       : 'text-[#adaaaa] hover:text-white'
-                  }`}
+                    }`}
                 >
                   {t}
                 </button>
