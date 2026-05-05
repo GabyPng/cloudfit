@@ -50,12 +50,20 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
         'name': _nameCtrl.text.trim(),
         'description': _descCtrl.text.trim(),
         'training_plan': _trainingPlan,
-        'client_id': widget.clientId,
+        'client_id': int.parse(widget.clientId),
         'coach_id': coachData['user_id'],
         'is_active': true,
       }).select().single();
 
-      final newRoutineId = routineResponse['id'].toString();
+      final newRoutineId = routineResponse['id'] as int;
+
+      await _supabase.from('routine_assignments').insert({
+        'routine_id': newRoutineId,
+        'client_id': int.parse(widget.clientId),
+        'coach_id': coachData['user_id'],
+        'status': 'active',
+        'assigned_at': DateTime.now().toUtc().toIso8601String(),
+      });
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,7 +72,7 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
           backgroundColor: AppColors.neonGreen,
         ),
       );
-      context.pushReplacement('/add-exercises/$newRoutineId');
+      context.pushReplacement('/add-exercises/${newRoutineId.toString()}');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
