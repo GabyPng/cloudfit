@@ -59,7 +59,12 @@ class _AddClientScreenState extends State<AddClientScreen> {
           .select('user_id')
           .eq('supabase_id', myAuthId)
           .single();
-      final myNumericId = userData['user_id'];
+      final myNumericId = userData['user_id'] as int;
+
+      // Ensure the coaches row exists — guards against incomplete registration
+      await _supabase
+          .from('coaches')
+          .upsert({'user_id': myNumericId}, onConflict: 'user_id');
 
       // Check if already assigned
       final existing = await _supabase
@@ -70,6 +75,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
           .maybeSingle();
 
       if (existing != null) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Este usuario ya es tu cliente')),
         );
@@ -81,11 +87,13 @@ class _AddClientScreenState extends State<AddClientScreen> {
         'coach_id': myNumericId,
       });
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cliente asignado exitosamente')),
       );
       Navigator.pop(context);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error asignando cliente: $e')),
       );

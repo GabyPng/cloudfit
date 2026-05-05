@@ -285,6 +285,16 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 
                 // ACTIONS
                 _buildActionButton(
+                  "PLAN SEMANAL",
+                  AppColors.neonGreen,
+                  Icons.calendar_month,
+                  onTap: () => context.push(
+                    '/weekly-plan/${client['user_id']}',
+                    extra: {'clientName': client['name'] as String},
+                  ),
+                ),
+                const SizedBox(height: 15),
+                _buildActionButton(
                   "ASIGNAR NUEVA RUTINA",
                   AppColors.electricPurple,
                   Icons.fitness_center,
@@ -432,7 +442,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             decoration: BoxDecoration(
               color: AppColors.cardGrey,
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: AppColors.neonGreen.withOpacity(0.3)),
+              border: Border.all(color: AppColors.neonGreen.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -485,7 +495,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isComplete ? AppColors.neonGreen.withOpacity(0.1) : Colors.redAccent.withOpacity(0.1),
+                    color: isComplete ? AppColors.neonGreen.withValues(alpha: 0.1) : Colors.redAccent.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -541,7 +551,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         children: progress.map((p) {
           final w = double.tryParse(p['weight'].toString()) ?? 0;
           final heightFactor = maxWeight > 0 ? (w / maxWeight) : 0.0;
-          final dateStr = p['date'].toString().substring(8, 10) + '/' + p['date'].toString().substring(5, 7); // DD/MM
+          final d = p['date'].toString();
+          final dateStr = '${d.substring(8, 10)}/${d.substring(5, 7)}'; // DD/MM
 
           return Column(
             mainAxisAlignment: MainAxisAlignment.end,
