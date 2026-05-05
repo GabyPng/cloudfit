@@ -47,12 +47,59 @@ class _NutriologoHomeScreenState extends State<NutriologoHomeScreen> {
     }
   }
 
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Buenos días';
+    if (hour < 19) return 'Buenas tardes';
+    return 'Buenas noches';
+  }
+
+  String _dateLabel() {
+    const months = [
+      'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+      'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
+    ];
+    final now = DateTime.now();
+    return '${now.day} de ${months[now.month - 1]}. de ${now.year}';
+  }
+
+  Future<void> _confirmLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Cerrar sesión',
+            style: TextStyle(color: Colors.white, fontSize: 16)),
+        content: const Text('¿Seguro que deseas salir?',
+            style: TextStyle(color: Colors.white54, fontSize: 13)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar',
+                style: TextStyle(color: Colors.white38)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Salir',
+                style: TextStyle(color: AppColors.coralOrange)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      final router = GoRouter.of(context);
+      await AuthService.logout();
+      router.go('/login');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = AuthService.currentUser;
     final name = user?.userMetadata?['full_name']?.toString() ??
         user?.email?.split('@').first ??
         'Nutriólogo';
+    final greeting = _greeting();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -63,16 +110,16 @@ class _NutriologoHomeScreenState extends State<NutriologoHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Hola, $name',
+              '$greeting, $name',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const Text(
-              'Panel Nutriólogo',
-              style: TextStyle(color: Colors.white54, fontSize: 11),
+            Text(
+              _dateLabel(),
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
             ),
           ],
         ),
@@ -83,12 +130,7 @@ class _NutriologoHomeScreenState extends State<NutriologoHomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.white70),
-            onPressed: () async {
-              final router = GoRouter.of(context);
-              await AuthService.logout();
-              if (!mounted) return;
-              router.go('/login');
-            },
+            onPressed: _confirmLogout,
           ),
         ],
       ),
