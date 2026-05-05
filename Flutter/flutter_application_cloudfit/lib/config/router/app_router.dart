@@ -5,6 +5,7 @@ import 'package:flutter_application_cloudfit/features/coach/presentation/screens
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/coach_main_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/create_routine_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/routine_detail_screen.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/weekly_plan_screen.dart';
 import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_home_screen.dart';
 import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_pacientes_screen.dart';
 import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_planes_screen.dart';
@@ -211,6 +212,16 @@ GoRoute(
 GoRoute(
   path: '/routine-detail/:routineId',
   builder: (context, state) => RoutineDetailScreen(routineId: state.pathParameters['routineId']!),
+),
+GoRoute(
+  path: '/weekly-plan/:clientId',
+  builder: (context, state) {
+    final extra = state.extra as Map<String, dynamic>?;
+    return WeeklyPlanScreen(
+      clientId: state.pathParameters['clientId']!,
+      clientName: extra?['clientName'] as String? ?? '',
+    );
+  },
 ),
 
     StatefulShellRoute.indexedStack(

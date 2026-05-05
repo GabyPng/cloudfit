@@ -206,6 +206,8 @@ export default function PlanSemanal() {
   const [toast, setToast] = useState(null);
   const [draggedRoutine, setDraggedRoutine] = useState(null);
   const [dragOverDay, setDragOverDay] = useState(null);
+  const [notes, setNotes] = useState('');
+  const [planLoading, setPlanLoading] = useState(false);
   const bankScrollRef = useRef(null);
   const autoScrollRef = useRef(null);
 
@@ -255,10 +257,28 @@ export default function PlanSemanal() {
   }, []);
 
   useEffect(() => {
-    if (!selectedClientId) return;
-    const saved = localStorage.getItem(`cloudfit_plan_${selectedClientId}`);
-    setWeeklyPlan(saved ? JSON.parse(saved) : EMPTY_PLAN());
-  }, [selectedClientId]);
+    if (!selectedClientId || routines.length === 0) return;
+    setPlanLoading(true);
+    apiFetch(`/weekly-plan/${selectedClientId}`)
+      .then(({ plan, notes: savedNotes }) => {
+        const fullPlan = EMPTY_PLAN();
+        for (const [day, ids] of Object.entries(plan)) {
+          fullPlan[day] = ids
+            .map((id, i) => {
+              const r = routines.find(r => r.id === id);
+              return r ? { ...r, instanceId: `${day}-${id}-${i}` } : null;
+            })
+            .filter(Boolean);
+        }
+        setWeeklyPlan(fullPlan);
+        setNotes(savedNotes || '');
+      })
+      .catch(() => {
+        setWeeklyPlan(EMPTY_PLAN());
+        setNotes('');
+      })
+      .finally(() => setPlanLoading(false));
+  }, [selectedClientId, routines]);
 
   const handleDragStart = (e, routine) => {
     setDraggedRoutine(routine);
@@ -298,11 +318,18 @@ export default function PlanSemanal() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedClientId) return;
     setSaving(true);
     try {
-      localStorage.setItem(`cloudfit_plan_${selectedClientId}`, JSON.stringify(weeklyPlan));
+      const planIds = {};
+      for (const day of DAYS) {
+        planIds[day.key] = weeklyPlan[day.key].map(r => r.id);
+      }
+      await apiFetch(`/weekly-plan/${selectedClientId}`, {
+        method: 'POST',
+        body: { plan: planIds, notes },
+      });
       showToast('Plan semanal guardado exitosamente');
     } catch {
       showToast('Error al guardar el plan', 'error');
@@ -416,6 +443,12 @@ export default function PlanSemanal() {
 
         {/* Weekly Grid */}
         <div className="flex-1 min-w-0">
+          {planLoading && (
+            <div className="flex items-center justify-center h-16 mb-3">
+              <Loader2 size={20} className="animate-spin text-[#cafd00]" />
+              <span className="ml-2 text-xs text-[#adaaaa]">Cargando plan...</span>
+            </div>
+          )}
           <div className="grid grid-cols-4 gap-3">
             {/* Row 1: Mon–Thu / Row 2: Fri–Sun + Notes (auto-placed by CSS grid) */}
             {DAYS.map(day => (
@@ -438,6 +471,8 @@ export default function PlanSemanal() {
                   className="w-full flex-1 bg-transparent border-none focus:ring-0 text-sm text-[#adaaaa] placeholder-[#484847]/60 resize-none focus:outline-none"
                   placeholder="Notas del plan semanal&#10;(objetivos, restricciones, etc.)"
                   style={{ minHeight: '100px' }}
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
                 />
               </div>
             </div>
