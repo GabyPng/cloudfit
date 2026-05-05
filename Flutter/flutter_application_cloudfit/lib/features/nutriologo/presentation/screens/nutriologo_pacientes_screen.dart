@@ -26,8 +26,24 @@ class _NutriologoPacientesScreenState
   int _total = 0;
   bool _hasMore = false;
   String _query = '';
+  String _filterMode = 'todos';
   Timer? _debounce;
   final _searchCtrl = TextEditingController();
+
+  List<Map<String, dynamic>> get _displayClients {
+    switch (_filterMode) {
+      case 'con_plan':
+        return _clients
+            .where((c) => (c['active_plans_count'] as int? ?? 0) > 0)
+            .toList();
+      case 'sin_plan':
+        return _clients
+            .where((c) => (c['active_plans_count'] as int? ?? 0) == 0)
+            .toList();
+      default:
+        return _clients;
+    }
+  }
 
   @override
   void initState() {
@@ -130,9 +146,25 @@ class _NutriologoPacientesScreenState
 
             const SizedBox(height: 12),
 
+            // Filter chips
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _filterChip('Todos', 'todos'),
+                  const SizedBox(width: 8),
+                  _filterChip('Con plan', 'con_plan'),
+                  const SizedBox(width: 8),
+                  _filterChip('Sin plan', 'sin_plan'),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
             if (!_isLoading)
               Text(
-                '$_total paciente${_total != 1 ? 's' : ''}',
+                '${_displayClients.length} de $_total paciente${_total != 1 ? 's' : ''}',
                 style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
 
@@ -144,7 +176,7 @@ class _NutriologoPacientesScreenState
                   : RefreshIndicator(
                       onRefresh: () => _load(reset: true),
                       color: AppColors.neonGreen,
-                      child: _clients.isEmpty
+                      child: _displayClients.isEmpty
                           ? const Center(
                               child: Text(
                                 'No hay pacientes que coincidan.',
@@ -152,12 +184,11 @@ class _NutriologoPacientesScreenState
                               ),
                             )
                           : ListView.builder(
-                              physics:
-                                  const AlwaysScrollableScrollPhysics(),
+                              physics: const AlwaysScrollableScrollPhysics(),
                               itemCount:
-                                  _clients.length + (_hasMore ? 1 : 0),
+                                  _displayClients.length + (_hasMore && _filterMode == 'todos' ? 1 : 0),
                               itemBuilder: (_, index) {
-                                if (index == _clients.length) {
+                                if (index == _displayClients.length) {
                                   return Padding(
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 8),
@@ -177,7 +208,7 @@ class _NutriologoPacientesScreenState
                                     ),
                                   );
                                 }
-                                return _clientCard(_clients[index]);
+                                return _clientCard(_displayClients[index]);
                               },
                             ),
                     ),
@@ -185,6 +216,35 @@ class _NutriologoPacientesScreenState
           ],
         ),
       ),
+      ),
+    );
+  }
+
+  Widget _filterChip(String label, String mode) {
+    final isActive = _filterMode == mode;
+    return GestureDetector(
+      onTap: () => setState(() => _filterMode = mode),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isActive
+              ? AppColors.neonGreen.withValues(alpha: 0.15)
+              : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive ? AppColors.neonGreen : Colors.white12,
+            width: 1.2,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? AppColors.neonGreen : Colors.white54,
+            fontSize: 12,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }
