@@ -88,6 +88,7 @@ class CoachController extends Controller
                 'clients.user_id as id',
                 'users.name as nombre',
                 'users.avatar_url as avatar',
+                DB::raw('COALESCE(clients.goal, users.objective) as objetivo'),
                 'last_log.last_date',
                 'last_progress.weight as peso',
                 'last_progress.body_fat as grasa',
@@ -104,11 +105,19 @@ class CoachController extends Controller
             ->get()
             ->groupBy('client_id');
 
-        $clientes = $clientes->map(function ($row) use ($today, $rutinasPorCliente) {
+        // Load direct routines assigned from mobile (routines.client_id set, no assignment record)
+        $directRoutinasPorCliente = Routine::whereIn('client_id', $clientIds)
+            ->where('is_active', true)
+            ->select('id', 'client_id', 'name', 'icon_type', 'accent_color', 'tag')
+            ->get()
+            ->groupBy('client_id');
+
+        $clientes = $clientes->map(function ($row) use ($today, $rutinasPorCliente, $directRoutinasPorCliente) {
                 $lastDate = $row->last_date ? Carbon::parse($row->last_date) : null;
                 $inactive = !$lastDate || $lastDate->lt($today->copy()->subDays(7));
 
                 $assignments = $rutinasPorCliente->get($row->id, collect());
+                $assignedRoutineIds = $assignments->pluck('routine_id')->filter()->toArray();
                 $rutinas = $assignments->map(fn ($a) => [
                     'id'          => $a->routine_id,
                     'name'        => $a->routine->name ?? 'Sin nombre',
@@ -117,10 +126,24 @@ class CoachController extends Controller
                     'tag'         => $a->routine->tag ?? null,
                 ])->values()->toArray();
 
+                // Add direct mobile routines not already in assignments
+                foreach ($directRoutinasPorCliente->get($row->id, collect()) as $r) {
+                    if (!in_array($r->id, $assignedRoutineIds)) {
+                        $rutinas[] = [
+                            'id'          => $r->id,
+                            'name'        => $r->name,
+                            'iconType'    => $r->icon_type ?? 'dumbbell',
+                            'accentColor' => $r->accent_color ?? '#cafd00',
+                            'tag'         => $r->tag ?? null,
+                        ];
+                    }
+                }
+
                 return [
                     'id'           => $row->id,
                     'nombre'       => $row->nombre,
                     'avatar'       => $row->avatar,
+                    'objetivo'     => $row->objetivo,
                     'rutinas'      => $rutinas,
                     'estado'       => $inactive ? 'inactivo' : 'activo',
                     'estado_label' => $inactive ? 'Inactivo' : 'Entrenado',

@@ -24,14 +24,24 @@ class _AddClientScreenState extends State<AddClientScreen> {
 
     setState(() => _isSearching = true);
     try {
+      // Fetch all user_ids that already have a coach assigned
+      final assignedRows = await _supabase.from('clients').select('user_id');
+      final assignedIds = assignedRows.map((r) => r['user_id']).toSet();
+
       final results = await _supabase
           .from('users')
           .select('user_id, name, email, avatar_url')
           .or('name.ilike.%$query%,email.ilike.%$query%')
-          .neq('role', 'coach') // Assuming coaches can't be clients
-          .limit(10);
+          .neq('role_id', 2) // Exclude coaches
+          .limit(50);
 
-      setState(() => _searchResults = List<Map<String, dynamic>>.from(results));
+      // Filter out users already assigned to any coach
+      final filtered = (results as List<dynamic>)
+          .where((u) => !assignedIds.contains(u['user_id']))
+          .take(10)
+          .toList();
+
+      setState(() => _searchResults = List<Map<String, dynamic>>.from(filtered));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error searching users: $e')),
@@ -49,7 +59,12 @@ class _AddClientScreenState extends State<AddClientScreen> {
           .select('user_id')
           .eq('supabase_id', myAuthId)
           .single();
-      final myNumericId = userData['user_id'];
+      final myNumericId = userData['user_id'] as int;
+
+      // Ensure the coaches row exists — guards against incomplete registration
+      await _supabase
+          .from('coaches')
+          .upsert({'user_id': myNumericId}, onConflict: 'user_id');
 
       // Check if already assigned
       final existing = await _supabase
@@ -60,6 +75,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
           .maybeSingle();
 
       if (existing != null) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Este usuario ya es tu cliente')),
         );
@@ -71,11 +87,13 @@ class _AddClientScreenState extends State<AddClientScreen> {
         'coach_id': myNumericId,
       });
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cliente asignado exitosamente')),
       );
       Navigator.pop(context);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error asignando cliente: $e')),
       );

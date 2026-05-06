@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants.dart';
 import 'models/professional_model.dart';
 import 'professional_detail_screen.dart';
@@ -433,7 +434,12 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                   icon: Icons.chat_bubble_outline_rounded,
                   label: 'Mensaje',
                   color: rc,
-                  onTap: () {},
+                  onTap: () async {
+                    final url = Uri.parse('https://wa.me/521234567890');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    }
+                  },
                 ),
               ),
               Container(width: 1, height: 20, color: Colors.white12),

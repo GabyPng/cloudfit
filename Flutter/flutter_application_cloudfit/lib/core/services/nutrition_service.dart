@@ -1,32 +1,52 @@
-import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../sections/nutrition/models/nutrition_model.dart';
-import '../api_client.dart';
 
 class NutritionService {
-  /// Retorna el plan nutricional activo asignado al cliente logueado,
-  /// o null si no tiene ninguno.
+  static final _supabase = Supabase.instance.client;
+
+  /// Returns the active nutrition plan assigned to the logged-in client,
+  /// or null if none exists. Queries Supabase directly — no server needed.
   static Future<NutritionPlanModel?> getAssignedPlan() async {
-    final response = await ApiClient.get('/cliente/mi-plan');
+    final authId = _supabase.auth.currentUser?.id;
+    if (authId == null) return null;
 
-    if (response.statusCode == 404) return null;
+    final userRow = await _supabase
+        .from('users')
+        .select('user_id')
+        .eq('supabase_id', authId)
+        .maybeSingle();
+    if (userRow == null) return null;
+    final clientId = userRow['user_id'] as int;
 
-    if (response.statusCode >= 400) {
-      final body = response.body.isNotEmpty
-          ? jsonDecode(response.body) as Map<String, dynamic>
-          : <String, dynamic>{};
-      throw Exception(
-        body['error']?.toString() ??
-            body['message']?.toString() ??
-            'Error al obtener el plan (${response.statusCode})',
-      );
-    }
+    final assignment = await _supabase
+        .from('nutrition_plan_assignments')
+        .select(
+          'nutrition_plan_id,'
+          'nutrition_plans('
+            'id,title,description,goal,daily_calories,macro_targets,'
+            'is_active,starts_at,ends_at,'
+            'nutrition_plan_meals('
+              'id,meal_type,name,portion,calories,'
+              'protein_g,carbs_g,fat_g,notes,position'
+            ')'
+          ')',
+        )
+        .eq('client_id', clientId)
+        .eq('status', 'active')
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
 
-    if (response.body.isEmpty) return null;
+    if (assignment == null) return null;
 
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final data = body['data'] as Map<String, dynamic>?;
-    if (data == null) return null;
+    final planData = assignment['nutrition_plans'] as Map<String, dynamic>?;
+    if (planData == null) return null;
 
-    return NutritionPlanModel.fromMap(data);
+    // NutritionPlanModel.fromMap expects key 'meals'; Supabase returns the
+    // nested relation under the table name 'nutrition_plan_meals'.
+    final reshaped = Map<String, dynamic>.from(planData)
+      ..['meals'] = planData['nutrition_plan_meals'] ?? [];
+
+    return NutritionPlanModel.fromMap(reshaped);
   }
 }

@@ -1,10 +1,23 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
-  Users, Dumbbell, CheckCircle, ChevronRight, Printer,
-  User, Loader2, AlertCircle, X, Pause, RotateCcw,
+  CheckCircle, Loader2, AlertCircle, X, Printer, Save,
+  Dumbbell, Zap, Heart, Search, Users, CalendarDays,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+
+const DAYS = [
+  { key: 'Mon', label: 'LUNES' },
+  { key: 'Tue', label: 'MARTES' },
+  { key: 'Wed', label: 'MIÉRCOLES' },
+  { key: 'Thu', label: 'JUEVES' },
+  { key: 'Fri', label: 'VIERNES' },
+  { key: 'Sat', label: 'SÁBADO' },
+  { key: 'Sun', label: 'DOMINGO' },
+];
+
+const ICON_MAP = { dumbbell: Dumbbell, zap: Zap, heart: Heart };
+const EMPTY_PLAN = () => Object.fromEntries(DAYS.map(d => [d.key, []]));
 
 async function apiFetch(path, opts = {}) {
   const { data: s } = await supabase.auth.getSession();
@@ -23,184 +36,205 @@ async function apiFetch(path, opts = {}) {
   return res.json();
 }
 
-const STATUS_CFG = {
-  active: { label: 'Activa',  bg: 'bg-[#cafd00]/10', text: 'text-[#cafd00]', border: 'border-[#cafd00]/20' },
-  paused: { label: 'Pausada', bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20' },
-};
+function printWeeklyPlan(client, weeklyPlan, notes = '') {
+  const days = DAYS.map(d => ({ ...d, routines: weeklyPlan[d.key] || [] }));
+  const activeDays = days.filter(d => d.routines.length > 0).length;
+  const totalRoutines = days.reduce((s, d) => s + d.routines.length, 0);
 
-/* ─── Print helpers (open new window) ─────────────────────────────────── */
-
-function printRoutines(client, assignments) {
-  const relevant = assignments.filter(a => a.routine != null && a.status !== 'completed');
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Rutinas — ${client.name}</title>
+<title>Plan Semanal — ${client.name}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:18mm 22mm}
-.hdr{border-bottom:3px solid #111;padding-bottom:10px;margin-bottom:18px}
-.hdr h1{font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:-0.5px}
-.meta{display:flex;gap:20px;margin-top:6px;color:#444;font-size:10px;flex-wrap:wrap}
-.meta span strong{color:#111}
-.routine{margin-bottom:26px;page-break-inside:avoid}
-.rtitle{font-size:14px;font-weight:800;text-transform:uppercase;border-left:4px solid #111;padding-left:9px;margin-bottom:8px}
-.rmeta{display:flex;gap:10px;font-size:10px;color:#555;margin-bottom:10px;flex-wrap:wrap}
-.rmeta span{background:#f0f0f0;padding:2px 8px;border-radius:20px}
-table{width:100%;border-collapse:collapse}
-th{background:#111;color:#fff;text-align:left;padding:5px 9px;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
-td{padding:6px 9px;border-bottom:1px solid #e5e5e5;font-size:11px}
-tr:nth-child(even) td{background:#f9f9f9}
-.ftr{border-top:1px solid #ccc;padding-top:9px;margin-top:28px;font-size:9px;color:#999;display:flex;justify-content:space-between}
-.empty{text-align:center;color:#888;padding:40px;font-size:13px}
+body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:12mm 16mm}
+.hdr{border-bottom:3px solid #111;padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end}
+.hdr h1{font-size:18px;font-weight:900;text-transform:uppercase}
+.hdr .meta{font-size:9px;color:#555;text-align:right}
+.client-info{background:#f5f5f5;padding:10px 14px;border-radius:6px;margin-bottom:14px;display:flex;gap:20px;align-items:center}
+.client-avatar{width:36px;height:36px;background:#111;color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;flex-shrink:0}
+.client-name{font-size:14px;font-weight:900;text-transform:uppercase}
+.client-obj{font-size:10px;color:#666;margin-top:2px}
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:14px}
+.day-col{border:1px solid #ddd;border-radius:5px;overflow:hidden;min-height:120px}
+.day-header{background:#111;color:#fff;padding:5px 4px;text-align:center;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.8px}
+.day-body{padding:6px;display:flex;flex-direction:column;gap:5px}
+.rest-label{text-align:center;color:#bbb;font-size:9px;padding:16px 4px;font-style:italic}
+.routine-card{border-left:3px solid #111;padding:4px 6px;background:#fafafa;border-radius:0 3px 3px 0}
+.routine-name{font-weight:700;font-size:9px;margin-bottom:2px;line-height:1.2}
+.routine-meta{font-size:8px;color:#777}
+.exercises-mini{margin-top:4px}
+.exercises-mini table{width:100%;border-collapse:collapse;font-size:7px}
+.exercises-mini th{background:#eee;padding:2px 3px;text-align:left;font-weight:700}
+.exercises-mini td{padding:2px 3px;border-bottom:1px solid #f0f0f0}
+.summary{background:#f5f5f5;border:1px solid #ddd;padding:10px 14px;border-radius:5px;display:flex;gap:24px;align-items:center;margin-bottom:10px}
+.summary h3{font-size:10px;font-weight:900;text-transform:uppercase;color:#555;white-space:nowrap}
+.stat{text-align:center}
+.stat-val{font-size:18px;font-weight:900;line-height:1}
+.stat-lbl{font-size:7px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.ftr{border-top:1px solid #ccc;padding-top:8px;font-size:8px;color:#aaa;display:flex;justify-content:space-between}
 </style></head><body>
 <div class="hdr">
-  <h1>Ficha de Rutinas</h1>
+  <div>
+    <h1>Plan Semanal de Entrenamiento</h1>
+  </div>
   <div class="meta">
-    <span><strong>Cliente:</strong> ${client.name}</span>
-    <span><strong>Objetivo:</strong> ${client.objective || 'No especificado'}</span>
-    <span><strong>Email:</strong> ${client.email || '—'}</span>
-    <span><strong>Fecha:</strong> ${new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'})}</span>
+    Generado el ${new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'})}<br>
+    CloudFit — Sistema de Gestión Deportiva
   </div>
 </div>
-${relevant.length === 0
-  ? '<p class="empty">No hay rutinas asignadas a este cliente.</p>'
-  : relevant.map((a, idx) => `
-<div class="routine">
-  <div class="rtitle">${idx + 1}. ${a.routine?.name || 'Sin nombre'}</div>
-  <div class="rmeta">
-    ${a.routine?.trainingPlan ? `<span>Plan: ${a.routine.trainingPlan}</span>` : ''}
-    <span>Dificultad: ${a.routine?.difficultyLabel || '—'}</span>
-    <span>~${a.routine?.estDuration || 0} min</span>
-    <span>Estado: ${STATUS_CFG[a.status]?.label || a.status}</span>
+<div class="client-info">
+  <div class="client-avatar">${client.avatar}</div>
+  <div>
+    <div class="client-name">${client.name}</div>
+    <div class="client-obj">Objetivo: ${client.objective || 'No especificado'} &nbsp;|&nbsp; ${client.email || ''}</div>
   </div>
-  ${!a.routine?.exercises?.length
-    ? '<p style="color:#888;font-size:11px">Sin ejercicios registrados.</p>'
-    : `<table>
-        <thead><tr><th>#</th><th>Ejercicio</th><th>Series</th><th>Reps</th><th>Peso</th><th>Descanso</th></tr></thead>
-        <tbody>
-          ${a.routine.exercises.map((ex, i) =>
-            `<tr><td>${i+1}</td><td>${ex.name}</td><td>${ex.sets}</td><td>${ex.reps}</td><td>${ex.weight||'—'}</td><td>${ex.rest}</td></tr>`
-          ).join('')}
-        </tbody>
-       </table>`
-  }
-</div>`).join('')}
+</div>
+<div class="week-grid">
+  ${days.map(day => `
+    <div class="day-col">
+      <div class="day-header">${day.label}</div>
+      <div class="day-body">
+        ${day.routines.length === 0
+          ? '<div class="rest-label">Descanso</div>'
+          : day.routines.map(r => `
+            <div class="routine-card">
+              <div class="routine-name">${r.name}</div>
+              <div class="routine-meta">${r.difficultyLabel || ''} · ${r.estDuration || 0}min</div>
+              ${r.exercises?.length ? `
+                <div class="exercises-mini">
+                  <table>
+                    <thead><tr><th>Ejercicio</th><th>S</th><th>R</th><th>Desc</th></tr></thead>
+                    <tbody>${r.exercises.slice(0, 6).map(ex =>
+                      `<tr><td>${ex.name}</td><td>${ex.sets}</td><td>${ex.reps}</td><td>${ex.rest}</td></tr>`
+                    ).join('')}${r.exercises.length > 6 ? `<tr><td colspan="4" style="color:#888;font-style:italic">+${r.exercises.length - 6} más...</td></tr>` : ''}
+                    </tbody>
+                  </table>
+                </div>` : ''}
+            </div>`).join('')}
+      </div>
+    </div>`).join('')}
+</div>
+<div class="summary">
+  <h3>Resumen semanal</h3>
+  <div class="stat"><div class="stat-val">${activeDays}</div><div class="stat-lbl">Días activos</div></div>
+  <div class="stat"><div class="stat-val">${7 - activeDays}</div><div class="stat-lbl">Días descanso</div></div>
+  <div class="stat"><div class="stat-val">${totalRoutines}</div><div class="stat-lbl">Total rutinas</div></div>
+  <div class="stat"><div class="stat-val">${days.reduce((s,d)=>s+d.routines.reduce((ss,r)=>ss+(r.estDuration||0),0),0)}</div><div class="stat-lbl">Min totales</div></div>
+</div>
+${notes ? `<div style="margin-bottom:10px;padding:8px 12px;background:#f9f9f9;border:1px solid #ddd;border-radius:5px;font-size:9px;color:#444"><strong style="text-transform:uppercase;letter-spacing:.5px">Notas:</strong> ${notes}</div>` : ''}
 <div class="ftr">
-  <span>CloudFit — Sistema de Gestión Deportiva</span>
-  <span>Generado el ${new Date().toLocaleDateString('es-MX')}</span>
+  <span>CloudFit — Coach: ${client.name}</span>
+  <span>Plan semanal impreso el ${new Date().toLocaleDateString('es-MX')}</span>
 </div>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=820,height=640');
+  const win = window.open('', '_blank', 'width=1100,height=750');
   win.document.write(html);
   win.document.close();
   win.focus();
   win.print();
 }
 
-function printClientCard(client, assignments) {
-  const activeCount = assignments.filter(a => a.status === 'active').length;
-  const age = client.birthDate
-    ? Math.floor((Date.now() - new Date(client.birthDate)) / (365.25 * 86400000))
-    : null;
+function DayColumn({ day, routines, isDragOver, onDragOver, onDragLeave, onDrop, onRemove }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h3 className={`font-headline font-bold text-sm uppercase tracking-wide ${routines.length > 0 ? 'text-[#cafd00]' : 'text-white'}`}>
+        {day.label}
+      </h3>
+      <div
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        className={`flex-1 flex flex-col gap-2 rounded-xl p-3 border-2 transition-all ${
+          isDragOver
+            ? 'bg-[#cafd00]/5 border-[#cafd00]/50 shadow-lg shadow-[#cafd00]/5'
+            : 'bg-[#1a1a1a] border-[#484847]/20'
+        }`}
+        style={{ minHeight: '200px' }}
+      >
+        {routines.map(routine => (
+          <div
+            key={routine.instanceId}
+            className="bg-[#262626] p-3 rounded-lg flex flex-col gap-1.5 border-l-4 group relative"
+            style={{ borderLeftColor: routine.accentColor || '#cafd00' }}
+          >
+            <div className="flex justify-between items-start gap-1">
+              <span className="font-bold text-xs leading-tight text-white">{routine.name}</span>
+              <button
+                onClick={() => onRemove(routine.instanceId)}
+                className="text-[#484847] hover:text-[#ff7351] transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5"
+              >
+                <X size={11} />
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[9px] bg-[#131313] px-1.5 py-0.5 rounded text-[#adaaaa] font-bold uppercase">
+                {routine.difficultyLabel}
+              </span>
+              <span className="text-[9px] text-[#adaaaa]">{routine.estDuration}min</span>
+            </div>
+          </div>
+        ))}
 
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Ficha Cliente — ${client.name}</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:20mm;display:flex;justify-content:center}
-.card{width:360px;border:2px solid #111;padding:28px}
-.badge{display:inline-block;background:#111;color:#fff;padding:3px 10px;font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;margin-bottom:18px}
-.avatar{width:56px;height:56px;background:#111;color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;margin-bottom:13px}
-h2{font-size:22px;font-weight:900;text-transform:uppercase;margin-bottom:3px}
-.email{color:#555;font-size:11px;margin-bottom:18px}
-.divider{border-top:1px solid #e5e5e5;margin:14px 0}
-.field{display:flex;justify-content:space-between;margin-bottom:9px;align-items:baseline}
-.label{color:#777;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
-.value{font-weight:700;font-size:12px}
-.ftr{margin-top:26px;font-size:9px;color:#bbb;text-align:center}
-</style></head><body>
-<div class="card">
-  <div class="badge">CloudFit</div><br>
-  <div class="avatar">${client.avatar}</div>
-  <h2>${client.name}</h2>
-  <div class="email">${client.email || '—'}</div>
-  <div class="divider"></div>
-  <div class="field"><span class="label">Objetivo</span><span class="value">${client.objective || 'No especificado'}</span></div>
-  ${client.height ? `<div class="field"><span class="label">Altura</span><span class="value">${client.height} cm</span></div>` : ''}
-  ${age !== null ? `<div class="field"><span class="label">Edad</span><span class="value">${age} años</span></div>` : ''}
-  ${client.birthDate ? `<div class="field"><span class="label">Nacimiento</span><span class="value">${new Date(client.birthDate).toLocaleDateString('es-MX')}</span></div>` : ''}
-  <div class="divider"></div>
-  <div class="field"><span class="label">Rutinas activas</span><span class="value">${activeCount}</span></div>
-  <div class="field"><span class="label">Rutinas totales</span><span class="value">${assignments.length}</span></div>
-  <div class="ftr">Ficha generada el ${new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'})} — CloudFit</div>
-</div>
-</body></html>`;
-
-  const win = window.open('', '_blank', 'width=500,height=580');
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  win.print();
+        {/* Drop zone */}
+        <div
+          className={`flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed transition-all p-2 ${
+            isDragOver
+              ? 'border-[#cafd00]/60 text-[#cafd00] bg-[#cafd00]/5'
+              : 'border-[#484847]/30 text-[#484847]'
+          }`}
+          style={{ minHeight: routines.length === 0 ? '130px' : '44px' }}
+        >
+          <CalendarDays size={routines.length === 0 ? 18 : 12} />
+          <span className="text-[8px] font-bold uppercase tracking-widest text-center leading-tight">
+            {routines.length === 0 ? 'Soltar rutina' : 'Agregar'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function printClientsList(clients) {
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Lista de Clientes — CloudFit</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:18mm 22mm}
-.hdr{border-bottom:3px solid #111;padding-bottom:10px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-end}
-.hdr h1{font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:-0.5px}
-.hdr .meta{font-size:10px;color:#555}
-table{width:100%;border-collapse:collapse}
-th{background:#111;color:#fff;text-align:left;padding:7px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
-td{padding:8px 10px;border-bottom:1px solid #e5e5e5;font-size:11px;vertical-align:middle}
-tr:nth-child(even) td{background:#f9f9f9}
-.avatar{display:inline-flex;width:28px;height:28px;background:#111;color:#fff;border-radius:50%;align-items:center;justify-content:center;font-size:10px;font-weight:900;margin-right:8px;vertical-align:middle}
-.ftr{border-top:1px solid #ccc;padding-top:9px;margin-top:28px;font-size:9px;color:#999;display:flex;justify-content:space-between}
-</style></head><body>
-<div class="hdr">
-  <h1>Lista de Clientes</h1>
-  <div class="meta">Total: ${clients.length} clientes &nbsp;|&nbsp; ${new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'})}</div>
-</div>
-<table>
-  <thead>
-    <tr><th>#</th><th>Cliente</th><th>Objetivo</th></tr>
-  </thead>
-  <tbody>
-    ${clients.map((c, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td><span class="avatar">${c.avatar}</span>${c.name}</td>
-        <td>${c.objective || '—'}</td>
-      </tr>`).join('')}
-  </tbody>
-</table>
-<div class="ftr">
-  <span>CloudFit — Sistema de Gestión Deportiva</span>
-  <span>Generado el ${new Date().toLocaleDateString('es-MX')}</span>
-</div>
-</body></html>`;
-
-  const win = window.open('', '_blank', 'width=820,height=600');
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  win.print();
-}
-
-/* ─── Component ───────────────────────────────────────────────────────── */
-
-export default function MisClientes() {
-  const navigate = useNavigate();
-  const location = useLocation();
+export default function PlanSemanal() {
   const [clients, setClients] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState(null);
-  const [clientData, setClientData] = useState(null);
+  const [routines, setRoutines] = useState([]);
+  const [weeklyPlan, setWeeklyPlan] = useState(EMPTY_PLAN());
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  const location = useLocation();
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
+  const [draggedRoutine, setDraggedRoutine] = useState(null);
+  const [dragOverDay, setDragOverDay] = useState(null);
+  const [notes, setNotes] = useState('');
+  const [planLoading, setPlanLoading] = useState(false);
+  const bankScrollRef = useRef(null);
+  const autoScrollRef = useRef(null);
+
+  const stopAutoScroll = () => {
+    if (autoScrollRef.current) {
+      clearInterval(autoScrollRef.current);
+      autoScrollRef.current = null;
+    }
+  };
+
+  const handleBankDragOver = (e) => {
+    if (!bankScrollRef.current) return;
+    const rect = bankScrollRef.current.getBoundingClientRect();
+    const ZONE = 64;
+    const y = e.clientY - rect.top;
+    stopAutoScroll();
+    if (y < ZONE) {
+      autoScrollRef.current = setInterval(() => {
+        bankScrollRef.current?.scrollBy(0, -10);
+      }, 16);
+    } else if (y > rect.height - ZONE) {
+      autoScrollRef.current = setInterval(() => {
+        bankScrollRef.current?.scrollBy(0, 10);
+      }, 16);
+    }
+  };
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -211,42 +245,110 @@ export default function MisClientes() {
     const params = new URLSearchParams(location.search);
     const clientIdFromUrl = params.get('clientId');
 
-    apiFetch('/rutinas/clients')
-      .then(data => {
-        setClients(data);
-        if (clientIdFromUrl) {
-          setSelectedClientId(Number(clientIdFromUrl));
-        } else if (data.length > 0) {
-          setSelectedClientId(data[0].id);
-        }
-      })
-      .catch(e => setError(e.message))
+    Promise.all([
+      apiFetch('/rutinas/clients'),
+      apiFetch('/rutinas/routines?level=all'),
+    ]).then(([c, r]) => {
+      setClients(c);
+      setRoutines(r);
+      const preselect = clientIdFromUrl ? Number(clientIdFromUrl) : null;
+      setSelectedClientId(preselect && c.some(x => x.id === preselect) ? preselect : c[0]?.id ?? null);
+    }).catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    if (!selectedClientId) return;
-    setLoadingDetail(true);
-    setClientData(null);
-    apiFetch(`/rutinas/clients/${selectedClientId}/routines`)
-      .then(setClientData)
-      .catch(() => showToast('Error al cargar datos del cliente', 'error'))
-      .finally(() => setLoadingDetail(false));
-  }, [selectedClientId]);
+    if (!selectedClientId || routines.length === 0) return;
+    setPlanLoading(true);
+    apiFetch(`/weekly-plan/${selectedClientId}`)
+      .then(({ plan, notes: savedNotes }) => {
+        const fullPlan = EMPTY_PLAN();
+        for (const [day, ids] of Object.entries(plan)) {
+          fullPlan[day] = ids
+            .map((id, i) => {
+              const r = routines.find(r => r.id === id);
+              return r ? { ...r, instanceId: `${day}-${id}-${i}` } : null;
+            })
+            .filter(Boolean);
+        }
+        setWeeklyPlan(fullPlan);
+        setNotes(savedNotes || '');
+      })
+      .catch(() => {
+        setWeeklyPlan(EMPTY_PLAN());
+        setNotes('');
+      })
+      .finally(() => setPlanLoading(false));
+  }, [selectedClientId, routines]);
 
-  const handleStatusChange = async (assignmentId, newStatus) => {
+  const handleDragStart = (e, routine) => {
+    setDraggedRoutine(routine);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleDragEnd = () => {
+    stopAutoScroll();
+    setDraggedRoutine(null);
+    setDragOverDay(null);
+  };
+
+  const handleDragOver = (e, dayKey) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDragOverDay(dayKey);
+  };
+
+  const handleDragLeave = () => setDragOverDay(null);
+
+  const handleDrop = (e, dayKey) => {
+    e.preventDefault();
+    if (draggedRoutine) {
+      setWeeklyPlan(prev => ({
+        ...prev,
+        [dayKey]: [...(prev[dayKey] || []), { ...draggedRoutine, instanceId: Date.now() }],
+      }));
+    }
+    setDraggedRoutine(null);
+    setDragOverDay(null);
+  };
+
+  const removeFromDay = (dayKey, instanceId) => {
+    setWeeklyPlan(prev => ({
+      ...prev,
+      [dayKey]: prev[dayKey].filter(r => r.instanceId !== instanceId),
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!selectedClientId) return;
+    setSaving(true);
     try {
-      await apiFetch(`/rutinas/assignments/${assignmentId}/status`, {
-        method: 'PATCH',
-        body: { status: newStatus },
+      const planIds = {};
+      for (const day of DAYS) {
+        planIds[day.key] = weeklyPlan[day.key].map(r => r.id);
+      }
+      await apiFetch(`/weekly-plan/${selectedClientId}`, {
+        method: 'POST',
+        body: { plan: planIds, notes },
       });
-      const updated = await apiFetch(`/rutinas/clients/${selectedClientId}/routines`);
-      setClientData(updated);
-      showToast('Estado actualizado');
+      showToast('Plan semanal guardado exitosamente');
     } catch {
-      showToast('Error al actualizar estado', 'error');
+      showToast('Error al guardar el plan', 'error');
+    } finally {
+      setSaving(false);
     }
   };
+
+  const handlePrint = () => {
+    const client = clients.find(c => c.id === selectedClientId);
+    if (!client) return;
+    printWeeklyPlan(client, weeklyPlan, notes);
+  };
+
+  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const filteredRoutines = routines.filter(r =>
+    r.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -260,12 +362,8 @@ export default function MisClientes() {
     </div>
   );
 
-  const selectedClient = clientData?.client ?? null;
-  const assignments = clientData?.assignments ?? [];
-  const activeCount = assignments.filter(a => a.status === 'active').length;
-
   return (
-    <div className="max-w-7xl mx-auto space-y-8 relative">
+    <div className="space-y-5 relative">
 
       {/* Toast */}
       {toast && (
@@ -287,256 +385,176 @@ export default function MisClientes() {
       )}
 
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-black tracking-tight text-white uppercase font-headline">Mis Clientes</h1>
-          <p className="text-[#adaaaa] mt-2 max-w-lg text-sm">
-            Administra las rutinas de tus atletas, visualiza sus programas e imprime fichas de entrenamiento.
-          </p>
-        </div>
-        <button
-          onClick={() => printClientsList(clients)}
-          disabled={clients.length === 0}
-          className="flex items-center gap-2 px-5 py-3 bg-[#1a1a1a] border border-[#484847] text-[#adaaaa] hover:text-white hover:border-[#cafd00]/50 rounded-xl text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-        >
-          <Printer size={16} />
-          Imprimir Lista de Clientes
-        </button>
+      <div>
+        <h1 className="text-4xl font-black tracking-tight text-white uppercase font-headline">Plan Semanal</h1>
+        <p className="text-[#adaaaa] mt-1.5 text-sm">
+          Arma el plan de entrenamiento semanal de tus atletas arrastrando rutinas al calendario.
+        </p>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-
-        {/* ── Left: Client List ── */}
-        <section className="col-span-12 lg:col-span-4">
-          <div className="bg-[#131313] rounded-2xl p-6 border border-[#484847]/10">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-headline font-bold text-lg">Clientes</h3>
-              <span className="text-xs font-headline text-[#ac8aff] px-2 py-1 bg-[#ac8aff]/10 rounded">
-                {clients.length} registrados
-              </span>
-            </div>
-            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-              {clients.length === 0 && (
-                <p className="text-center text-[#adaaaa] text-sm py-8">Sin clientes registrados.</p>
-              )}
-              {clients.map(client => {
-                const isActive = selectedClientId === client.id;
-                return (
-                  <button
-                    key={client.id}
-                    onClick={() => setSelectedClientId(client.id)}
-                    className={`w-full p-4 rounded-xl flex items-center gap-4 cursor-pointer transition-all text-left ${
-                      isActive
-                        ? 'bg-[#262626] border-l-4 border-[#cafd00] shadow-sm'
-                        : 'bg-[#1a1a1a] border-l-4 border-transparent hover:bg-[#262626] group'
-                    }`}
-                  >
-                    <div className="w-12 h-12 rounded-full bg-[#262626] flex items-center justify-center text-sm font-bold text-[#cafd00] flex-shrink-0">
-                      {client.avatar}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm truncate">{client.name}</p>
-                      <p className="text-xs text-[#adaaaa] truncate">{client.objective || 'Sin objetivo'}</p>
-                    </div>
-                    {isActive
-                      ? <CheckCircle size={18} className="text-[#cafd00] flex-shrink-0" />
-                      : <ChevronRight size={18} className="text-[#767575] group-hover:text-[#cafd00] transition-colors flex-shrink-0" />
-                    }
-                  </button>
-                );
-              })}
-            </div>
+      {/* Client Selector + Actions Bar */}
+      <div className="flex flex-wrap items-center gap-3 bg-[#131313] rounded-2xl px-5 py-4 border border-[#484847]/10">
+        <div className="flex items-center gap-3 flex-1 min-w-[200px]">
+          <div className="w-10 h-10 rounded-full bg-[#5516be]/20 flex items-center justify-center text-sm font-black text-[#ac8aff] flex-shrink-0">
+            {selectedClient?.avatar || <Users size={16} />}
           </div>
-        </section>
+          <div className="flex flex-col gap-0.5">
+            <label className="text-[9px] font-black uppercase tracking-widest text-[#adaaaa]">Cliente</label>
+            <select
+              value={selectedClientId || ''}
+              onChange={e => setSelectedClientId(Number(e.target.value))}
+              className="bg-transparent border-none text-white font-bold text-sm focus:outline-none cursor-pointer"
+            >
+              {clients.length === 0 && <option value="">Sin clientes</option>}
+              {clients.map(c => (
+                <option key={c.id} value={c.id} className="bg-[#131313]">{c.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-        {/* ── Right: Client Detail ── */}
-        <section className="col-span-12 lg:col-span-8">
-          {loadingDetail ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 size={28} className="animate-spin text-[#cafd00]" />
-            </div>
-          ) : !selectedClient ? (
-            <div className="flex flex-col items-center justify-center h-64 text-[#adaaaa]">
-              <Users size={48} className="mb-4 opacity-20" />
-              <p className="text-sm">Selecciona un cliente para ver sus rutinas</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
+        {selectedClient?.objective && (
+          <span className="text-xs text-[#cafd00] bg-[#cafd00]/10 border border-[#cafd00]/20 px-3 py-1 rounded-full font-bold">
+            {selectedClient.objective}
+          </span>
+        )}
 
-              {/* Client Header Card */}
-              <div className="bg-[#131313] rounded-2xl p-6 border border-[#484847]/10">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-[#5516be]/20 flex items-center justify-center text-xl font-black text-[#ac8aff] flex-shrink-0">
-                      {selectedClient.avatar}
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-black font-headline text-white">{selectedClient.name}</h2>
-                      <p className="text-[#adaaaa] text-sm">{selectedClient.email}</p>
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        {selectedClient.objective && (
-                          <span className="text-xs text-[#cafd00] bg-[#cafd00]/10 border border-[#cafd00]/20 px-2 py-0.5 rounded-full">
-                            {selectedClient.objective}
-                          </span>
-                        )}
-                        {selectedClient.height && (
-                          <span className="text-xs text-[#adaaaa]">{selectedClient.height} cm</span>
-                        )}
-                        {selectedClient.birthDate && (
-                          <span className="text-xs text-[#adaaaa]">
-                            {Math.floor((Date.now() - new Date(selectedClient.birthDate)) / (365.25 * 86400000))} años
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={handleSave}
+            disabled={saving || !selectedClientId}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#cafd00] text-[#3a4a00] rounded-xl text-sm font-black hover:brightness-110 transition-all disabled:opacity-50 shadow-lg shadow-[#cafd00]/10"
+          >
+            <Save size={15} />
+            {saving ? 'Guardando...' : 'Guardar Plan'}
+          </button>
+          <button
+            onClick={handlePrint}
+            disabled={!selectedClientId}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#1a1a1a] border border-[#484847] text-[#adaaaa] hover:text-white hover:border-[#cafd00]/50 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
+          >
+            <Printer size={15} />
+            Imprimir
+          </button>
+        </div>
+      </div>
 
-                  {/* Print buttons */}
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => printRoutines(selectedClient, assignments)}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-[#1a1a1a] border border-[#484847] text-[#adaaaa] hover:text-white hover:border-[#cafd00]/50 rounded-xl text-sm font-bold transition-all"
-                    >
-                      <Printer size={15} />
-                      Rutinas
-                    </button>
-                    <button
-                      onClick={() => printClientCard(selectedClient, assignments)}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-[#1a1a1a] border border-[#484847] text-[#adaaaa] hover:text-white hover:border-[#ac8aff]/50 rounded-xl text-sm font-bold transition-all"
-                    >
-                      <User size={15} />
-                      Ficha
-                    </button>
-                  </div>
-                </div>
+      {/* Main Content: Weekly Grid + Routine Bank */}
+      <div className="flex gap-4" style={{ minHeight: '68vh' }}>
 
-                {/* Stats row */}
-                <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-[#484847]/10">
-                  <div className="text-center">
-                    <p className="text-2xl font-black text-[#cafd00]">{activeCount}</p>
-                    <p className="text-[10px] uppercase tracking-widest text-[#adaaaa] mt-1">Activas</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-black text-amber-400">
-                      {assignments.filter(a => a.status === 'paused').length}
-                    </p>
-                    <p className="text-[10px] uppercase tracking-widest text-[#adaaaa] mt-1">Pausadas</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Routines List */}
-              <div className="bg-[#131313] rounded-2xl border border-[#484847]/10 overflow-hidden">
-                <div className="flex items-center justify-between p-6 pb-4">
-                  <h3 className="font-headline font-bold text-lg">Rutinas Asignadas</h3>
-                  <button
-                    onClick={() => navigate(`/coach/rutinas?clientId=${selectedClient.id}`)}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#5516be] text-[#d9c8ff] rounded-lg text-xs font-bold hover:bg-[#5516be]/80 transition-colors"
-                  >
-                    <Dumbbell size={14} />
-                    Asignar rutina
-                  </button>
-                </div>
-
-                {assignments.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-[#adaaaa]">
-                    <Dumbbell size={40} className="mb-4 opacity-20" />
-                    <p className="text-sm font-bold">Sin rutinas asignadas</p>
-                    <p className="text-xs mt-1 opacity-60">Usa el botón de arriba para asignar una rutina</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[#484847]/10">
-                    {assignments.map(a => {
-                      const st = STATUS_CFG[a.status] ?? STATUS_CFG.active;
-                      const routine = a.routine;
-                      if (!routine) return null;
-                      return (
-                        <div key={a.assignmentId} className="p-6 hover:bg-[#1a1a1a] transition-colors">
-                          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3 mb-1 flex-wrap">
-                                <h4 className="font-bold text-white">{routine.name}</h4>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${st.bg} ${st.text} ${st.border} whitespace-nowrap`}>
-                                  {st.label}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#adaaaa]">
-                                {routine.trainingPlan && <span>{routine.trainingPlan}</span>}
-                                <span>{routine.difficultyLabel}</span>
-                                <span>{routine.exercises?.length ?? 0} ejercicios</span>
-                                <span>~{routine.estDuration} min</span>
-                                {a.assignedAt && (
-                                  <span>Asignada: {new Date(a.assignedAt).toLocaleDateString('es-MX')}</span>
-                                )}
-                              </div>
-                              {/* Difficulty bar */}
-                              <div className="mt-3 flex items-center gap-2 max-w-xs">
-                                <div className="flex-1 h-1 bg-[#262626] rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full rounded-full transition-all"
-                                    style={{ width: `${routine.difficulty}%`, backgroundColor: routine.accentColor || '#cafd00' }}
-                                  />
-                                </div>
-                                <span className="text-[10px] text-[#adaaaa] whitespace-nowrap">{routine.difficulty}%</span>
-                              </div>
-                            </div>
-
-                            {/* Status action buttons */}
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              {a.status === 'active' && (
-                                <button
-                                  onClick={() => handleStatusChange(a.assignmentId, 'paused')}
-                                  title="Pausar"
-                                  className="p-2 bg-[#262626] hover:bg-amber-500/20 text-[#adaaaa] hover:text-amber-400 rounded-lg transition-colors"
-                                >
-                                  <Pause size={15} />
-                                </button>
-                              )}
-                              {a.status === 'paused' && (
-                                <button
-                                  onClick={() => handleStatusChange(a.assignmentId, 'active')}
-                                  title="Reactivar"
-                                  className="p-2 bg-[#262626] hover:bg-[#cafd00]/10 text-[#adaaaa] hover:text-[#cafd00] rounded-lg transition-colors"
-                                >
-                                  <RotateCcw size={15} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Exercises preview */}
-                          {(routine.exercises?.length ?? 0) > 0 && (
-                            <div className="mt-4 pt-4 border-t border-[#484847]/10">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-[#adaaaa] mb-3">Ejercicios</p>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                {routine.exercises.slice(0, 6).map((ex, idx) => (
-                                  <div key={ex.id} className="flex items-center gap-2 bg-[#262626] rounded-lg px-3 py-2">
-                                    <span className="text-[10px] font-black text-[#cafd00] w-4 flex-shrink-0">{idx + 1}</span>
-                                    <div className="min-w-0">
-                                      <p className="text-xs font-bold truncate">{ex.name}</p>
-                                      <p className="text-[10px] text-[#adaaaa]">
-                                        {ex.sets}×{ex.reps}{ex.weight ? ` @ ${ex.weight}` : ''}
-                                      </p>
-                                    </div>
-                                  </div>
-                                ))}
-                                {routine.exercises.length > 6 && (
-                                  <div className="flex items-center justify-center bg-[#262626]/50 rounded-lg px-3 py-2">
-                                    <p className="text-xs text-[#adaaaa]">+{routine.exercises.length - 6} más</p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+        {/* Weekly Grid */}
+        <div className="flex-1 min-w-0">
+          {planLoading && (
+            <div className="flex items-center justify-center h-16 mb-3">
+              <Loader2 size={20} className="animate-spin text-[#cafd00]" />
+              <span className="ml-2 text-xs text-[#adaaaa]">Cargando plan...</span>
             </div>
           )}
-        </section>
+          <div className="grid grid-cols-4 gap-3">
+            {/* Row 1: Mon–Thu / Row 2: Fri–Sun + Notes (auto-placed by CSS grid) */}
+            {DAYS.map(day => (
+              <DayColumn
+                key={day.key}
+                day={day}
+                routines={weeklyPlan[day.key] || []}
+                isDragOver={dragOverDay === day.key}
+                onDragOver={e => handleDragOver(e, day.key)}
+                onDragLeave={handleDragLeave}
+                onDrop={e => handleDrop(e, day.key)}
+                onRemove={instanceId => removeFromDay(day.key, instanceId)}
+              />
+            ))}
+            {/* Notes slot */}
+            <div className="flex flex-col gap-2">
+              <h3 className="font-headline font-bold text-sm uppercase tracking-wide text-[#adaaaa]/50">NOTAS</h3>
+              <div className="flex-1 bg-[#1a1a1a]/40 border-2 border-[#484847]/20 rounded-xl p-3 flex flex-col">
+                <textarea
+                  className="w-full flex-1 bg-transparent border-none focus:ring-0 text-sm text-[#adaaaa] placeholder-[#484847]/60 resize-none focus:outline-none"
+                  placeholder="Notas del plan semanal&#10;(objetivos, restricciones, etc.)"
+                  style={{ minHeight: '100px' }}
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Routine Bank Sidebar */}
+        <aside className="w-72 flex-shrink-0 bg-[#131313] rounded-2xl border border-[#484847]/10 flex flex-col overflow-hidden" style={{ maxHeight: 'calc(100vh - 270px)' }}>
+          <div className="p-5 border-b border-[#484847]/10">
+            <h2 className="font-headline font-black text-base text-white uppercase tracking-tight">Banco de Rutinas</h2>
+            <p className="text-[10px] text-[#adaaaa] font-headline uppercase tracking-widest mt-0.5">Arrastra al calendario</p>
+          </div>
+
+          <div
+            ref={bankScrollRef}
+            onDragOver={handleBankDragOver}
+            onDragLeave={stopAutoScroll}
+            className="p-4 flex flex-col gap-3 overflow-y-auto flex-1"
+          >
+            {/* Search */}
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#adaaaa]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Buscar rutina..."
+                className="w-full bg-[#262626] border-none rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-[#484847] focus:outline-none focus:ring-1 focus:ring-[#cafd00]/30"
+              />
+            </div>
+
+            {filteredRoutines.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-10 text-[#adaaaa]">
+                <Dumbbell size={28} className="mb-2 opacity-20" />
+                <p className="text-xs text-center">
+                  {routines.length === 0
+                    ? 'No tienes rutinas creadas aún'
+                    : 'Sin resultados para la búsqueda'}
+                </p>
+              </div>
+            )}
+
+            {filteredRoutines.map(routine => {
+              const Icon = ICON_MAP[routine.iconType] || Dumbbell;
+              return (
+                <div
+                  key={routine.id}
+                  draggable
+                  onDragStart={e => handleDragStart(e, routine)}
+                  onDragEnd={handleDragEnd}
+                  className={`bg-[#1a1a1a] p-4 rounded-xl border border-[#484847]/10 hover:border-[#cafd00]/30 transition-colors cursor-grab active:cursor-grabbing select-none ${draggedRoutine?.id === routine.id ? 'opacity-50' : ''}`}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div
+                      className="p-2 rounded-lg"
+                      style={{ backgroundColor: `${routine.accentColor}20`, color: routine.accentColor }}
+                    >
+                      <Icon size={15} />
+                    </div>
+                    <span className="text-[#484847] text-base leading-none select-none">⠿</span>
+                  </div>
+                  <h4 className="font-bold text-sm text-white mb-1 leading-tight">{routine.name}</h4>
+                  {routine.trainingPlan && (
+                    <p className="text-[10px] text-[#adaaaa] mb-2 truncate">{routine.trainingPlan}</p>
+                  )}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[9px] bg-[#262626] px-2 py-0.5 rounded font-bold uppercase text-[#adaaaa]">
+                      {routine.difficultyLabel}
+                    </span>
+                    <span className="text-[9px] bg-[#262626] px-2 py-0.5 rounded font-bold uppercase text-[#adaaaa]">
+                      {routine.estDuration}min
+                    </span>
+                    <span className="text-[9px] text-[#484847]">
+                      {routine.exercises?.length ?? 0} ejercicios
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </aside>
       </div>
     </div>
   );

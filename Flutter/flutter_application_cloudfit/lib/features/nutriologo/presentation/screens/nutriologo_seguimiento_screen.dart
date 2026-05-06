@@ -658,26 +658,29 @@ class _NutriologoSeguimientoScreenState
     final email = _selectedPatient!['email']?.toString() ?? '';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: AppColors.neonGreen.withValues(alpha: 0.18),
-            child: Text(initial,
-                style: const TextStyle(
-                    color: AppColors.neonGreen,
-                    fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name,
+    final progressEntries =
+        _history.where((e) => e['type'] == 'progreso').toList();
+    final lastProgreso =
+        progressEntries.isNotEmpty ? progressEntries.last : null;
+
+    final weightPoints = progressEntries
+        .where((e) => e['weight_kg'] != null)
+        .map((e) => (e['weight_kg'] as num).toDouble())
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.neonGreen.withValues(alpha: 0.18),
+                child: Text(initial,
                     style: const TextStyle(
-                        color: Colors.white,
+                        color: AppColors.neonGreen,
                         fontWeight: FontWeight.bold)),
                 if (email.isNotEmpty)
                   Text(email,
@@ -696,7 +699,120 @@ class _NutriologoSeguimientoScreenState
             icon: const Icon(Icons.swap_horiz_rounded, color: AppColors.coralOrange, size: 14),
             label: const Text('Dieta', style: TextStyle(color: AppColors.coralOrange, fontSize: 12)),
           ),
+        ),
+        if (!_loadingHistory && lastProgreso != null) ...[
+          const SizedBox(height: 10),
+          _metricsRow(lastProgreso),
+          if (weightPoints.length >= 2) ...[
+            const SizedBox(height: 10),
+            _weightSparkline(weightPoints),
+          ],
         ],
+      ],
+    );
+  }
+
+  Widget _metricsRow(Map<String, dynamic> p) {
+    final tiles = <Widget>[
+      if (p['weight_kg'] != null)
+        _metricTile('Peso', '${p['weight_kg']} kg', AppColors.neonGreen),
+      if (p['bmi'] != null)
+        _metricTile('IMC', '${p['bmi']}', AppColors.electricPurple),
+      if (p['body_fat_pct'] != null)
+        _metricTile('Grasa', '${p['body_fat_pct']}%', AppColors.coralOrange),
+      if (p['adherence_pct'] != null)
+        _metricTile('Adherencia', '${p['adherence_pct']}%', const Color(0xFF4DD0E1)),
+    ];
+    if (tiles.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(children: tiles),
+    );
+  }
+
+  Widget _metricTile(String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.22)),
+        ),
+        child: Column(
+          children: [
+            Text(value,
+                style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13)),
+            const SizedBox(height: 2),
+            Text(label,
+                style: const TextStyle(
+                    color: Colors.white38, fontSize: 9)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _weightSparkline(List<double> weights) {
+    final last = weights.length > 6 ? weights.sublist(weights.length - 6) : weights;
+    final minW = last.reduce((a, b) => a < b ? a : b);
+    final maxW = last.reduce((a, b) => a > b ? a : b);
+    final range = (maxW - minW).abs();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        height: 52,
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Text('kg',
+                style: TextStyle(color: Colors.white24, fontSize: 9)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: last.map((w) {
+                  final isLast = w == last.last;
+                  final heightPct =
+                      range < 0.01 ? 0.6 : ((w - minW) / range) * 0.7 + 0.3;
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (isLast)
+                        Text('$w',
+                            style: const TextStyle(
+                                color: AppColors.neonGreen,
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Container(
+                        width: 10,
+                        height: 28 * heightPct,
+                        decoration: BoxDecoration(
+                          color: isLast
+                              ? AppColors.neonGreen
+                              : AppColors.neonGreen.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

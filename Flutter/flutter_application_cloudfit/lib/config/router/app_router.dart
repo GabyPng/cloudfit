@@ -4,6 +4,8 @@ import 'package:flutter_application_cloudfit/features/coach/presentation/screens
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/client_detail_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/coach_main_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/create_routine_screen.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/routine_detail_screen.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/weekly_plan_screen.dart';
 import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_home_screen.dart';
 import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_planes_screen.dart';
 import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_perfil_screen.dart';
@@ -16,9 +18,9 @@ import 'package:flutter_application_cloudfit/sections/nutrition/nutrition_screen
 import 'package:flutter_application_cloudfit/sections/professionals/professional_screen.dart';
 import 'package:flutter_application_cloudfit/sections/progress/progress_screen.dart';
 import 'package:flutter_application_cloudfit/sections/workout/exercise_detail_screen.dart';
+import 'package:flutter_application_cloudfit/sections/workout/models/exercise_model.dart';
 import 'package:flutter_application_cloudfit/sections/workout/workout_summary_screen.dart';
 import 'package:flutter_application_cloudfit/sections/roles/admin_index_screen.dart';
-import 'package:flutter_application_cloudfit/sections/roles/nutriologo_index_screen.dart';
 import 'package:go_router/go_router.dart';
 import '../../sections/dashboard/main_screen.dart';
 import '../../sections/workout/exercise_screen.dart';
@@ -101,7 +103,12 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/cliente/exercise-detail',
       name: ExerciseDetailScreen.name,
-      builder: (context, state) => const ExerciseDetailScreen(),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        final exercises = extra?['exercises'] as List<RoutineExercise>?;
+        final index = extra?['index'] as int? ?? 0;
+        return ExerciseDetailScreen(exercises: exercises, currentIndex: index);
+      },
     ),
 
     GoRoute(
@@ -193,6 +200,20 @@ GoRoute(
 GoRoute(
   path: '/add-exercises/:routineId',
   builder: (context, state) => AddExercisesScreen(routineId: state.pathParameters['routineId']!),
+),
+GoRoute(
+  path: '/routine-detail/:routineId',
+  builder: (context, state) => RoutineDetailScreen(routineId: state.pathParameters['routineId']!),
+),
+GoRoute(
+  path: '/weekly-plan/:clientId',
+  builder: (context, state) {
+    final extra = state.extra as Map<String, dynamic>?;
+    return WeeklyPlanScreen(
+      clientId: state.pathParameters['clientId']!,
+      clientName: extra?['clientName'] as String? ?? '',
+    );
+  },
 ),
 
     StatefulShellRoute.indexedStack(
