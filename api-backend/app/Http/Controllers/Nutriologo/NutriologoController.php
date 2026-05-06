@@ -92,6 +92,15 @@ class NutriologoController extends Controller
             return response()->json(['error' => 'No user in token'], 401);
         }
 
+        $payload = Cache::remember("nutri_dashboard_{$nutriologo->id}", 30, function () use ($nutriologo) {
+            return $this->buildDashboard($nutriologo);
+        });
+
+        return response()->json($payload);
+    }
+
+    private function buildDashboard($nutriologo): array
+    {
         $startOfMonth = now()->startOfMonth();
         $endOfMonth = now()->endOfMonth();
 
@@ -123,7 +132,7 @@ class NutriologoController extends Controller
                 [now()->toDateString()]
             )
             ->selectRaw(
-                '(SELECT COUNT(*) FROM nutrition_plans WHERE nutriologo_id = ? AND is_active = 1) as planes_activos',
+                '(SELECT COUNT(*) FROM nutrition_plans WHERE nutriologo_id = ? AND is_active = true) as planes_activos',
                 [$nutriologo->id]
             )
             ->first();
@@ -224,13 +233,13 @@ class NutriologoController extends Controller
                 ];
             });
 
-        return response()->json([
+        return [
             'message' => 'Bienvenido al panel de Nutriologo.',
             'section' => 'nutriologo',
             'stats' => $stats,
             'pacientes' => $pacientes,
             'actividades' => $actividades,
-        ]);
+        ];
     }
 
     public function clientes(Request $request)

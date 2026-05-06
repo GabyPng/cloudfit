@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  UserX,
   Users,
   X,
   Utensils,
@@ -98,9 +99,9 @@ export default function NutriologoPlanesPage() {
   const kpis = useMemo(() => ({
     total: meta.total,
     activos: plans.filter((p) => p.is_active).length,
-    comidas: plans.reduce((sum, p) => sum + (p.meals_count ?? 0), 0),
+    sinPlan: patients.filter((p) => !p.current_plan_id).length,
     asignados: plans.reduce((sum, p) => sum + (p.assignments_count ?? 0), 0),
-  }), [plans, meta.total]);
+  }), [plans, meta.total, patients]);
 
   const getToken = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -178,7 +179,7 @@ export default function NutriologoPlanesPage() {
       try {
         setDetailLoading(true);
         const payload = await requestJson(`/api/nutriologo/planes/${selectedPlanId}`);
-        if (!ignore) setPlanDetail(payload);
+        if (!ignore) setPlanDetail(payload.data ?? payload);
       } catch {
         if (!ignore) setPlanDetail(null);
       } finally {
@@ -295,29 +296,6 @@ export default function NutriologoPlanesPage() {
     }
   };
 
-  const handleAssignPlan = async () => {
-    if (!assignForm.clientId) { showToast('Selecciona un paciente.', 'error'); return; }
-    if (!selectedPlanId) return;
-    try {
-      setSaving(true);
-      await requestJson(`/api/nutriologo/planes/${selectedPlanId}/asignar`, {
-        method: 'POST',
-        body: JSON.stringify({
-          client_id: Number(assignForm.clientId),
-          notes: assignForm.notes || null,
-          starts_at: assignForm.starts_at || new Date().toISOString().slice(0, 10),
-        }),
-      });
-      setAssignForm({ clientId: '', notes: '', starts_at: '' });
-      showToast('Plan asignado correctamente al paciente.');
-      refresh();
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const updateMeal = (index, field, value) => {
     setPlanForm((f) => {
       const meals = [...f.meals];
@@ -371,7 +349,7 @@ export default function NutriologoPlanesPage() {
         <section className="col-span-12 grid grid-cols-1 md:grid-cols-4 gap-6">
           <KpiCard label="Total Planes" value={kpis.total} icon={FileText} valueColor="text-[#cafd00]" />
           <KpiCard label="Planes Activos" value={kpis.activos} icon={CheckCircle2} iconColor="text-[#7ef0b3]" valueColor="text-[#7ef0b3]" />
-          <KpiCard label="Total Comidas" value={kpis.comidas} icon={Utensils} iconColor="text-[#ac8aff]" valueColor="text-[#ac8aff]" />
+          <KpiCard label="Sin plan asignado" value={kpis.sinPlan} icon={UserX} iconColor="text-[#ff7351]" valueColor="text-[#ff7351]" />
           <KpiCard label="Pacientes Asignados" value={kpis.asignados} icon={Users} iconColor="text-[#fce047]" valueColor="text-[#fce047]" />
         </section>
 
@@ -602,15 +580,6 @@ export default function NutriologoPlanesPage() {
                     placeholder="Notas para el paciente..."
                     className="w-full bg-[#0e0e0e] rounded-lg px-3 py-3 text-sm text-white border border-[#484847]/20 focus:outline-none focus:ring-1 focus:ring-[#cafd00] resize-none"
                   />
-
-                  <button
-                    onClick={handleAssignPlan}
-                    disabled={saving || !assignForm.clientId}
-                    className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-[#cafd00] text-[#405100] font-black uppercase tracking-tighter disabled:opacity-50 shadow-lg shadow-[#cafd00]/10"
-                  >
-                    {saving ? <Loader2 className="animate-spin" size={16} /> : <Users size={16} />}
-                    Asignar plan
-                  </button>
                 </div>
               </div>
             </>

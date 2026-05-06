@@ -7,7 +7,6 @@ import 'package:flutter_application_cloudfit/features/coach/presentation/screens
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/routine_detail_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/weekly_plan_screen.dart';
 import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_home_screen.dart';
-import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_pacientes_screen.dart';
 import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_planes_screen.dart';
 import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_perfil_screen.dart';
 import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_seguimiento_screen.dart';
@@ -151,7 +150,7 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: '/nutriologo/pacientes',
-              builder: (context, state) => const NutriologoPacientesScreen(),
+              builder: (context, state) => const NutriologoSeguimientoScreen(),
             ),
           ],
         ),
@@ -172,13 +171,6 @@ final appRouter = GoRouter(
           ],
         ),
       ],
-    ),
-
-    GoRoute(
-      path: '/nutriologo/seguimiento',
-      builder: (context, state) => NutriologoSeguimientoScreen(
-        initialPatient: state.extra as Map<String, dynamic>?,
-      ),
     ),
 
     GoRoute(

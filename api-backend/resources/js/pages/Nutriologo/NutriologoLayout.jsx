@@ -5,11 +5,8 @@ import {
   LayoutDashboard,
   Users,
   FileText,
-  TrendingUp,
   User,
   LogOut,
-  Search,
-  Plus,
   Bell,
 } from 'lucide-react';
 
@@ -17,7 +14,6 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Inicio', path: '/nutriologo', available: true },
   { icon: Users, label: 'Pacientes', path: '/nutriologo/pacientes', available: true },
   { icon: FileText, label: 'Planes Nutricionales', path: '/nutriologo/planes', available: true },
-  { icon: TrendingUp, label: 'Seguimiento', path: '/nutriologo/seguimiento', available: true },
   { icon: User, label: 'Mi Perfil', path: '/nutriologo/perfil', available: true },
 ];
 
@@ -83,25 +79,8 @@ export default function NutriologoLayout({ children, nutriologoName = 'Nutriólo
 
       <header className="fixed top-0 right-0 left-64 flex justify-between items-center px-8 h-20 z-40 bg-[#0e0e0e]/80 backdrop-blur-xl border-b border-[#cafd00]/15 shadow-2xl shadow-black/50">
         <div className="flex items-center gap-6">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#adaaaa]" />
-            <input
-              type="text"
-              placeholder="Buscar paciente o plan..."
-              className="bg-[#131313] border-none rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-[#adaaaa] focus:outline-none focus:ring-1 focus:ring-[#f3ffca] w-72 transition-all"
-            />
-          </div>
         </div>
         <div className="flex items-center gap-6">
-          {!['/nutriologo/pacientes', '/nutriologo/seguimiento', '/nutriologo/perfil'].includes(location.pathname) && (
-            <button
-              onClick={() => navigate('/nutriologo/pacientes')}
-              className="flex items-center gap-2 bg-[#cafd00] text-[#3a4a00] px-5 py-2.5 rounded-sm font-headline font-extrabold text-sm hover:opacity-90 transition-opacity uppercase tracking-tight whitespace-nowrap"
-            >
-              <Plus size={16} />
-              Asignar Plan
-            </button>
-          )}
           <div className="relative">
             <Bell size={20} className="text-[#adaaaa] hover:text-[#f3ffca] cursor-pointer transition-colors" />
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#ff7351] rounded-full"></span>

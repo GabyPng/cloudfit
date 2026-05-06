@@ -282,6 +282,210 @@ class _NutriologoSeguimientoScreenState
     notesCtrl.dispose();
   }
 
+  static const _changeTypes = {
+    'calorie_adjust': 'Ajuste calórico',
+    'macro_adjust': 'Ajuste de macros',
+    'meal_update': 'Actualización de comida',
+    'plan_change': 'Cambio de plan',
+    'observation': 'Observación',
+  };
+
+  Future<void> _addDietChangeDialog() async {
+    if (_selectedPatient == null) return;
+    String selectedType = 'observation';
+    final dateCtrl = TextEditingController(text: DateTime.now().toIso8601String().substring(0, 10));
+    final reasonCtrl = TextEditingController();
+    final prevCalCtrl = TextEditingController();
+    final newCalCtrl = TextEditingController();
+    final prevProtCtrl = TextEditingController();
+    final prevCarbCtrl = TextEditingController();
+    final prevFatCtrl = TextEditingController();
+    final newProtCtrl = TextEditingController();
+    final newCarbCtrl = TextEditingController();
+    final newFatCtrl = TextEditingController();
+    final prevTextCtrl = TextEditingController();
+    final newTextCtrl = TextEditingController();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36, height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Proponer cambio de dieta',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
+                const SizedBox(height: 16),
+                _inputField(dateCtrl, 'Fecha (YYYY-MM-DD) *'),
+                const SizedBox(height: 10),
+                // Tipo de cambio
+                DropdownButtonFormField<String>(
+                  value: selectedType,
+                  dropdownColor: AppColors.background,
+                  decoration: InputDecoration(
+                    labelText: 'Tipo de cambio *',
+                    labelStyle: const TextStyle(color: Colors.white54, fontSize: 12),
+                    filled: true,
+                    fillColor: AppColors.background,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2A2A2A))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2A2A2A))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.coralOrange)),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  items: _changeTypes.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+                  onChanged: (v) { if (v != null) setSheet(() => selectedType = v); },
+                ),
+                const SizedBox(height: 10),
+                _inputField(reasonCtrl, 'Razón del cambio *', maxLines: 3),
+                const SizedBox(height: 10),
+                // Campos contextuales
+                if (selectedType == 'calorie_adjust') ...[
+                  Row(children: [
+                    Expanded(child: _inputField(prevCalCtrl, 'Calorías anteriores', keyboardType: TextInputType.number)),
+                    const SizedBox(width: 10),
+                    Expanded(child: _inputField(newCalCtrl, 'Calorías propuestas', keyboardType: TextInputType.number)),
+                  ]),
+                  const SizedBox(height: 10),
+                ],
+                if (selectedType == 'macro_adjust') ...[
+                  const Text('Macros anteriores (g)', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                  const SizedBox(height: 6),
+                  Row(children: [
+                    Expanded(child: _inputField(prevProtCtrl, 'Proteína', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _inputField(prevCarbCtrl, 'Carbs', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _inputField(prevFatCtrl, 'Grasa', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                  ]),
+                  const SizedBox(height: 8),
+                  const Text('Macros propuestos (g)', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                  const SizedBox(height: 6),
+                  Row(children: [
+                    Expanded(child: _inputField(newProtCtrl, 'Proteína', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _inputField(newCarbCtrl, 'Carbs', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _inputField(newFatCtrl, 'Grasa', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                  ]),
+                  const SizedBox(height: 10),
+                ],
+                if (selectedType == 'meal_update' || selectedType == 'plan_change') ...[
+                  _inputField(prevTextCtrl, selectedType == 'plan_change' ? 'Plan anterior' : 'Comida anterior'),
+                  const SizedBox(height: 8),
+                  _inputField(newTextCtrl, selectedType == 'plan_change' ? 'Plan propuesto' : 'Comida propuesta'),
+                  const SizedBox(height: 10),
+                ],
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white54,
+                        side: const BorderSide(color: Colors.white24),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text('Cancelar'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.coralOrange,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () async {
+                        final date = dateCtrl.text.trim();
+                        final reason = reasonCtrl.text.trim();
+                        if (date.isEmpty || reason.isEmpty) return;
+                        Navigator.pop(ctx);
+                        final clientId = _clientId(_selectedPatient!);
+                        if (clientId == null) return;
+
+                        Map<String, dynamic>? prevVal;
+                        Map<String, dynamic>? newVal;
+                        if (selectedType == 'calorie_adjust') {
+                          if (prevCalCtrl.text.isNotEmpty) prevVal = {'calorias': num.tryParse(prevCalCtrl.text)};
+                          if (newCalCtrl.text.isNotEmpty) newVal = {'calorias': num.tryParse(newCalCtrl.text)};
+                        } else if (selectedType == 'macro_adjust') {
+                          if (prevProtCtrl.text.isNotEmpty || prevCarbCtrl.text.isNotEmpty || prevFatCtrl.text.isNotEmpty) {
+                            prevVal = {
+                              if (prevProtCtrl.text.isNotEmpty) 'proteina_g': num.tryParse(prevProtCtrl.text),
+                              if (prevCarbCtrl.text.isNotEmpty) 'carbohidratos_g': num.tryParse(prevCarbCtrl.text),
+                              if (prevFatCtrl.text.isNotEmpty) 'grasa_g': num.tryParse(prevFatCtrl.text),
+                            };
+                          }
+                          if (newProtCtrl.text.isNotEmpty || newCarbCtrl.text.isNotEmpty || newFatCtrl.text.isNotEmpty) {
+                            newVal = {
+                              if (newProtCtrl.text.isNotEmpty) 'proteina_g': num.tryParse(newProtCtrl.text),
+                              if (newCarbCtrl.text.isNotEmpty) 'carbohidratos_g': num.tryParse(newCarbCtrl.text),
+                              if (newFatCtrl.text.isNotEmpty) 'grasa_g': num.tryParse(newFatCtrl.text),
+                            };
+                          }
+                        } else if (selectedType == 'meal_update' || selectedType == 'plan_change') {
+                          if (prevTextCtrl.text.isNotEmpty) prevVal = {'descripcion': prevTextCtrl.text.trim()};
+                          if (newTextCtrl.text.isNotEmpty) newVal = {'descripcion': newTextCtrl.text.trim()};
+                        }
+
+                        try {
+                          await NutriologoApi.addDietChange(
+                            clientId: clientId,
+                            changeType: selectedType,
+                            reason: reason,
+                            date: date,
+                            previousValue: prevVal,
+                            newValue: newVal,
+                          );
+                          await _selectPatient(_selectedPatient!);
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                          }
+                        }
+                      },
+                      child: const Text('Enviar propuesta', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    dateCtrl.dispose(); reasonCtrl.dispose();
+    prevCalCtrl.dispose(); newCalCtrl.dispose();
+    prevProtCtrl.dispose(); prevCarbCtrl.dispose(); prevFatCtrl.dispose();
+    newProtCtrl.dispose(); newCarbCtrl.dispose(); newFatCtrl.dispose();
+    prevTextCtrl.dispose(); newTextCtrl.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -297,13 +501,20 @@ class _NutriologoSeguimientoScreenState
               color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
-          if (_selectedPatient != null)
+          if (_selectedPatient != null) ...[
             IconButton(
               icon: const Icon(Icons.add_circle_outline,
                   color: AppColors.neonGreen),
               onPressed: _addProgressDialog,
               tooltip: 'Registrar progreso',
             ),
+            IconButton(
+              icon: const Icon(Icons.swap_horiz_rounded,
+                  color: AppColors.coralOrange),
+              onPressed: _addDietChangeDialog,
+              tooltip: 'Proponer cambio de dieta',
+            ),
+          ],
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white70),
             onPressed: _loadPatients,
@@ -471,29 +682,22 @@ class _NutriologoSeguimientoScreenState
                     style: const TextStyle(
                         color: AppColors.neonGreen,
                         fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name,
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
-                    if (email.isNotEmpty)
-                      Text(email,
-                          style: const TextStyle(
-                              color: Colors.white54, fontSize: 11)),
-                  ],
-                ),
-              ),
-              TextButton.icon(
-                onPressed: _addProgressDialog,
-                icon: const Icon(Icons.add, color: AppColors.neonGreen, size: 14),
-                label: const Text('Registrar',
-                    style: TextStyle(color: AppColors.neonGreen, fontSize: 12)),
-              ),
-            ],
+                if (email.isNotEmpty)
+                  Text(email,
+                      style: const TextStyle(
+                          color: Colors.white54, fontSize: 11)),
+              ],
+            ),
+          ),
+          TextButton.icon(
+            onPressed: _addProgressDialog,
+            icon: const Icon(Icons.add, color: AppColors.neonGreen, size: 14),
+            label: const Text('Progreso', style: TextStyle(color: AppColors.neonGreen, fontSize: 12)),
+          ),
+          TextButton.icon(
+            onPressed: _addDietChangeDialog,
+            icon: const Icon(Icons.swap_horiz_rounded, color: AppColors.coralOrange, size: 14),
+            label: const Text('Dieta', style: TextStyle(color: AppColors.coralOrange, fontSize: 12)),
           ),
         ),
         if (!_loadingHistory && lastProgreso != null) ...[
@@ -628,11 +832,10 @@ class _NutriologoSeguimientoScreenState
         decoration: BoxDecoration(
           color: isSelected
               ? AppColors.neonGreen.withValues(alpha: 0.18)
-              : AppColors.surface,
+              : Colors.white.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
-            color:
-                isSelected ? AppColors.neonGreen : Colors.transparent,
+            color: isSelected ? AppColors.neonGreen : Colors.white12,
             width: 1.5,
           ),
         ),
@@ -643,13 +846,13 @@ class _NutriologoSeguimientoScreenState
               radius: 12,
               backgroundColor: isSelected
                   ? AppColors.neonGreen.withValues(alpha: 0.3)
-                  : AppColors.cardGrey,
+                  : Colors.white.withValues(alpha: 0.05),
               child: Text(
                 initial,
                 style: TextStyle(
                   color: isSelected
                       ? AppColors.neonGreen
-                      : Colors.white70,
+                      : Colors.white24,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
@@ -661,7 +864,7 @@ class _NutriologoSeguimientoScreenState
               style: TextStyle(
                 color: isSelected
                     ? AppColors.neonGreen
-                    : Colors.white70,
+                    : Colors.white30,
                 fontSize: 12,
                 fontWeight: isSelected
                     ? FontWeight.bold

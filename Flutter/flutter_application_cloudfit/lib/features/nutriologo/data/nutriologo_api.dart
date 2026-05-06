@@ -446,24 +446,22 @@ class NutriologoApi {
     String? goal,
     int? dailyCalories,
     bool? isActive,
+    List<Map<String, dynamic>>? meals,
   }) async {
     final ctx = await _getCtx();
 
     final payload = <String, dynamic>{
-      if (title?.isNotEmpty == true) 'title': title,
-      if (description != null) 'description': description,
-      if (goal != null) 'goal': goal,
-      if (dailyCalories != null) 'daily_calories': dailyCalories,
-      if (isActive != null) 'is_active': isActive,
+      'title': titleTrimmed,
+      'description': descriptionTrimmed,
+      'goal': goalTrimmed,
+      'daily_calories': dailyCalories,
+      'is_active': isActive,
+      if (meals != null) 'meals': meals,
     };
 
-    final plan = await _supabase
-        .from('nutrition_plans')
-        .update(payload)
-        .eq('id', planId)
-        .eq('nutriologo_id', ctx.nutriologoId)
-        .select('*,nutrition_plan_meals(*)')
-        .single();
+    payload.removeWhere(
+      (key, value) => key != 'meals' && (value == null || (value is String && value.isEmpty)),
+    );
 
     return plan;
   }
@@ -692,6 +690,30 @@ class NutriologoApi {
         .single();
 
     return record;
+  }
+
+  static Future<Map<String, dynamic>> addDietChange({
+    required int clientId,
+    required String changeType,
+    required String reason,
+    required String date,
+    Map<String, dynamic>? previousValue,
+    Map<String, dynamic>? newValue,
+  }) async {
+    final payload = <String, dynamic>{
+      'change_type': changeType,
+      'reason': reason,
+      'date': date,
+      if (previousValue != null) 'previous_value': previousValue,
+      if (newValue != null) 'new_value': newValue,
+    };
+    final response = await _http.post(
+      Uri.parse('${ApiConfig.baseUrl}/nutriologo/seguimiento/$clientId/cambio-dieta'),
+      headers: _headers(),
+      body: jsonEncode(payload),
+    );
+    final body = _decode(response);
+    return body['data'] as Map<String, dynamic>;
   }
 
   // ── Perfil ────────────────────────────────────────────────────────────────
