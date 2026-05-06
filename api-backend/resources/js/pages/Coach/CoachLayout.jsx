@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import Chatbot from '../../components/Chatbot';
 import {
   LayoutDashboard,
-  Users,
+  CalendarDays,
   Dumbbell,
   TrendingUp,
   User,
@@ -12,7 +12,7 @@ import {
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Inicio', path: '/coach' },
-  { icon: Users, label: 'Mis Clientes', path: '/coach/clientes' },
+  { icon: CalendarDays, label: 'Plan Semanal', path: '/coach/clientes' },
   { icon: Dumbbell, label: 'Rutinas', path: '/coach/rutinas' },
   { icon: TrendingUp, label: 'Progreso Físico', path: '/coach/progreso' },
   { icon: User, label: 'Mi Perfil', path: '/coach/perfil' },

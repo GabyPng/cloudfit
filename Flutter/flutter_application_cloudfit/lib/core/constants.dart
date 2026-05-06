@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 
-class ApiConfig {
-  static const String baseUrl = 'http://localhost:8000/api';
-}
-
 class AppColors {
   // Colores Base
   static const Color background = Color(0xFF121212);

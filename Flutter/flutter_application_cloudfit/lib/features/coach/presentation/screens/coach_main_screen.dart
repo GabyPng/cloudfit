@@ -150,7 +150,8 @@ Future<List<Map<String, dynamic>>> _getClients() async {
   }
   return clientsWithUsers;
 }
-
+//Implementación de la función _getClients que obtiene los clientes
+// asociados al coach actual, incluyendo sus datos de usuario para mostrar en la interfaz.
   @override
   Widget build(BuildContext context) {
     return Scaffold(

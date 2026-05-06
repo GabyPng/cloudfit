@@ -31,10 +31,10 @@ function buildSyncPayloadFromSession(session) {
     objective: metadata?.objective || null,
     profile: role === 'nutriologo'
       ? {
-          ...profile,
-          licenseNumber: profile?.licenseNumber || profile?.license_number || 'PENDIENTE',
-          focus: profile?.focus || 'General',
-        }
+        ...profile,
+        licenseNumber: profile?.licenseNumber || profile?.license_number || 'PENDIENTE',
+        focus: profile?.focus || 'General',
+      }
       : profile,
   };
 }

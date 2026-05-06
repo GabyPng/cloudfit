@@ -104,6 +104,7 @@ class VerifySupabaseToken
         } catch (SignatureInvalidException $e) {
             return response()->json(['message' => 'Firma inválida.'], 401);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('VerifySupabaseToken error: ' . $e->getMessage());
             return response()->json(['message' => 'Token inválido.'], 401);
         }
 

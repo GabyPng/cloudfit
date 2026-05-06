@@ -745,7 +745,9 @@ class _RoutineCard extends StatelessWidget {
   const _RoutineCard({required this.name, required this.workoutsThisWeek});
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: () => context.go('/cliente/exercises'),
+      child: Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -775,6 +777,7 @@ class _RoutineCard extends StatelessWidget {
         ),
         const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 15),
       ]),
+    ),
     );
   }
 }

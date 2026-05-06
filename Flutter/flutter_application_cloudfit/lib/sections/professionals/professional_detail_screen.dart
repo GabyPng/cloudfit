@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants.dart';
 import 'models/professional_model.dart';
 
@@ -214,8 +215,11 @@ class ProfessionalDetailScreen extends StatelessWidget {
                           icon: Icons.chat_bubble_outline,
                           label: 'Mensaje',
                           color: roleColor,
-                          onTap: () {
-                            
+                          onTap: () async {
+                            final url = Uri.parse('https://wa.me/521234567890');
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url, mode: LaunchMode.externalApplication);
+                            }
                           },
                         ),
                       ),
@@ -233,7 +237,7 @@ class ProfessionalDetailScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 100),
                 ],
               ),
             ),

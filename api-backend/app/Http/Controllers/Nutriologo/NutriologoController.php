@@ -65,24 +65,15 @@ class NutriologoController extends Controller
 
     private function latestAssignmentSubquery(int $nutriologoId)
     {
-        $latestUpdatedAt = DB::table('nutrition_plan_assignments as npa_group')
-            ->selectRaw('npa_group.client_id, MAX(npa_group.updated_at) as max_updated_at')
-            ->where('npa_group.nutriologo_id', $nutriologoId)
-            ->groupBy('npa_group.client_id');
-
-        $latestIds = DB::table('nutrition_plan_assignments as npa_pick')
-            ->joinSub($latestUpdatedAt, 'npa_group', function ($join) {
-                $join->on('npa_group.client_id', '=', 'npa_pick.client_id')
-                    ->on('npa_group.max_updated_at', '=', 'npa_pick.updated_at');
-            })
-            ->where('npa_pick.nutriologo_id', $nutriologoId)
-            ->selectRaw('npa_pick.client_id, MAX(npa_pick.id) as max_id')
-            ->groupBy('npa_pick.client_id');
+        // MAX(id) por cliente es suficiente: el ID mayor = asignación más reciente.
+        // Reduce de 3 subqueries anidados a 1 subquery + 1 JOIN.
+        $maxIds = DB::table('nutrition_plan_assignments')
+            ->selectRaw('MAX(id) as max_id')
+            ->where('nutriologo_id', $nutriologoId)
+            ->groupBy('client_id');
 
         return DB::table('nutrition_plan_assignments as npa_latest')
-            ->joinSub($latestIds, 'latest_ids', function ($join) {
-                $join->on('latest_ids.max_id', '=', 'npa_latest.id');
-            })
+            ->joinSub($maxIds, 'latest_ids', 'latest_ids.max_id', '=', 'npa_latest.id')
             ->leftJoin('nutrition_plans as np_latest', 'np_latest.id', '=', 'npa_latest.nutrition_plan_id')
             ->select([
                 'npa_latest.id as la_id',
@@ -101,6 +92,15 @@ class NutriologoController extends Controller
             return response()->json(['error' => 'No user in token'], 401);
         }
 
+        $payload = Cache::remember("nutri_dashboard_{$nutriologo->id}", 30, function () use ($nutriologo) {
+            return $this->buildDashboard($nutriologo);
+        });
+
+        return response()->json($payload);
+    }
+
+    private function buildDashboard($nutriologo): array
+    {
         $startOfMonth = now()->startOfMonth();
         $endOfMonth = now()->endOfMonth();
 
@@ -131,22 +131,23 @@ class NutriologoController extends Controller
                 END) as alerts_count",
                 [now()->toDateString()]
             )
+            ->selectRaw(
+                '(SELECT COUNT(*) FROM nutrition_plans WHERE nutriologo_id = ? AND is_active = true) as planes_activos',
+                [$nutriologo->id]
+            )
             ->first();
 
         $totalAssignments = (int) ($assignmentSummary?->total_assignments ?? 0);
         $activeAssignments = (int) ($assignmentSummary?->active_assignments ?? 0);
 
         $stats = [
-            'total_pacientes' => (int) ($assignmentSummary?->total_clients ?? 0),
-            'nuevos_este_mes' => (int) ($assignmentSummary?->new_clients_month ?? 0),
+            'total_pacientes'    => (int) ($assignmentSummary?->total_clients ?? 0),
+            'nuevos_este_mes'    => (int) ($assignmentSummary?->new_clients_month ?? 0),
             'adherencia_promedio' => $totalAssignments > 0
                 ? (int) round(($activeAssignments / $totalAssignments) * 100)
                 : 0,
             'alertas_nutricionales' => (int) ($assignmentSummary?->alerts_count ?? 0),
-            'planes_activos' => NutritionPlan::query()
-                ->where('nutriologo_id', $nutriologo->id)
-                ->where('is_active', true)
-                ->count(),
+            'planes_activos'     => (int) ($assignmentSummary?->planes_activos ?? 0),
         ];
 
         $statusLabels = [
@@ -232,13 +233,13 @@ class NutriologoController extends Controller
                 ];
             });
 
-        return response()->json([
+        return [
             'message' => 'Bienvenido al panel de Nutriologo.',
             'section' => 'nutriologo',
             'stats' => $stats,
             'pacientes' => $pacientes,
             'actividades' => $actividades,
-        ]);
+        ];
     }
 
     public function clientes(Request $request)

@@ -117,7 +117,7 @@ export default function NutriologoPacientesPage() {
         });
         if (!res.ok) return;
         const payload = await res.json();
-        if (!ignore) setPatientPlanMeals(payload.meals ?? []);
+        if (!ignore) setPatientPlanMeals(payload.data?.meals ?? []);
       } catch {
         if (!ignore) setPatientPlanMeals([]);
       } finally {
@@ -500,93 +500,107 @@ export default function NutriologoPacientesPage() {
                 </div>
               )}
 
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-[#adaaaa] mb-3">Acciones rápidas</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    disabled={saving || !selectedPatient.assignment_id}
-                    onClick={() => handleStatusChange('active')}
-                    className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#13210f] text-[#98f08f] disabled:opacity-40"
-                  >
-                    <CheckCircle2 size={15} />
-                    Activar
-                  </button>
-                  <button
-                    disabled={saving || !selectedPatient.assignment_id}
-                    onClick={() => handleStatusChange('paused')}
-                    className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#2d270d] text-[#fce047] disabled:opacity-40"
-                  >
-                    <PauseCircle size={15} />
-                    Pausar
-                  </button>
-                  <button
-                    disabled={saving || !selectedPatient.assignment_id}
-                    onClick={() => handleStatusChange('completed')}
-                    className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#10261d] text-[#7ef0b3] disabled:opacity-40"
-                  >
-                    <Trophy size={15} />
-                    Completar
-                  </button>
-                  <button
-                    disabled={saving || !selectedPatient.assignment_id}
-                    onClick={() => handleStatusChange('cancelled')}
-                    className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#3a1712] text-[#ffb19d] disabled:opacity-40"
-                  >
-                    <XCircle size={15} />
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-[#131313] p-4 border border-[#484847]/10">
-                <h3 className="text-sm font-bold text-white mb-3">Asignar o reemplazar plan</h3>
-
-                <div className="space-y-3">
-                  <select
-                    value={assignForm.planId}
-                    onChange={(event) => setAssignForm((current) => ({ ...current, planId: event.target.value }))}
-                    disabled={plans.length === 0}
-                    className="w-full bg-[#0e0e0e] rounded-lg px-3 py-3 text-sm text-white border border-[#484847]/20 focus:outline-none focus:ring-1 focus:ring-[#cafd00] disabled:opacity-50"
-                  >
-                    <option value="">{plans.length === 0 ? 'No hay planes disponibles todavía' : 'Selecciona un plan disponible'}</option>
-                    {plans.map((plan) => (
-                      <option key={plan.id} value={plan.id}>{plan.title}</option>
-                    ))}
-                  </select>
-
-                  {plans.length === 0 && (
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs text-[#adaaaa]">
-                        Crea primero un plan nutricional para poder asignarlo.
-                      </p>
-                      <button
-                        onClick={() => navigate('/nutriologo/planes')}
-                        className="shrink-0 inline-flex items-center gap-1 text-xs text-[#cafd00] hover:underline"
-                      >
-                        <Plus size={12} />
-                        Crear plan
-                      </button>
+              {(() => {
+                const isCompleted = (selectedPatient.status_key ?? selectedPatient.status) === 'completed';
+                return (
+                  <>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-[#adaaaa] mb-3">Acciones rápidas</p>
+                      {isCompleted && (
+                        <p className="text-xs text-[#7ef0b3] mb-3 flex items-center gap-2">
+                          <Trophy size={12} />
+                          Este plan ya fue completado y no puede modificarse.
+                        </p>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          disabled={saving || !selectedPatient.assignment_id || isCompleted}
+                          onClick={() => handleStatusChange('active')}
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#13210f] text-[#98f08f] disabled:opacity-40"
+                        >
+                          <CheckCircle2 size={15} />
+                          Activar
+                        </button>
+                        <button
+                          disabled={saving || !selectedPatient.assignment_id || isCompleted}
+                          onClick={() => handleStatusChange('paused')}
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#2d270d] text-[#fce047] disabled:opacity-40"
+                        >
+                          <PauseCircle size={15} />
+                          Pausar
+                        </button>
+                        <button
+                          disabled={saving || !selectedPatient.assignment_id || isCompleted}
+                          onClick={() => handleStatusChange('completed')}
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#10261d] text-[#7ef0b3] disabled:opacity-40"
+                        >
+                          <Trophy size={15} />
+                          Completar
+                        </button>
+                        <button
+                          disabled={saving || !selectedPatient.assignment_id || isCompleted}
+                          onClick={() => handleStatusChange('cancelled')}
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#3a1712] text-[#ffb19d] disabled:opacity-40"
+                        >
+                          <XCircle size={15} />
+                          Cancelar
+                        </button>
+                      </div>
                     </div>
-                  )}
 
-                  <textarea
-                    rows={4}
-                    value={assignForm.notes}
-                    onChange={(event) => setAssignForm((current) => ({ ...current, notes: event.target.value }))}
-                    placeholder="Notas de seguimiento u observaciones..."
-                    className="w-full bg-[#0e0e0e] rounded-lg px-3 py-3 text-sm text-white border border-[#484847]/20 focus:outline-none focus:ring-1 focus:ring-[#cafd00] resize-none"
-                  />
+                    <div className={`rounded-xl bg-[#131313] p-4 border border-[#484847]/10 ${isCompleted ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <h3 className="text-sm font-bold text-white mb-3">Asignar o reemplazar plan</h3>
 
-                  <button
-                    onClick={handleAssignPlan}
-                    disabled={saving || loading || plans.length === 0}
-                    className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-[#cafd00] text-[#405100] font-bold uppercase tracking-wide disabled:opacity-50"
-                  >
-                    {saving ? <Loader2 className="animate-spin" size={16} /> : <FileText size={16} />}
-                    Asignar plan nutricional
-                  </button>
-                </div>
-              </div>
+                      <div className="space-y-3">
+                        <select
+                          value={assignForm.planId}
+                          onChange={(event) => setAssignForm((current) => ({ ...current, planId: event.target.value }))}
+                          disabled={plans.length === 0 || isCompleted}
+                          className="w-full bg-[#0e0e0e] rounded-lg px-3 py-3 text-sm text-white border border-[#484847]/20 focus:outline-none focus:ring-1 focus:ring-[#cafd00] disabled:opacity-50"
+                        >
+                          <option value="">{plans.length === 0 ? 'No hay planes disponibles todavía' : 'Selecciona un plan disponible'}</option>
+                          {plans.map((plan) => (
+                            <option key={plan.id} value={plan.id}>{plan.title}</option>
+                          ))}
+                        </select>
+
+                        {plans.length === 0 && !isCompleted && (
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs text-[#adaaaa]">
+                              Crea primero un plan nutricional para poder asignarlo.
+                            </p>
+                            <button
+                              onClick={() => navigate('/nutriologo/planes')}
+                              className="shrink-0 inline-flex items-center gap-1 text-xs text-[#cafd00] hover:underline"
+                            >
+                              <Plus size={12} />
+                              Crear plan
+                            </button>
+                          </div>
+                        )}
+
+                        <textarea
+                          rows={4}
+                          value={assignForm.notes}
+                          onChange={(event) => setAssignForm((current) => ({ ...current, notes: event.target.value }))}
+                          disabled={isCompleted}
+                          placeholder="Notas de seguimiento u observaciones..."
+                          className="w-full bg-[#0e0e0e] rounded-lg px-3 py-3 text-sm text-white border border-[#484847]/20 focus:outline-none focus:ring-1 focus:ring-[#cafd00] resize-none disabled:opacity-50"
+                        />
+
+                        <button
+                          onClick={handleAssignPlan}
+                          disabled={saving || loading || plans.length === 0 || isCompleted}
+                          className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-[#cafd00] text-[#405100] font-bold uppercase tracking-wide disabled:opacity-50"
+                        >
+                          {saving ? <Loader2 className="animate-spin" size={16} /> : <FileText size={16} />}
+                          Asignar plan nutricional
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </>
           )}
         </section>

@@ -39,10 +39,10 @@ class SeguimientoController extends Controller
         $nutriologo = $this->getNutriologoProfile($nutriologoUserId);
         if (!$nutriologo) return [];
 
+        // distinct() en DB, no en PHP
         return NutritionPlanAssignment::where('nutriologo_id', $nutriologo->id)
+            ->distinct()
             ->pluck('client_id')
-            ->unique()
-            ->values()
             ->toArray();
     }
 
@@ -53,30 +53,50 @@ class SeguimientoController extends Controller
 
         $clientIds = $this->nutriologoClients($user->user_id);
 
+        if (empty($clientIds)) {
+            return response()->json(['data' => []]);
+        }
+
         $patients = User::whereIn('user_id', $clientIds)
             ->select(['user_id', 'name', 'email'])
+            ->get();
+
+        // Un solo query para el último registro de progreso por cliente (MAX id = más reciente)
+        $lastRecords = DB::table('progress_records as pr')
+            ->joinSub(
+                DB::table('progress_records')
+                    ->selectRaw('client_id, MAX(id) as max_id')
+                    ->whereIn('client_id', $clientIds)
+                    ->groupBy('client_id'),
+                'latest',
+                fn ($join) => $join->on('pr.id', '=', 'latest.max_id')
+            )
+            ->select(['pr.client_id', 'pr.date', 'pr.weight_kg', 'pr.adherence_pct'])
             ->get()
-            ->map(function ($client) {
-                $lastRecord = ProgressRecord::byClient($client->user_id)
-                    ->orderByDesc('date')
-                    ->first(['date', 'weight_kg', 'adherence_pct']);
+            ->keyBy('client_id');
 
-                $pendingChanges = DietChangeRequest::byClient($client->user_id)
-                    ->pending()
-                    ->count();
+        // Un solo query para contar cambios de dieta pendientes por cliente
+        $pendingCounts = DB::table('diet_change_requests')
+            ->selectRaw('client_id, COUNT(*) as cnt')
+            ->whereIn('client_id', $clientIds)
+            ->where('status', 'pending')
+            ->groupBy('client_id')
+            ->pluck('cnt', 'client_id');
 
-                return [
-                    'id'              => $client->user_id,
-                    'name'            => $client->name,
-                    'email'           => $client->email,
-                    'last_record_date'=> $lastRecord?->date?->toDateString(),
-                    'last_weight_kg'  => $lastRecord?->weight_kg,
-                    'last_adherence'  => $lastRecord?->adherence_pct,
-                    'pending_changes' => $pendingChanges,
-                ];
-            });
+        $result = $patients->map(function ($client) use ($lastRecords, $pendingCounts) {
+            $rec = $lastRecords->get($client->user_id);
+            return [
+                'id'               => $client->user_id,
+                'name'             => $client->name,
+                'email'            => $client->email,
+                'last_record_date' => $rec ? \Illuminate\Support\Carbon::parse($rec->date)->toDateString() : null,
+                'last_weight_kg'   => $rec?->weight_kg,
+                'last_adherence'   => $rec?->adherence_pct,
+                'pending_changes'  => (int) ($pendingCounts->get($client->user_id, 0)),
+            ];
+        });
 
-        return response()->json(['data' => $patients]);
+        return response()->json(['data' => $result]);
     }
 
     public function historial(Request $request, int $clientId)
@@ -92,6 +112,7 @@ class SeguimientoController extends Controller
         $progress = ProgressRecord::byClient($clientId)
             ->with('author:user_id,name')
             ->orderByDesc('date')
+            ->limit(150)
             ->get()
             ->map(fn($r) => [
                 'type'           => 'progreso',
@@ -112,6 +133,7 @@ class SeguimientoController extends Controller
         $dietChanges = DietChangeRequest::byClient($clientId)
             ->with('proposer:user_id,name')
             ->orderByDesc('date')
+            ->limit(150)
             ->get()
             ->map(fn($d) => [
                 'type'           => 'cambio_dieta',

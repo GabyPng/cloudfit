@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Coach\CoachController;
+use App\Http\Controllers\Coach\ProgresoController;
 use App\Http\Controllers\Coach\RutinasController;
+use App\Http\Controllers\Coach\WeeklyPlanController;
 use Illuminate\Support\Facades\Route;
 
 // Middleware: supabase.auth + role:COACH (applied in api.php)
@@ -34,3 +36,14 @@ Route::delete('/rutinas/exercises/{id}',                 [RutinasController::cla
 Route::post('/rutinas/assignments',              [RutinasController::class, 'assignmentStore']);
 Route::get('/rutinas/assignments',               [RutinasController::class, 'assignmentsList']);
 Route::patch('/rutinas/assignments/{id}/status', [RutinasController::class, 'assignmentStatus']);
+
+// ── Weekly Plan Module ─────────────────────────────────────────────────
+Route::get('/weekly-plan/{clientId}',  [WeeklyPlanController::class, 'show']);
+Route::post('/weekly-plan/{clientId}', [WeeklyPlanController::class, 'save']);
+
+// ── Progreso Module ────────────────────────────────────────────────────
+
+Route::get('/progreso/clients',                            [ProgresoController::class, 'clientsList']);
+Route::get('/progreso/clients/{id}/composicion',           [ProgresoController::class, 'composicion']);
+Route::get('/progreso/clients/{id}/fuerza',                [ProgresoController::class, 'fuerza']);
+Route::get('/progreso/clients/{id}/fatiga',                [ProgresoController::class, 'fatiga']);

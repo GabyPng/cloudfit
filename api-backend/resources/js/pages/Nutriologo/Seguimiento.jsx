@@ -259,7 +259,11 @@ export default function NutriologoSeguimientoPage() {
   };
   const emptyDiet = {
     date: new Date().toISOString().split('T')[0],
-    change_type: 'observation', reason: '', previous_value: '', new_value: '',
+    change_type: 'observation', reason: '',
+    prev_calories: '', new_calories: '',
+    prev_protein: '', prev_carbs: '', prev_fat: '',
+    new_protein: '', new_carbs: '', new_fat: '',
+    prev_text: '', new_text: '',
   };
 
   const [progressForm, setProgressForm] = useState(emptyProgress);
@@ -375,21 +379,31 @@ export default function NutriologoSeguimientoPage() {
     }
   };
 
+  const buildDietValues = (form) => {
+    const { change_type: type } = form;
+    let previousValue = null;
+    let newValue = null;
+    if (type === 'calorie_adjust') {
+      if (form.prev_calories) previousValue = { calorias: Number(form.prev_calories) };
+      if (form.new_calories)  newValue      = { calorias: Number(form.new_calories) };
+    } else if (type === 'macro_adjust') {
+      const hasPrev = form.prev_protein || form.prev_carbs || form.prev_fat;
+      const hasNew  = form.new_protein  || form.new_carbs  || form.new_fat;
+      if (hasPrev) previousValue = { proteina_g: Number(form.prev_protein) || undefined, carbohidratos_g: Number(form.prev_carbs) || undefined, grasa_g: Number(form.prev_fat) || undefined };
+      if (hasNew)  newValue      = { proteina_g: Number(form.new_protein)  || undefined, carbohidratos_g: Number(form.new_carbs)  || undefined, grasa_g: Number(form.new_fat)  || undefined };
+    } else if (type === 'meal_update' || type === 'plan_change') {
+      if (form.prev_text) previousValue = { descripcion: form.prev_text };
+      if (form.new_text)  newValue      = { descripcion: form.new_text };
+    }
+    return { previousValue, newValue };
+  };
+
   // ── Submit diet change ─────────────────────────────────────────────────────
   const handleDietSubmit = async (e) => {
     e.preventDefault();
     setSavingDiet(true);
     const token = await getToken();
-    let previousValue = null;
-    let newValue = null;
-    try {
-      if (dietForm.previous_value.trim()) previousValue = JSON.parse(dietForm.previous_value);
-      if (dietForm.new_value.trim()) newValue = JSON.parse(dietForm.new_value);
-    } catch {
-      showToast('Los campos de valores deben ser JSON válido o dejarse vacíos.', 'error');
-      setSavingDiet(false);
-      return;
-    }
+    const { previousValue, newValue } = buildDietValues(dietForm);
     const body = {
       change_type: dietForm.change_type, reason: dietForm.reason, date: dietForm.date,
       ...(previousValue !== null && { previous_value: previousValue }),
@@ -480,16 +494,20 @@ export default function NutriologoSeguimientoPage() {
                     className={`w-full text-left px-4 py-3.5 border-b border-[#484847]/5 transition-all ${
                       isActive
                         ? 'bg-[#1a1a1a] border-l-4 border-l-[#cafd00]'
-                        : 'border-l-4 border-l-transparent hover:bg-[#131313] group'
+                        : 'border-l-4 border-l-transparent hover:bg-[#131313]'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#262626] flex items-center justify-center text-sm font-black text-[#cafd00] shrink-0">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${
+                        isActive
+                          ? 'bg-[#cafd00]/10 text-[#cafd00]'
+                          : 'bg-[#262626] text-[#adaaaa]'
+                      }`}>
                         {patient.name?.charAt(0).toUpperCase() ?? '?'}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-white truncate">{patient.name}</p>
-                        <p className="text-[11px] text-[#adaaaa] truncate">{patient.email}</p>
+                        <p className={`text-sm font-bold truncate ${isActive ? 'text-white' : 'text-[#adaaaa]'}`}>{patient.name}</p>
+                        <p className="text-[11px] text-[#6f6f6f] truncate">{patient.email}</p>
                         <div className="flex items-center gap-2 mt-1">
                           {patient.last_record_date && (
                             <span className="text-[10px] text-[#6f6f6f]">{daysSince(patient.last_record_date)}</span>
@@ -685,26 +703,86 @@ export default function NutriologoSeguimientoPage() {
                         className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all resize-none"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4 mt-4">
-                      <div>
-                        <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">Valor anterior (JSON)</label>
-                        <textarea
-                          rows={3} value={dietForm.previous_value}
-                          onChange={e => setDietForm(f => ({ ...f, previous_value: e.target.value }))}
-                          placeholder='{"calorias": 2000}'
-                          className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-xs text-[#ff7351] placeholder-[#484847] font-mono focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all resize-none"
-                        />
+                    {dietForm.change_type === 'calorie_adjust' && (
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">Calorías anteriores</label>
+                          <input
+                            type="number" min="0" placeholder="2000"
+                            value={dietForm.prev_calories}
+                            onChange={e => setDietForm(f => ({ ...f, prev_calories: e.target.value }))}
+                            className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">Calorías propuestas</label>
+                          <input
+                            type="number" min="0" placeholder="1800"
+                            value={dietForm.new_calories}
+                            onChange={e => setDietForm(f => ({ ...f, new_calories: e.target.value }))}
+                            className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">Valor propuesto (JSON)</label>
-                        <textarea
-                          rows={3} value={dietForm.new_value}
-                          onChange={e => setDietForm(f => ({ ...f, new_value: e.target.value }))}
-                          placeholder='{"calorias": 1800}'
-                          className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-xs text-[#7ef0b3] placeholder-[#484847] font-mono focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all resize-none"
-                        />
+                    )}
+
+                    {dietForm.change_type === 'macro_adjust' && (
+                      <div className="mt-4 space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa]">Macros anteriores (g)</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[['prev_protein','Proteína'],['prev_carbs','Carbohidratos'],['prev_fat','Grasa']].map(([key, label]) => (
+                            <div key={key}>
+                              <label className="block text-[10px] text-[#6f6f6f] mb-1">{label}</label>
+                              <input type="number" min="0" step="0.1" placeholder="0"
+                                value={dietForm[key]}
+                                onChange={e => setDietForm(f => ({ ...f, [key]: e.target.value }))}
+                                className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa]">Macros propuestos (g)</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[['new_protein','Proteína'],['new_carbs','Carbohidratos'],['new_fat','Grasa']].map(([key, label]) => (
+                            <div key={key}>
+                              <label className="block text-[10px] text-[#6f6f6f] mb-1">{label}</label>
+                              <input type="number" min="0" step="0.1" placeholder="0"
+                                value={dietForm[key]}
+                                onChange={e => setDietForm(f => ({ ...f, [key]: e.target.value }))}
+                                className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {(dietForm.change_type === 'meal_update' || dietForm.change_type === 'plan_change') && (
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">
+                            {dietForm.change_type === 'plan_change' ? 'Plan anterior' : 'Comida anterior'}
+                          </label>
+                          <input type="text"
+                            value={dietForm.prev_text}
+                            onChange={e => setDietForm(f => ({ ...f, prev_text: e.target.value }))}
+                            placeholder={dietForm.change_type === 'plan_change' ? 'Nombre del plan actual' : 'Nombre de la comida actual'}
+                            className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">
+                            {dietForm.change_type === 'plan_change' ? 'Plan propuesto' : 'Comida propuesta'}
+                          </label>
+                          <input type="text"
+                            value={dietForm.new_text}
+                            onChange={e => setDietForm(f => ({ ...f, new_text: e.target.value }))}
+                            placeholder={dietForm.change_type === 'plan_change' ? 'Nombre del nuevo plan' : 'Nombre de la nueva comida'}
+                            className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div className="flex justify-end gap-3 mt-5">
                       <button
                         type="button"

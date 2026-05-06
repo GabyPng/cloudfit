@@ -16,13 +16,25 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Simulación de carga: 3 segundos y navegamos al Home
-    Timer(const Duration(seconds: 3), () {
-      final destination = AuthService.currentUser != null
+    _init();
+  }
+
+  Future<void> _init() async {
+    await Future.wait([
+      _loadUser(),
+      Future.delayed(const Duration(milliseconds: 1200)),
+    ]);
+    if (mounted) {
+      context.go(AuthService.currentUser != null
           ? AuthService.homeRouteForCurrentUser
-          : '/login';
-      context.go(destination);
-    });
+          : '/login');
+    }
+  }
+
+  Future<void> _loadUser() async {
+    if (AuthService.currentUser != null) {
+      await AuthService.loadRole();
+    }
   }
 
   @override

@@ -5,6 +5,7 @@ import CoachLayout from './CoachLayout';
 import Dashboard from './Dashboard';
 import Rutinas from './Rutinas';
 import MisClientes from './MisClientes';
+import Progreso from './Progreso';
 
 export default function CoachIndexPage() {
   const [coachName, setCoachName] = useState('Coach');
@@ -26,6 +27,7 @@ export default function CoachIndexPage() {
         <Route index element={<Dashboard />} />
         <Route path="clientes" element={<MisClientes />} />
         <Route path="rutinas" element={<Rutinas />} />
+        <Route path="progreso" element={<Progreso />} />
       </Routes>
     </CoachLayout>
   );

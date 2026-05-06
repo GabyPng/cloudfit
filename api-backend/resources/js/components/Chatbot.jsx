@@ -71,9 +71,11 @@ export default function Chatbot() {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [selectedRoutineId, setSelectedRoutineId] = useState('');
   const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentRole, setCurrentRole] = useState('cliente');
   const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -328,6 +330,40 @@ export default function Chatbot() {
 
   const sendMessage = async (e) => {
     e.preventDefault();
+    const msg = inputMessage.trim();
+    if (!msg || loading) return;
+
+    setMessages(prev => [...prev, { role: 'user', content: msg }]);
+    setInputMessage('');
+    setLoading(true);
+
+    try {
+      const params = {};
+      if (selectedClientId) params.client_id = Number(selectedClientId);
+      if (selectedRoutineId) params.routine_id = Number(selectedRoutineId);
+      if (selectedPlanId) params.plan_id = Number(selectedPlanId);
+
+      const { response, data } = await postMessage({
+        message: msg,
+        ...(Object.keys(params).length ? { params } : {}),
+      });
+
+      if (response.ok) {
+        const resolvedRole = normalizeRole(data?.role || currentRole);
+        setCurrentRole(resolvedRole);
+        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+        if (Array.isArray(data.buttons)) setButtons(filterButtonsByRole(data.buttons, resolvedRole));
+        if (data.intent && data.data !== undefined) updateSelectorData(data.intent, data.data);
+      } else {
+        const errorMsg = data?.reply || data?.message || data?.error || 'No pude procesar tu mensaje.';
+        setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
+      }
+    } catch (error) {
+      setMessages(prev => [...prev, { role: 'assistant', content: `Error de conexión: ${error.message}` }]);
+    } finally {
+      setLoading(false);
+      textareaRef.current?.focus();
+    }
   };
 
   return (
@@ -460,7 +496,7 @@ export default function Chatbot() {
           {buttons.length > 0 && (
             <div className="px-3 pt-3 pb-2">
               <p className="text-[9px] uppercase tracking-[0.22em] text-[#3a3a3a] mb-2 px-0.5">Consultas disponibles</p>
-              <div className="flex flex-wrap gap-1.5 max-h-[90px] overflow-y-auto pr-0.5">
+              <div className="flex flex-wrap gap-1.5 max-h-[72px] overflow-y-auto pr-0.5">
                 {buttons.map((btn) => (
                   <button
                     key={btn.intent}
@@ -475,7 +511,35 @@ export default function Chatbot() {
               </div>
             </div>
           )}
-          <p className="text-center text-[10px] text-[#2e2e2e] py-2.5">CloudFit · Asistente con IA</p>
+          <form onSubmit={sendMessage} className="px-3 pt-2 pb-3 flex gap-2 items-end">
+            <textarea
+              ref={textareaRef}
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage(e);
+                }
+              }}
+              placeholder="Escribe tu consulta… (Enter para enviar)"
+              rows={1}
+              disabled={loading}
+              className="flex-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-[#444] resize-none focus:outline-none focus:border-[#CCFF00]/40 transition-colors disabled:opacity-50 leading-snug"
+              style={{ minHeight: '40px', maxHeight: '96px' }}
+            />
+            <button
+              type="submit"
+              disabled={loading || !inputMessage.trim()}
+              className="flex-shrink-0 w-9 h-9 bg-[#CCFF00] text-black rounded-xl flex items-center justify-center hover:bg-[#b8e600] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Enviar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+              </svg>
+            </button>
+          </form>
+          <p className="text-center text-[10px] text-[#2e2e2e] pb-2">CloudFit · Asistente con IA</p>
         </div>
       </div>
     </>
