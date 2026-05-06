@@ -8,6 +8,7 @@ import {
   Clock,
   Loader2,
   Plus,
+  Printer,
   RefreshCw,
   Search,
   TrendingDown,
@@ -64,6 +65,158 @@ function DeltaIcon({ current, previous }) {
   return diff > 0
     ? <TrendingUp size={12} className="text-[#ff7351]" />
     : <TrendingDown size={12} className="text-[#7ef0b3]" />;
+}
+
+// ─── Print ────────────────────────────────────────────────────────────────────
+
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function printPatientHistory(clientInfo, lastRecord, prevRecord, timeline) {
+  const planEntries     = timeline.filter(e => e.type === 'asignacion_plan');
+  const progressEntries = timeline.filter(e => e.type === 'progreso');
+  const dietEntries     = timeline.filter(e => e.type === 'cambio_dieta');
+
+  const statusLabel = { active:'Activo', paused:'Pausado', completed:'Completado', cancelled:'Cancelado' };
+  const changeLabel = { plan_change:'Cambio de plan', meal_update:'Actualización de comida', macro_adjust:'Ajuste de macros', calorie_adjust:'Ajuste calórico', observation:'Observación' };
+  const statusChangeLabel = { pending:'Pendiente', approved:'Aprobado', rejected:'Rechazado' };
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Historial — ${esc(clientInfo?.name)}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:12mm 16mm}
+.hdr{border-bottom:3px solid #111;padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end}
+.hdr h1{font-size:18px;font-weight:900;text-transform:uppercase}
+.hdr .meta{font-size:9px;color:#555;text-align:right}
+.client-info{background:#f5f5f5;padding:10px 14px;border-radius:6px;margin-bottom:14px;display:flex;gap:20px;align-items:center}
+.client-avatar{width:36px;height:36px;background:#111;color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;flex-shrink:0}
+.client-name{font-size:14px;font-weight:900;text-transform:uppercase}
+.client-email{font-size:10px;color:#666;margin-top:2px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.kpi-card{border:1px solid #ddd;border-radius:5px;padding:8px 10px;text-align:center}
+.kpi-val{font-size:18px;font-weight:900}
+.kpi-lbl{font-size:8px;color:#777;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.section{margin-bottom:16px}
+.section-title{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;color:#555;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;margin-bottom:8px}
+thead th{background:#111;color:#fff;padding:5px 7px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+tbody tr:nth-child(even){background:#f9f9f9}
+tbody td{padding:5px 7px;font-size:10px;border-bottom:1px solid #eee;vertical-align:top}
+.badge{display:inline-block;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.4px}
+.badge-active{background:#dcfce7;color:#166534}
+.badge-paused{background:#fef9c3;color:#854d0e}
+.badge-completed{background:#ede9fe;color:#5b21b6}
+.badge-cancelled{background:#fee2e2;color:#991b1b}
+.badge-pending{background:#fef9c3;color:#854d0e}
+.badge-approved{background:#dcfce7;color:#166534}
+.badge-rejected{background:#fee2e2;color:#991b1b}
+.ftr{border-top:1px solid #ccc;padding-top:8px;font-size:8px;color:#aaa;display:flex;justify-content:space-between}
+</style></head><body>
+<div class="hdr">
+  <div><h1>Historial de Seguimiento Nutricional</h1></div>
+  <div class="meta">
+    Generado el ${new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'})}<br>
+    CloudFit — Sistema de Gestión Nutricional
+  </div>
+</div>
+<div class="client-info">
+  <div class="client-avatar">${esc(clientInfo?.name?.charAt(0).toUpperCase())}</div>
+  <div>
+    <div class="client-name">${esc(clientInfo?.name)}</div>
+    <div class="client-email">${esc(clientInfo?.email)}</div>
+  </div>
+</div>
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-val">${lastRecord?.weight_kg != null ? `${esc(lastRecord.weight_kg)} kg` : '—'}</div>
+    <div class="kpi-lbl">Peso actual</div>
+    ${prevRecord?.weight_kg != null ? `<div style="font-size:8px;color:#777;margin-top:2px">Anterior: ${esc(prevRecord.weight_kg)} kg</div>` : ''}
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-val">${lastRecord?.bmi != null ? esc(lastRecord.bmi) : '—'}</div>
+    <div class="kpi-lbl">IMC</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-val">${lastRecord?.body_fat_pct != null ? `${esc(lastRecord.body_fat_pct)}%` : '—'}</div>
+    <div class="kpi-lbl">% Grasa corporal</div>
+    ${prevRecord?.body_fat_pct != null ? `<div style="font-size:8px;color:#777;margin-top:2px">Anterior: ${esc(prevRecord.body_fat_pct)}%</div>` : ''}
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-val">${lastRecord?.adherence_pct != null ? `${esc(lastRecord.adherence_pct)}%` : '—'}</div>
+    <div class="kpi-lbl">Adherencia</div>
+  </div>
+</div>
+
+${planEntries.length > 0 ? `
+<div class="section">
+  <div class="section-title">Planes Nutricionales Asignados (${planEntries.length})</div>
+  <table>
+    <thead><tr><th>Fecha</th><th>Plan</th><th>Objetivo</th><th>Kcal/día</th><th>Estado</th></tr></thead>
+    <tbody>
+      ${planEntries.map(e => `
+      <tr>
+        <td>${esc(e.date)}</td>
+        <td><strong>${esc(e.plan_title ?? 'Sin título')}</strong></td>
+        <td>${esc(e.plan_goal ?? '—')}</td>
+        <td>${e.plan_calories != null ? esc(e.plan_calories) : '—'}</td>
+        <td><span class="badge badge-${e.status ?? 'active'}">${esc(statusLabel[e.status] ?? e.status)}</span></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+</div>` : ''}
+
+${progressEntries.length > 0 ? `
+<div class="section">
+  <div class="section-title">Registros de Progreso (${progressEntries.length})</div>
+  <table>
+    <thead><tr><th>Fecha</th><th>Peso</th><th>IMC</th><th>% Grasa</th><th>Músculo</th><th>Adherencia</th><th>Notas</th></tr></thead>
+    <tbody>
+      ${progressEntries.map(e => `
+      <tr>
+        <td>${esc(e.date)}</td>
+        <td>${e.weight_kg != null ? `${esc(e.weight_kg)} kg` : '—'}</td>
+        <td>${e.bmi != null ? esc(e.bmi) : '—'}</td>
+        <td>${e.body_fat_pct != null ? `${esc(e.body_fat_pct)}%` : '—'}</td>
+        <td>${e.muscle_mass_kg != null ? `${esc(e.muscle_mass_kg)} kg` : '—'}</td>
+        <td>${e.adherence_pct != null ? `${esc(e.adherence_pct)}%` : '—'}</td>
+        <td style="max-width:150px;font-style:italic;color:#666">${esc(e.notes ?? '')}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+</div>` : ''}
+
+${dietEntries.length > 0 ? `
+<div class="section">
+  <div class="section-title">Cambios de Dieta Propuestos (${dietEntries.length})</div>
+  <table>
+    <thead><tr><th>Fecha</th><th>Tipo</th><th>Razón</th><th>Estado</th></tr></thead>
+    <tbody>
+      ${dietEntries.map(e => `
+      <tr>
+        <td>${esc(e.date)}</td>
+        <td>${esc(changeLabel[e.change_type] ?? e.change_type)}</td>
+        <td style="max-width:200px">${esc(e.reason ?? '—')}</td>
+        <td><span class="badge badge-${e.status ?? 'pending'}">${esc(statusChangeLabel[e.status] ?? e.status)}</span></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+</div>` : ''}
+
+${timeline.length === 0 ? '<p style="font-size:10px;color:#999;font-style:italic;margin-bottom:14px">Sin registros de seguimiento.</p>' : ''}
+
+<div class="ftr">
+  <span>CloudFit — Paciente: ${esc(clientInfo?.name)}</span>
+  <span>Historial impreso el ${new Date().toLocaleDateString('es-MX')}</span>
+</div>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=1100,height=750');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -556,12 +709,20 @@ export default function NutriologoSeguimientoPage() {
                   <h1 className="text-3xl font-black text-white tracking-tight font-headline">{clientInfo?.name}</h1>
                   <p className="text-sm text-[#adaaaa]">{clientInfo?.email}</p>
                 </div>
-                <button
-                  onClick={() => setRefreshKey(k => k + 1)}
-                  className="flex items-center gap-2 text-[#adaaaa] hover:text-white text-xs font-bold uppercase tracking-wider transition-colors px-3 py-2 rounded-xl hover:bg-[#1a1a1a]"
-                >
-                  <RefreshCw size={13} /> Actualizar
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => printPatientHistory(clientInfo, progressRecords[0] ?? null, progressRecords[1] ?? null, timeline)}
+                    className="flex items-center gap-2 text-[#adaaaa] hover:text-white text-xs font-bold uppercase tracking-wider transition-colors px-3 py-2 rounded-xl hover:bg-[#1a1a1a] border border-[#484847]/20"
+                  >
+                    <Printer size={13} /> Imprimir
+                  </button>
+                  <button
+                    onClick={() => setRefreshKey(k => k + 1)}
+                    className="flex items-center gap-2 text-[#adaaaa] hover:text-white text-xs font-bold uppercase tracking-wider transition-colors px-3 py-2 rounded-xl hover:bg-[#1a1a1a]"
+                  >
+                    <RefreshCw size={13} /> Actualizar
+                  </button>
+                </div>
               </div>
 
               {/* ── KPI chips ────────────────────────────────────────────── */}

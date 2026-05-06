@@ -30,7 +30,12 @@ class ProfessionalModel {
     final roleId = map['role_id'] as int;
     final specialty = roleId == 2 ? 'Coach' : 'Nutriólogo';
 
-    final nutriData = map['nutriologos'] as Map<String, dynamic>?;
+    final nutriRaw = map['nutriologos'];
+    final nutriData = nutriRaw is Map<String, dynamic>
+        ? nutriRaw
+        : (nutriRaw is List && (nutriRaw as List).isNotEmpty
+            ? (nutriRaw as List).first as Map<String, dynamic>?
+            : null);
 
     return ProfessionalModel(
       userId: map['user_id'] as int,

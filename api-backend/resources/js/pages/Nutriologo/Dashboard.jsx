@@ -166,11 +166,7 @@ export default function Dashboard() {
   return (
     <div className="grid grid-cols-12 gap-8">
       <section className="col-span-12 flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.25em] text-[#adaaaa]">Resumen nutricional</p>
-        <h1 className="text-4xl font-black font-headline text-white">Panel principal del nutriólogo</h1>
-        <p className="text-sm text-[#adaaaa] max-w-3xl">
-          Monitorea adherencia, seguimiento y alertas de tus pacientes desde un solo lugar.
-        </p>
+        <h1 className="text-4xl font-black font-headline text-white">Panel principal del Nutriólogo</h1>
       </section>
 
       {error && (

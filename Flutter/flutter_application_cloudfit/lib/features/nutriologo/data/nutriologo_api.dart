@@ -196,20 +196,32 @@ class NutriologoApi {
   }) async {
     final ctx = await _getCtx();
 
-    // Collect client IDs from assignments + clients.nutritionist_id
+    // Source 1: plan assignments
     final fromAssignments = await _supabase
         .from('nutrition_plan_assignments')
         .select('client_id')
         .eq('nutriologo_id', ctx.nutriologoId);
 
-    final fromClients = await _supabase
-        .from('clients')
-        .select('user_id')
-        .eq('nutritionist_id', ctx.userId);
+    // Source 2: clients.nutritionist_id (may be blocked by RLS — safe fallback)
+    List fromClients = [];
+    try {
+      fromClients = await _supabase
+          .from('clients')
+          .select('user_id')
+          .eq('nutritionist_id', ctx.userId);
+    } catch (_) {}
+
+    // Source 3: accepted contact requests (most reliable — nutriólogo owns these rows)
+    final fromAccepted = await _supabase
+        .from('nutriologo_contact_requests')
+        .select('client_id')
+        .eq('nutriologo_id', ctx.nutriologoId)
+        .eq('status', 'accepted');
 
     final allIds = {
       ...(fromAssignments as List).map((a) => a['client_id'] as int),
       ...(fromClients as List).map((c) => c['user_id'] as int),
+      ...(fromAccepted as List).map((a) => a['client_id'] as int),
     }.toList();
 
     if (allIds.isEmpty) {
@@ -450,18 +462,26 @@ class NutriologoApi {
   }) async {
     final ctx = await _getCtx();
 
+    final titleTrimmed = title?.trim();
+    final descriptionTrimmed = description?.trim();
+    final goalTrimmed = goal?.trim();
+
     final payload = <String, dynamic>{
-      'title': titleTrimmed,
-      'description': descriptionTrimmed,
-      'goal': goalTrimmed,
-      'daily_calories': dailyCalories,
-      'is_active': isActive,
+      if (titleTrimmed?.isNotEmpty == true) 'title': titleTrimmed,
+      if (descriptionTrimmed?.isNotEmpty == true) 'description': descriptionTrimmed,
+      if (goalTrimmed?.isNotEmpty == true) 'goal': goalTrimmed,
+      if (dailyCalories != null) 'daily_calories': dailyCalories,
+      if (isActive != null) 'is_active': isActive,
       if (meals != null) 'meals': meals,
     };
 
-    payload.removeWhere(
-      (key, value) => key != 'meals' && (value == null || (value is String && value.isEmpty)),
-    );
+    final plan = await _supabase
+        .from('nutrition_plans')
+        .update(payload)
+        .eq('id', planId)
+        .eq('nutriologo_id', ctx.nutriologoId)
+        .select()
+        .single();
 
     return plan;
   }
@@ -498,15 +518,23 @@ class NutriologoApi {
   static Future<List<Map<String, dynamic>>> getSeguimientoPacientes() async {
     final ctx = await _getCtx();
 
+    // Source 1: clients with a nutrition plan assignment
     final assignRows = await _supabase
         .from('nutrition_plan_assignments')
         .select('client_id')
         .eq('nutriologo_id', ctx.nutriologoId);
 
-    final clientIds = assignRows
-        .map((a) => a['client_id'] as int)
-        .toSet()
-        .toList();
+    // Source 2: clients whose contact request was accepted (no plan yet)
+    final acceptedRows = await _supabase
+        .from('nutriologo_contact_requests')
+        .select('client_id')
+        .eq('nutriologo_id', ctx.nutriologoId)
+        .eq('status', 'accepted');
+
+    final clientIds = {
+      ...assignRows.map((a) => a['client_id'] as int),
+      ...acceptedRows.map((a) => a['client_id'] as int),
+    }.toList();
 
     if (clientIds.isEmpty) return [];
 
@@ -700,20 +728,24 @@ class NutriologoApi {
     Map<String, dynamic>? previousValue,
     Map<String, dynamic>? newValue,
   }) async {
-    final payload = <String, dynamic>{
-      'change_type': changeType,
-      'reason': reason,
-      'date': date,
-      if (previousValue != null) 'previous_value': previousValue,
-      if (newValue != null) 'new_value': newValue,
-    };
-    final response = await _http.post(
-      Uri.parse('${ApiConfig.baseUrl}/nutriologo/seguimiento/$clientId/cambio-dieta'),
-      headers: _headers(),
-      body: jsonEncode(payload),
-    );
-    final body = _decode(response);
-    return body['data'] as Map<String, dynamic>;
+    final ctx = await _getCtx();
+
+    final row = await _supabase
+        .from('diet_change_requests')
+        .insert({
+          'client_id': clientId,
+          'proposed_by': ctx.userId,
+          'change_type': changeType,
+          'reason': reason,
+          'date': date,
+          'status': 'pending',
+          if (previousValue != null) 'previous_value': previousValue,
+          if (newValue != null) 'new_value': newValue,
+        })
+        .select()
+        .single();
+
+    return row;
   }
 
   // ── Perfil ────────────────────────────────────────────────────────────────

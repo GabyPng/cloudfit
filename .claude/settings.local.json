@@ -15,7 +15,10 @@
       "Read(//tmp/**)",
       "Bash(dart analyze *)",
       "Bash(php -l app/Http/Controllers/Nutriologo/SeguimientoController.php)",
-      "Bash(php -l app/Http/Controllers/Nutriologo/NutriologoController.php)"
+      "Bash(php -l app/Http/Controllers/Nutriologo/NutriologoController.php)",
+      "Bash(Get-ChildItem -Path \"C:\\\\CloudFit\\\\cloudfit\\\\api-backend\\\\resources\\\\js\\\\pages\\\\Coach\" -File -Recurse)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(Get-Content storage/logs/laravel.log -Tail 60)"
     ]
   }
 }
