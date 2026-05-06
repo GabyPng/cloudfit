@@ -1,8 +1,52 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/api_config.dart';
 import '../../sections/nutrition/models/nutrition_model.dart';
 
 class NutritionService {
   static final _supabase = Supabase.instance.client;
+
+  static Future<String?> _token() async =>
+      Supabase.instance.client.auth.currentSession?.accessToken;
+
+  /// Returns pending diet change requests for the logged-in client.
+  static Future<List<Map<String, dynamic>>> getDietChanges() async {
+    final token = await _token();
+    if (token == null) return [];
+    final res = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/cliente/cambios-dieta'),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    );
+    if (res.statusCode != 200) return [];
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    final data = body['data'] as List? ?? [];
+    return data
+        .whereType<Map<String, dynamic>>()
+        .where((d) => d['status'] == 'pending')
+        .toList();
+  }
+
+  /// Accepts or rejects a diet change proposal.
+  /// [status] must be 'approved' or 'rejected'.
+  static Future<bool> responderCambioDieta(
+      int id, String status, {String? response}) async {
+    final token = await _token();
+    if (token == null) return false;
+    final res = await http.patch(
+      Uri.parse('${ApiConfig.baseUrl}/cliente/cambios-dieta/$id/responder'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'status': status,
+        if (response != null && response.isNotEmpty) 'client_response': response,
+      }),
+    );
+    return res.statusCode == 200;
+  }
 
   /// Returns the active nutrition plan assigned to the logged-in client,
   /// or null if none exists. Queries Supabase directly — no server needed.

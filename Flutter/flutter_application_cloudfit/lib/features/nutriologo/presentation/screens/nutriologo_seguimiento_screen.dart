@@ -682,22 +682,26 @@ class _NutriologoSeguimientoScreenState
                     style: const TextStyle(
                         color: AppColors.neonGreen,
                         fontWeight: FontWeight.bold)),
-                if (email.isNotEmpty)
-                  Text(email,
-                      style: const TextStyle(
-                          color: Colors.white54, fontSize: 11)),
-              ],
-            ),
-          ),
-          TextButton.icon(
-            onPressed: _addProgressDialog,
-            icon: const Icon(Icons.add, color: AppColors.neonGreen, size: 14),
-            label: const Text('Progreso', style: TextStyle(color: AppColors.neonGreen, fontSize: 12)),
-          ),
-          TextButton.icon(
-            onPressed: _addDietChangeDialog,
-            icon: const Icon(Icons.swap_horiz_rounded, color: AppColors.coralOrange, size: 14),
-            label: const Text('Dieta', style: TextStyle(color: AppColors.coralOrange, fontSize: 12)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: email.isNotEmpty
+                    ? Text(email,
+                        style: const TextStyle(color: Colors.white54, fontSize: 11),
+                        overflow: TextOverflow.ellipsis)
+                    : const SizedBox(),
+              ),
+              TextButton.icon(
+                onPressed: _addProgressDialog,
+                icon: const Icon(Icons.add, color: AppColors.neonGreen, size: 14),
+                label: const Text('Progreso', style: TextStyle(color: AppColors.neonGreen, fontSize: 12)),
+              ),
+              TextButton.icon(
+                onPressed: _addDietChangeDialog,
+                icon: const Icon(Icons.swap_horiz_rounded, color: AppColors.coralOrange, size: 14),
+                label: const Text('Dieta', style: TextStyle(color: AppColors.coralOrange, fontSize: 12)),
+              ),
+            ],
           ),
         ),
         if (!_loadingHistory && lastProgreso != null) ...[

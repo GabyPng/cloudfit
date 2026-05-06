@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Users,
   FileText,
+  CalendarDays,
   User,
   LogOut,
   Bell,
@@ -14,6 +15,7 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Inicio', path: '/nutriologo', available: true },
   { icon: Users, label: 'Pacientes', path: '/nutriologo/pacientes', available: true },
   { icon: FileText, label: 'Planes Nutricionales', path: '/nutriologo/planes', available: true },
+  { icon: CalendarDays, label: 'Plan Semanal', path: '/nutriologo/plan-semanal', available: true },
   { icon: User, label: 'Mi Perfil', path: '/nutriologo/perfil', available: true },
 ];
 

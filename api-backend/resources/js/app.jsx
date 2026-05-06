@@ -10,6 +10,7 @@ import AdminIndexPage from './pages/Admin';
 import CoachIndexPage from './pages/Coach';
 import NutriologoIndexPage from './pages/Nutriologo';
 import NutriologoPlanesPage from './pages/Nutriologo/Planes';
+import NutriologoPlanSemanalPage from './pages/Nutriologo/PlanSemanal';
 import NutriologoSeguimientoPage from './pages/Nutriologo/Seguimiento';
 import NutriologoPerfilPage from './pages/Nutriologo/Perfil';
 import ClienteIndexPage from './pages/Cliente';
@@ -58,6 +59,14 @@ function App() {
                     element={(
                         <ProtectedRoute allowedRoles={['nutriologo']}>
                             <NutriologoPlanesPage />
+                        </ProtectedRoute>
+                    )}
+                />
+                <Route
+                    path="/nutriologo/plan-semanal"
+                    element={(
+                        <ProtectedRoute allowedRoles={['nutriologo']}>
+                            <NutriologoPlanSemanalPage />
                         </ProtectedRoute>
                     )}
                 />
