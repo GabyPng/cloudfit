@@ -296,6 +296,272 @@ class _NutriologoPlanesScreenState extends State<NutriologoPlanesScreen> {
     );
   }
 
+  static const _mealTypes = {
+    'desayuno': 'Desayuno',
+    'colacion_1': 'Colación 1',
+    'comida': 'Comida',
+    'colacion_2': 'Colación 2',
+    'cena': 'Cena',
+  };
+
+  Future<void> _manageMealsSheet(Map<String, dynamic> plan) async {
+    final planId = plan['id'] as int;
+
+    List<Map<String, dynamic>> meals = [];
+    try {
+      final detail = await NutriologoApi.getPlanDetail(planId);
+      meals = (detail['meals'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      // Keep only editable fields
+      meals = meals.map((m) => {
+        'meal_type': m['meal_type'] ?? 'desayuno',
+        'name': m['name'] ?? '',
+        'portion': m['portion'] ?? '',
+        'calories': m['calories'],
+        'protein_g': m['protein_g'],
+        'carbs_g': m['carbs_g'],
+        'fat_g': m['fat_g'],
+        'notes': m['notes'] ?? '',
+      }).toList();
+    } catch (e) {
+      _snack('Error al cargar comidas: $e');
+      return;
+    }
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          void addMealDialog() async {
+            String mealType = 'desayuno';
+            final nameCtrl = TextEditingController();
+            final portionCtrl = TextEditingController();
+            final calCtrl = TextEditingController();
+            final protCtrl = TextEditingController();
+            final carbCtrl = TextEditingController();
+            final fatCtrl = TextEditingController();
+            final notesCtrl = TextEditingController();
+
+            await showDialog<void>(
+              context: ctx,
+              builder: (dCtx) => StatefulBuilder(
+                builder: (dCtx, setDlg) => AlertDialog(
+                  backgroundColor: const Color(0xFF1A1A1A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  title: const Text('Agregar comida', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          value: mealType,
+                          dropdownColor: const Color(0xFF1A1A1A),
+                          decoration: const InputDecoration(labelText: 'Tipo', labelStyle: TextStyle(color: Colors.white70)),
+                          style: const TextStyle(color: Colors.white),
+                          items: _mealTypes.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+                          onChanged: (v) { if (v != null) setDlg(() => mealType = v); },
+                        ),
+                        const SizedBox(height: 10),
+                        _input(controller: nameCtrl, label: 'Nombre *'),
+                        const SizedBox(height: 8),
+                        _input(controller: portionCtrl, label: 'Porción (ej. 1 taza)'),
+                        const SizedBox(height: 8),
+                        Row(children: [
+                          Expanded(child: _input(controller: calCtrl, label: 'Calorías', keyboardType: TextInputType.number)),
+                          const SizedBox(width: 8),
+                          Expanded(child: _input(controller: protCtrl, label: 'Prot (g)', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                        ]),
+                        const SizedBox(height: 8),
+                        Row(children: [
+                          Expanded(child: _input(controller: carbCtrl, label: 'Carbs (g)', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                          const SizedBox(width: 8),
+                          Expanded(child: _input(controller: fatCtrl, label: 'Grasa (g)', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                        ]),
+                        const SizedBox(height: 8),
+                        _input(controller: notesCtrl, label: 'Notas'),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancelar', style: TextStyle(color: Colors.white54))),
+                    FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: AppColors.neonGreen, foregroundColor: Colors.black),
+                      onPressed: () {
+                        if (nameCtrl.text.trim().isEmpty) return;
+                        setSheet(() {
+                          meals.add({
+                            'meal_type': mealType,
+                            'name': nameCtrl.text.trim(),
+                            'portion': portionCtrl.text.trim(),
+                            'calories': int.tryParse(calCtrl.text.trim()),
+                            'protein_g': double.tryParse(protCtrl.text.trim()),
+                            'carbs_g': double.tryParse(carbCtrl.text.trim()),
+                            'fat_g': double.tryParse(fatCtrl.text.trim()),
+                            'notes': notesCtrl.text.trim(),
+                          });
+                        });
+                        Navigator.pop(dCtx);
+                      },
+                      child: const Text('Agregar'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+
+            nameCtrl.dispose(); portionCtrl.dispose(); calCtrl.dispose();
+            protCtrl.dispose(); carbCtrl.dispose(); fatCtrl.dispose(); notesCtrl.dispose();
+          }
+
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.7,
+            maxChildSize: 0.95,
+            minChildSize: 0.4,
+            builder: (_, sc) => Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Column(
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 36, height: 4,
+                          decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Comidas — ${plan['title'] ?? ''}',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: addMealDialog,
+                            icon: const Icon(Icons.add, color: AppColors.neonGreen, size: 16),
+                            label: const Text('Agregar', style: TextStyle(color: AppColors.neonGreen, fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: meals.isEmpty
+                      ? const Center(
+                          child: Text('Sin comidas. Toca "Agregar" para añadir.',
+                              style: TextStyle(color: Colors.white38)),
+                        )
+                      : ListView.builder(
+                          controller: sc,
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          itemCount: meals.length,
+                          itemBuilder: (_, i) {
+                            final m = meals[i];
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _mealTypes[m['meal_type']] ?? m['meal_type']?.toString() ?? '',
+                                          style: const TextStyle(color: Colors.white38, fontSize: 10),
+                                        ),
+                                        Text(
+                                          m['name']?.toString() ?? '',
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                                        ),
+                                        if ((m['portion'] as String?)?.isNotEmpty ?? false)
+                                          Text(m['portion'].toString(), style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                                        const SizedBox(height: 4),
+                                        Wrap(spacing: 6, children: [
+                                          if (m['calories'] != null) _mealChip('${m['calories']} kcal', AppColors.neonGreen),
+                                          if (m['protein_g'] != null) _mealChip('P:${m['protein_g']}g', AppColors.electricPurple),
+                                          if (m['carbs_g'] != null) _mealChip('C:${m['carbs_g']}g', const Color(0xFFFFBB00)),
+                                          if (m['fat_g'] != null) _mealChip('G:${m['fat_g']}g', AppColors.coralOrange),
+                                        ]),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: AppColors.coralOrange, size: 18),
+                                    onPressed: () => setSheet(() => meals.removeAt(i)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).padding.bottom + 16),
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.neonGreen,
+                      foregroundColor: Colors.black,
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      try {
+                        final cleanMeals = meals.map((m) {
+                          final clean = Map<String, dynamic>.from(m);
+                          clean.removeWhere((k, v) => v == null || (v is String && v.isEmpty));
+                          return clean;
+                        }).toList();
+                        await NutriologoApi.updatePlan(planId: planId, meals: cleanMeals);
+                        _snack('Comidas actualizadas correctamente.');
+                        await _load(reset: true);
+                      } catch (e) {
+                        _snack('Error al guardar: $e');
+                      }
+                    },
+                    child: Text(
+                      'Guardar ${meals.length} comida${meals.length != 1 ? 's' : ''}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _mealChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(label, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.bold)),
+    );
+  }
+
   Future<void> _viewPlanDetail(int planId) async {
     try {
       final detail = await NutriologoApi.getPlanDetail(planId);
@@ -666,6 +932,8 @@ class _NutriologoPlanesScreenState extends State<NutriologoPlanesScreen> {
               child: Row(
                 children: [
                   _actionBtn(Icons.visibility_outlined, 'Ver', () => _viewPlanDetail(planId)),
+                  const SizedBox(width: 8),
+                  _actionBtn(Icons.restaurant_menu_outlined, 'Comidas', () => _manageMealsSheet(plan), color: AppColors.electricPurple),
                   const SizedBox(width: 8),
                   _actionBtn(Icons.person_add_outlined, 'Asignar', () => _assignPlanDialog(planId)),
                   const SizedBox(width: 8),

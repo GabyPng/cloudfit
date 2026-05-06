@@ -160,9 +160,20 @@ class QueryExecutor
             return ['error' => 'No se encontró perfil de nutriólogo.'];
         }
 
-        return DB::table('nutrition_plan_assignments as npa')
-            ->join('users', 'users.user_id', '=', 'npa.client_id')
-            ->where('npa.nutriologo_id', $nutriologoId)
+        return DB::table('users')
+            ->where(function ($q) use ($nutriUserId, $nutriologoId) {
+                $q->whereExists(function ($sub) use ($nutriologoId) {
+                    $sub->select(DB::raw(1))
+                        ->from('nutrition_plan_assignments as npa')
+                        ->whereColumn('npa.client_id', 'users.user_id')
+                        ->where('npa.nutriologo_id', $nutriologoId);
+                })->orWhereExists(function ($sub) use ($nutriUserId) {
+                    $sub->select(DB::raw(1))
+                        ->from('clients as c')
+                        ->whereColumn('c.user_id', 'users.user_id')
+                        ->where('c.nutritionist_id', $nutriUserId);
+                });
+            })
             ->select('users.user_id as id', 'users.name', 'users.email')
             ->distinct()
             ->orderBy('users.name')
