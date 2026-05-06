@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/add_client_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/add_exercises_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/client_detail_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/coach_main_screen.dart';
 import 'package:flutter_application_cloudfit/features/coach/presentation/screens/create_routine_screen.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/routine_detail_screen.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/weekly_plan_screen.dart';
+import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_home_screen.dart';
+import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_planes_screen.dart';
+import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_perfil_screen.dart';
+import 'package:flutter_application_cloudfit/features/nutriologo/presentation/screens/nutriologo_seguimiento_screen.dart';
+import 'package:flutter_application_cloudfit/features/nutriologo/presentation/widgets/nutriologo_bottom_nav.dart';
 import 'package:flutter_application_cloudfit/sections/auth/register_screen.dart';
 import 'package:flutter_application_cloudfit/sections/auth/splash_screen.dart';
 import 'package:flutter_application_cloudfit/sections/calendar/calendar_screen.dart';
@@ -10,10 +18,9 @@ import 'package:flutter_application_cloudfit/sections/nutrition/nutrition_screen
 import 'package:flutter_application_cloudfit/sections/professionals/professional_screen.dart';
 import 'package:flutter_application_cloudfit/sections/progress/progress_screen.dart';
 import 'package:flutter_application_cloudfit/sections/workout/exercise_detail_screen.dart';
+import 'package:flutter_application_cloudfit/sections/workout/models/exercise_model.dart';
 import 'package:flutter_application_cloudfit/sections/workout/workout_summary_screen.dart';
 import 'package:flutter_application_cloudfit/sections/roles/admin_index_screen.dart';
-import 'package:flutter_application_cloudfit/sections/roles/coach_index_screen.dart';
-import 'package:flutter_application_cloudfit/sections/roles/nutriologo_index_screen.dart';
 import 'package:go_router/go_router.dart';
 import '../../sections/dashboard/main_screen.dart';
 import '../../sections/workout/exercise_screen.dart';
@@ -96,7 +103,12 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/cliente/exercise-detail',
       name: ExerciseDetailScreen.name,
-      builder: (context, state) => const ExerciseDetailScreen(),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        final exercises = extra?['exercises'] as List<RoutineExercise>?;
+        final index = extra?['index'] as int? ?? 0;
+        return ExerciseDetailScreen(exercises: exercises, currentIndex: index);
+      },
     ),
 
     GoRoute(
@@ -114,15 +126,62 @@ final appRouter = GoRouter(
       path: '/admin',
       builder: (context, state) => const AdminIndexScreen(),
     ),
-    
-    GoRoute(
-      path: '/nutriologo',
-      builder: (context, state) => const NutriologoIndexScreen(),
+
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) {
+        return Scaffold(
+          body: navigationShell,
+          extendBody: true,
+          bottomNavigationBar: NutriologoBottomNav(
+            navigationShell: navigationShell,
+          ),
+        );
+      },
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/nutriologo',
+              builder: (context, state) => const NutriologoHomeScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/nutriologo/pacientes',
+              builder: (context, state) => const NutriologoSeguimientoScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/nutriologo/planes',
+              builder: (context, state) => const NutriologoPlanesScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/nutriologo/perfil',
+              builder: (context, state) => const NutriologoPerfilScreen(),
+            ),
+          ],
+        ),
+      ],
     ),
+
     GoRoute(
       path: '/coach-home',
       name: CoachMainScreen.name,
       builder: (context, state) => const CoachMainScreen(),
+    ),
+    GoRoute(
+      path: '/add-client',
+      name: AddClientScreen.name,
+      builder: (context, state) => const AddClientScreen(),
     ),
     GoRoute(
   path: '/client-detail/:id',
@@ -141,6 +200,20 @@ GoRoute(
 GoRoute(
   path: '/add-exercises/:routineId',
   builder: (context, state) => AddExercisesScreen(routineId: state.pathParameters['routineId']!),
+),
+GoRoute(
+  path: '/routine-detail/:routineId',
+  builder: (context, state) => RoutineDetailScreen(routineId: state.pathParameters['routineId']!),
+),
+GoRoute(
+  path: '/weekly-plan/:clientId',
+  builder: (context, state) {
+    final extra = state.extra as Map<String, dynamic>?;
+    return WeeklyPlanScreen(
+      clientId: state.pathParameters['clientId']!,
+      clientName: extra?['clientName'] as String? ?? '',
+    );
+  },
 ),
 
     StatefulShellRoute.indexedStack(
@@ -162,6 +235,7 @@ GoRoute(
             ),
           ],
         ),
+        // Branch 1: Ejercicios — accesible via mapa muscular, sin tab en el nav
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -178,7 +252,6 @@ GoRoute(
             ),
           ],
         ),
-        // 4ta Rama: Progreso (Índice 3)
         StatefulShellBranch(
           routes: [
             GoRoute(

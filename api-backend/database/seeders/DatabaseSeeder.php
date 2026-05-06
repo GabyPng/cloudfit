@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             CloudFitDemoSeeder::class,
             CoachRutinasSeeder::class,
+            ValeriaCruzProgressSeeder::class,
         ]);
     }
 }

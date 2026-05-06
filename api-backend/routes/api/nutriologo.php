@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Nutriologo\NutriologoController;
+use App\Http\Controllers\Nutriologo\PerfilController;
+use App\Http\Controllers\Nutriologo\SeguimientoController;
 use Illuminate\Support\Facades\Route;
 
 // Middleware: auth:sanctum + role:nutriologo
@@ -14,6 +16,21 @@ Route::put('/planes/{planId}', [NutriologoController::class, 'updatePlan']);
 Route::delete('/planes/{planId}', [NutriologoController::class, 'destroyPlan']);
 Route::post('/planes/{planId}/asignar', [NutriologoController::class, 'assignPlan']);
 Route::patch('/asignaciones/{assignmentId}/status', [NutriologoController::class, 'updateAssignmentStatus']);
+
+// ── Perfil ──
+Route::get('/perfil', [PerfilController::class, 'show']);
+Route::put('/perfil', [PerfilController::class, 'update']);
+Route::get('/perfil/solicitudes', [PerfilController::class, 'solicitudes']);
+Route::patch('/perfil/solicitudes/{id}', [PerfilController::class, 'responderSolicitud']);
+
+// ── Seguimiento ──
+Route::get('/seguimiento/pacientes', [SeguimientoController::class, 'pacientes']);
+Route::get('/seguimiento/cambios-pendientes', [SeguimientoController::class, 'cambiosPendientes']);
+Route::get('/seguimiento/{clientId}/historial', [SeguimientoController::class, 'historial']);
+Route::post('/seguimiento/{clientId}/progreso', [SeguimientoController::class, 'registrarProgreso']);
+Route::put('/seguimiento/progreso/{recordId}', [SeguimientoController::class, 'actualizarProgreso']);
+Route::delete('/seguimiento/progreso/{recordId}', [SeguimientoController::class, 'eliminarProgreso']);
+Route::post('/seguimiento/{clientId}/cambio-dieta', [SeguimientoController::class, 'proponerCambioDieta']);
 
 // Otras del nutriólogo:
 // Route::apiResource('/planes', PlanNutricionalController::class);

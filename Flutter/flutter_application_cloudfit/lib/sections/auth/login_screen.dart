@@ -1,6 +1,6 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import '../../core/auth_service.dart';
 
 class _CF {
@@ -43,13 +43,12 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await AuthService.login(_emailCtrl.text.trim(), _passwordCtrl.text);
-      await AuthService.syncCurrentUser();
+      await AuthService.loadRole();
       if (mounted) context.go(AuthService.homeRouteForCurrentUser);
     } on AuthException catch (e) {
       setState(() => _error = _mensajeError(e.message));
     } catch (e) {
-      setState(() => _error = 'Error técnico: $e'); 
-      print('DEBUG LOGIN: $e');
+      setState(() => _error = 'Error técnico: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -357,3 +356,4 @@ class _SocialBtn extends StatelessWidget {
     ),
   );
 }
+

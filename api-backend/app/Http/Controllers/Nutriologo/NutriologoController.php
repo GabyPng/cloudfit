@@ -9,6 +9,7 @@ use App\Models\NutritionPlanAssignment;
 use App\Models\NutritionPlanMeal;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -16,13 +17,11 @@ class NutriologoController extends Controller
 {
     private function userColumnExists(string $column): bool
     {
-        static $userColumns = null;
+        $columns = Cache::remember('schema_users_columns', 3600, function () {
+            return array_flip(Schema::getColumnListing('users'));
+        });
 
-        if ($userColumns === null) {
-            $userColumns = array_flip(Schema::getColumnListing('users'));
-        }
-
-        return isset($userColumns[$column]);
+        return isset($columns[$column]);
     }
 
     private function currentNutriologo(Request $request): ?Nutriologo
@@ -32,27 +31,58 @@ class NutriologoController extends Controller
             return null;
         }
 
-        $user = User::query()->with('role:role_id,name')->where('email', $email)->first();
-        if (!$user) {
+        $cacheKey = 'nutriologo_profile_' . md5($email);
+
+        return Cache::remember($cacheKey, 300, function () use ($email) {
+            $user = User::query()
+                ->select(['user_id', 'role_id', 'email'])
+                ->with('role:role_id,name')
+                ->where('email', $email)
+                ->first();
+
+            if (!$user) {
+                return null;
+            }
+
+            $profile = Nutriologo::query()->where('user_id', $user->user_id)->first();
+            if ($profile) {
+                return $profile;
+            }
+
+            $roleName = mb_strtolower((string) ($user->role?->name ?? ''));
+            if ($roleName === 'nutriologo') {
+                return Nutriologo::query()->create([
+                    'user_id' => $user->user_id,
+                    'license_number' => 'PENDIENTE',
+                    'focus' => 'General',
+                    'certificate_uploads' => null,
+                ]);
+            }
+
             return null;
-        }
+        });
+    }
 
-        $profile = Nutriologo::query()->where('user_id', $user->id)->first();
-        if ($profile) {
-            return $profile;
-        }
+    private function latestAssignmentSubquery(int $nutriologoId)
+    {
+        // MAX(id) por cliente es suficiente: el ID mayor = asignación más reciente.
+        // Reduce de 3 subqueries anidados a 1 subquery + 1 JOIN.
+        $maxIds = DB::table('nutrition_plan_assignments')
+            ->selectRaw('MAX(id) as max_id')
+            ->where('nutriologo_id', $nutriologoId)
+            ->groupBy('client_id');
 
-        $roleName = mb_strtolower((string) ($user->role?->name ?? ''));
-        if ($roleName === 'nutriologo') {
-            return Nutriologo::query()->create([
-                'user_id' => $user->id,
-                'license_number' => 'PENDIENTE',
-                'focus' => 'General',
-                'certificate_uploads' => null,
+        return DB::table('nutrition_plan_assignments as npa_latest')
+            ->joinSub($maxIds, 'latest_ids', 'latest_ids.max_id', '=', 'npa_latest.id')
+            ->leftJoin('nutrition_plans as np_latest', 'np_latest.id', '=', 'npa_latest.nutrition_plan_id')
+            ->select([
+                'npa_latest.id as la_id',
+                'npa_latest.client_id as la_client_id',
+                'npa_latest.nutrition_plan_id as la_plan_id',
+                'npa_latest.status as la_status',
+                'npa_latest.updated_at as la_updated_at',
+                'np_latest.title as la_plan_title',
             ]);
-        }
-
-        return null;
     }
 
     public function dashboard(Request $request)
@@ -62,41 +92,62 @@ class NutriologoController extends Controller
             return response()->json(['error' => 'No user in token'], 401);
         }
 
-        $assignmentsBase = NutritionPlanAssignment::query()
-            ->where('nutriologo_id', $nutriologo->id);
+        $payload = Cache::remember("nutri_dashboard_{$nutriologo->id}", 30, function () use ($nutriologo) {
+            return $this->buildDashboard($nutriologo);
+        });
 
-        $totalAssignments = (clone $assignmentsBase)->count();
-        $activeAssignments = (clone $assignmentsBase)
-            ->where('status', 'active')
-            ->count();
+        return response()->json($payload);
+    }
+
+    private function buildDashboard($nutriologo): array
+    {
+        $startOfMonth = now()->startOfMonth();
+        $endOfMonth = now()->endOfMonth();
+
+        $assignmentSummary = NutritionPlanAssignment::query()
+            ->where('nutriologo_id', $nutriologo->id)
+            ->selectRaw('COUNT(*) as total_assignments')
+            ->selectRaw("SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_assignments")
+            ->selectRaw('COUNT(DISTINCT client_id) as total_clients')
+            ->selectRaw(
+                "COUNT(DISTINCT CASE
+                    WHEN (
+                        (assigned_at IS NOT NULL AND assigned_at BETWEEN ? AND ?)
+                        OR (created_at BETWEEN ? AND ?)
+                    ) THEN client_id
+                END) as new_clients_month",
+                [
+                    $startOfMonth->toDateString(),
+                    $endOfMonth->toDateString(),
+                    $startOfMonth,
+                    $endOfMonth,
+                ]
+            )
+            ->selectRaw(
+                "SUM(CASE
+                    WHEN status IN ('paused', 'cancelled')
+                      OR (ends_at IS NOT NULL AND ends_at < ?)
+                    THEN 1 ELSE 0
+                END) as alerts_count",
+                [now()->toDateString()]
+            )
+            ->selectRaw(
+                '(SELECT COUNT(*) FROM nutrition_plans WHERE nutriologo_id = ? AND is_active = true) as planes_activos',
+                [$nutriologo->id]
+            )
+            ->first();
+
+        $totalAssignments = (int) ($assignmentSummary?->total_assignments ?? 0);
+        $activeAssignments = (int) ($assignmentSummary?->active_assignments ?? 0);
 
         $stats = [
-            'total_pacientes' => (clone $assignmentsBase)
-                ->distinct('client_id')
-                ->count('client_id'),
-            'nuevos_este_mes' => (clone $assignmentsBase)
-                ->where(function ($query) {
-                    $query->whereBetween('assigned_at', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
-                        ->orWhereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
-                })
-                ->distinct('client_id')
-                ->count('client_id'),
+            'total_pacientes'    => (int) ($assignmentSummary?->total_clients ?? 0),
+            'nuevos_este_mes'    => (int) ($assignmentSummary?->new_clients_month ?? 0),
             'adherencia_promedio' => $totalAssignments > 0
                 ? (int) round(($activeAssignments / $totalAssignments) * 100)
                 : 0,
-            'alertas_nutricionales' => (clone $assignmentsBase)
-                ->where(function ($query) {
-                    $query->whereIn('status', ['paused', 'cancelled'])
-                        ->orWhere(function ($subQuery) {
-                            $subQuery->whereNotNull('ends_at')
-                                ->whereDate('ends_at', '<', now()->toDateString());
-                        });
-                })
-                ->count(),
-            'planes_activos' => NutritionPlan::query()
-                ->where('nutriologo_id', $nutriologo->id)
-                ->where('is_active', true)
-                ->count(),
+            'alertas_nutricionales' => (int) ($assignmentSummary?->alerts_count ?? 0),
+            'planes_activos'     => (int) ($assignmentSummary?->planes_activos ?? 0),
         ];
 
         $statusLabels = [
@@ -116,19 +167,25 @@ class NutriologoController extends Controller
             $userFields[] = 'objective';
         }
 
+        $latestPatientAssignmentIds = DB::query()
+            ->fromSub($this->latestAssignmentSubquery($nutriologo->id), 'la')
+            ->orderByDesc('la.la_updated_at')
+            ->limit(8)
+            ->pluck('la.la_id');
+
         $patientAssignments = NutritionPlanAssignment::query()
             ->with(['client:' . implode(',', $userFields), 'nutritionPlan:id,title'])
-            ->where('nutriologo_id', $nutriologo->id)
-            ->latest('updated_at')
-            ->get();
+            ->whereIn('id', $latestPatientAssignmentIds)
+            ->get()
+            ->keyBy('id');
 
         $clientGoals = DB::table('clients')
             ->whereIn('user_id', $patientAssignments->pluck('client_id')->filter()->unique())
             ->pluck('goal', 'user_id');
 
-        $pacientes = $patientAssignments
-            ->unique('client_id')
-            ->take(8)
+        $pacientes = $latestPatientAssignmentIds
+            ->map(fn ($assignmentId) => $patientAssignments->get($assignmentId))
+            ->filter()
             ->values()
             ->map(function ($assignment) use ($statusLabels, $clientGoals) {
                 $status = $assignment->status ?? 'active';
@@ -176,13 +233,13 @@ class NutriologoController extends Controller
                 ];
             });
 
-        return response()->json([
+        return [
             'message' => 'Bienvenido al panel de Nutriologo.',
             'section' => 'nutriologo',
             'stats' => $stats,
             'pacientes' => $pacientes,
             'actividades' => $actividades,
-        ]);
+        ];
     }
 
     public function clientes(Request $request)
@@ -197,7 +254,7 @@ class NutriologoController extends Controller
         $perPage = max(1, min($perPage, 50));
 
         $clientSelects = [
-            'users.user_id as id',
+            'users.user_id',
             'users.name',
             'users.email',
             $this->userColumnExists('avatar_url') ? 'users.avatar_url' : DB::raw('NULL as avatar_url'),
@@ -209,11 +266,14 @@ class NutriologoController extends Controller
         $clientsQuery = User::query()
             ->leftJoin('clients', 'clients.user_id', '=', 'users.user_id')
             ->select($clientSelects)
-            ->whereExists(function ($query) use ($nutriologo) {
-                $query->select(DB::raw(1))
-                    ->from('nutrition_plan_assignments as npa')
-                    ->whereColumn('npa.client_id', 'users.user_id')
-                    ->where('npa.nutriologo_id', $nutriologo->id);
+            ->where(function ($query) use ($nutriologo) {
+                $query->where('clients.nutritionist_id', $nutriologo->user_id)
+                    ->orWhereExists(function ($subQuery) use ($nutriologo) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('nutrition_plan_assignments as npa')
+                            ->whereColumn('npa.client_id', 'users.user_id')
+                            ->where('npa.nutriologo_id', $nutriologo->id);
+                    });
             });
 
         if ($search !== '') {
@@ -223,13 +283,53 @@ class NutriologoController extends Controller
             });
         }
 
+        $latestAssignment = $this->latestAssignmentSubquery($nutriologo->id);
+
+        $clientsQuery
+            ->leftJoinSub($latestAssignment, 'la', 'la.la_client_id', '=', 'users.user_id')
+            ->addSelect([
+                DB::raw('la.la_id as assignment_id'),
+                DB::raw('la.la_plan_title as current_plan'),
+                DB::raw('la.la_plan_id as current_plan_id'),
+                DB::raw('la.la_status as status_key'),
+                DB::raw('la.la_updated_at as last_update'),
+            ]);
+
         $clients = $clientsQuery
             ->orderBy('users.name')
             ->paginate($perPage)
             ->withQueryString();
 
+        $data = collect($clients->items())->map(function ($client) {
+            $statusKey = $client->status_key ?? null;
+            $isAlert = in_array($statusKey, ['paused', 'cancelled'], true);
+
+            return [
+                'id' => (int) $client->user_id,
+                'name' => $client->name,
+                'email' => $client->email,
+                'avatar_url' => $client->avatar_url,
+                'objective' => $client->objective,
+                'assignment_id' => $client->assignment_id ? (int) $client->assignment_id : null,
+                'current_plan' => $client->current_plan,
+                'current_plan_id' => $client->current_plan_id ? (int) $client->current_plan_id : null,
+                'status_key' => $statusKey,
+                'status' => $isAlert ? 'alerta' : ($statusKey ?: 'sin_plan'),
+                'status_label' => match ($statusKey) {
+                    'active' => 'Seguimiento activo',
+                    'paused' => 'Plan pausado',
+                    'completed' => 'Objetivo cumplido',
+                    'cancelled' => 'Requiere atención',
+                    default => $client->current_plan ? 'Plan asignado' : 'Sin plan asignado',
+                },
+                'last_update' => $client->last_update
+                    ? \Illuminate\Support\Carbon::parse($client->last_update)->diffForHumans()
+                    : 'Sin seguimiento reciente',
+            ];
+        })->values();
+
         return response()->json([
-            'data' => $clients->items(),
+            'data' => $data,
             'meta' => [
                 'current_page' => $clients->currentPage(),
                 'last_page' => $clients->lastPage(),
@@ -338,8 +438,9 @@ class NutriologoController extends Controller
                 'is_active' => true,
             ]);
 
+            $mealsData = [];
             foreach (($validated['meals'] ?? []) as $index => $meal) {
-                NutritionPlanMeal::query()->create([
+                $mealsData[] = [
                     'nutrition_plan_id' => $plan->id,
                     'meal_type' => $meal['meal_type'],
                     'name' => $meal['name'],
@@ -350,7 +451,12 @@ class NutriologoController extends Controller
                     'fat_g' => $meal['fat_g'] ?? null,
                     'notes' => $meal['notes'] ?? null,
                     'position' => $index,
-                ]);
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+            if ($mealsData) {
+                NutritionPlanMeal::insert($mealsData);
             }
 
             return $plan->load('meals');
@@ -379,7 +485,7 @@ class NutriologoController extends Controller
         }
 
         $validated = $request->validate([
-            'client_id' => ['required', 'integer', 'exists:users,id'],
+            'client_id' => ['required', 'integer', 'exists:users,user_id'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'notes' => ['nullable', 'string'],
@@ -457,8 +563,9 @@ class NutriologoController extends Controller
 
             if (array_key_exists('meals', $validated)) {
                 $plan->meals()->delete();
+                $mealsData = [];
                 foreach (($validated['meals'] ?? []) as $index => $meal) {
-                    NutritionPlanMeal::query()->create([
+                    $mealsData[] = [
                         'nutrition_plan_id' => $plan->id,
                         'meal_type' => $meal['meal_type'],
                         'name' => $meal['name'],
@@ -469,7 +576,12 @@ class NutriologoController extends Controller
                         'fat_g' => $meal['fat_g'] ?? null,
                         'notes' => $meal['notes'] ?? null,
                         'position' => $index,
-                    ]);
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+                if ($mealsData) {
+                    NutritionPlanMeal::insert($mealsData);
                 }
             }
 

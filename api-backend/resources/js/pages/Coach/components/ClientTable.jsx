@@ -1,5 +1,26 @@
-import { Filter, Download } from 'lucide-react';
+import { Filter, Download, Target, CalendarDays, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+const DAYS_KEYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function getWeeklyPlanStats(clientId) {
+  try {
+    const saved = localStorage.getItem(`cloudfit_plan_${clientId}`);
+    if (!saved) return null;
+    const plan = JSON.parse(saved);
+    let diasActivos = 0;
+    let ejercicios = 0;
+    DAYS_KEYS.forEach(key => {
+      const dayRoutines = plan[key] || [];
+      if (dayRoutines.length > 0) diasActivos++;
+      ejercicios += dayRoutines.reduce((s, r) => s + (r.exercises?.length ?? 0), 0);
+    });
+    if (diasActivos === 0) return null;
+    return { diasActivos, ejercicios };
+  } catch {
+    return null;
+  }
+}
 
 const statusDot = (estado) => {
   if (estado === 'inactivo') {
@@ -38,7 +59,7 @@ export default function ClientTable({ clientes = [], totalAtletas = 0 }) {
         <table className="w-full text-left">
           <thead className="bg-[#131313]">
             <tr>
-              {['Cliente', 'Plan Actual', 'Estado Hoy', 'Última Métrica', 'Acciones'].map((h, i) => (
+              {['Cliente', 'Enfoque', 'Estado Hoy', 'Última Métrica', 'Acciones'].map((h, i) => (
                 <th
                   key={h}
                   className={`px-6 py-4 text-[10px] font-headline uppercase tracking-widest text-[#adaaaa] ${i === 4 ? 'text-right' : ''}`}
@@ -51,8 +72,11 @@ export default function ClientTable({ clientes = [], totalAtletas = 0 }) {
           <tbody className="divide-y divide-[#484847]/5">
             {clientes.map((cliente, idx) => {
               const inactive = cliente.estado === 'inactivo';
+              const weekStats = getWeeklyPlanStats(cliente.id);
+
               return (
                 <tr key={cliente.id || idx} className="hover:bg-[#20201f] transition-colors group">
+
                   {/* Cliente */}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -63,27 +87,48 @@ export default function ClientTable({ clientes = [], totalAtletas = 0 }) {
                           className={`w-8 h-8 rounded-full object-cover ${inactive ? 'grayscale opacity-60' : ''}`}
                         />
                       ) : (
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                           inactive ? 'bg-[#262626] text-[#adaaaa]' : 'bg-[#cafd00] text-[#0e0e0e]'
                         }`}>
                           {cliente.nombre?.charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <span className={`text-sm font-medium ${inactive ? 'text-[#adaaaa]' : ''}`}>
-                        {cliente.nombre}
-                      </span>
+                      <div className="min-w-0">
+                        <span className={`text-sm font-medium block truncate ${inactive ? 'text-[#adaaaa]' : ''}`}>
+                          {cliente.nombre}
+                        </span>
+                        {weekStats ? (
+                          <span className="text-[10px] text-[#cafd00]/70">
+                            {weekStats.diasActivos} {weekStats.diasActivos === 1 ? 'día activo' : 'días activos'} · {weekStats.ejercicios} ejercicios
+                          </span>
+                        ) : (cliente.rutinas?.length ?? 0) > 0 ? (
+                          <span className="text-[10px] text-[#adaaaa]">
+                            {cliente.rutinas.length} {cliente.rutinas.length === 1 ? 'rutina asignada' : 'rutinas asignadas'}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-[#484847]">Sin plan semanal</span>
+                        )}
+                      </div>
                     </div>
                   </td>
 
-                  {/* Plan */}
+                  {/* Enfoque */}
                   <td className="px-6 py-4">
-                    <span className={`inline-block whitespace-nowrap px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${
-                      inactive
-                        ? 'bg-[#262626] text-[#adaaaa]'
-                        : 'bg-[#5516be] text-[#d9c8ff]'
-                    }`}>
-                      {cliente.plan_nombre}
-                    </span>
+                    {cliente.objetivo ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-tight"
+                        style={{
+                          backgroundColor: inactive ? '#262626' : '#cafd0018',
+                          color: inactive ? '#adaaaa' : '#cafd00',
+                          border: `1px solid ${inactive ? '#484847' : '#cafd0030'}`,
+                        }}
+                      >
+                        <Target size={10} style={{ flexShrink: 0 }} />
+                        <span className="truncate max-w-[140px]">{cliente.objetivo}</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-[#adaaaa]/50 italic">Sin objetivo registrado</span>
+                    )}
                   </td>
 
                   {/* Estado */}
@@ -98,22 +143,29 @@ export default function ClientTable({ clientes = [], totalAtletas = 0 }) {
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className={`text-sm font-headline ${inactive ? 'text-[#adaaaa]' : ''}`}>
-                        {cliente.peso} kg
+                        {cliente.peso ? `${cliente.peso} kg` : '—'}
                       </span>
-                      <span className="text-[10px] text-[#adaaaa]">Grasa: {cliente.grasa}%</span>
+                      <span className="text-[10px] text-[#adaaaa]">
+                        {cliente.grasa ? `Grasa: ${cliente.grasa}%` : '—'}
+                      </span>
                     </div>
                   </td>
 
                   {/* Acciones */}
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => navigate(`/coach/rutinas?clientId=${cliente.id}`)}
-                        className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#f3ffca] transition-colors"
+                      <button
+                        onClick={() => navigate(`/coach/clientes?clientId=${cliente.id}`)}
+                        className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#cafd00] hover:bg-[#cafd00]/10 transition-colors"
                       >
-                        Rutina
+                        <CalendarDays size={11} />
+                        Plan Semanal
                       </button>
-                      <button className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#ac8aff] transition-colors">
+                      <button
+                        onClick={() => navigate(`/coach/progreso?clientId=${cliente.id}`)}
+                        className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#ac8aff] hover:bg-[#ac8aff]/10 transition-colors"
+                      >
+                        <TrendingUp size={11} />
                         Evolución
                       </button>
                     </div>

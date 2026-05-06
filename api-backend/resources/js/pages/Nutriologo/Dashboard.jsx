@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   CheckCircle,
@@ -28,6 +29,24 @@ const initialData = {
   pacientes: [],
   actividades: [],
 };
+
+const CACHE_KEY = 'cf_nutri_dashboard';
+const CACHE_TTL = 60_000;
+
+function readCache() {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    return Date.now() - ts < CACHE_TTL ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(data) {
+  try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data })); } catch {}
+}
 
 const statusDot = (estado) => {
   if (estado === 'alerta') {
@@ -72,8 +91,10 @@ const typeConfig = {
 };
 
 export default function Dashboard() {
-  const [data, setData] = useState(initialData);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const cached = readCache();
+  const [data, setData] = useState(cached ?? initialData);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -114,11 +135,13 @@ export default function Dashboard() {
         const payload = await response.json();
 
         if (!ignore) {
-          setData({
+          const next = {
             stats: payload?.stats ?? initialData.stats,
             pacientes: payload?.pacientes ?? [],
             actividades: payload?.actividades ?? [],
-          });
+          };
+          writeCache(next);
+          setData(next);
         }
       } catch (err) {
         if (!ignore) {
@@ -159,8 +182,7 @@ export default function Dashboard() {
       {loading ? (
         <section className="col-span-12 min-h-80 flex items-center justify-center bg-[#1a1a1a] rounded-xl">
           <div className="flex items-center gap-3 text-[#f3ffca]">
-            <Loader2 className="animate-spin" size={18} />
-            <span>Cargando información real del dashboard...</span>
+            <Loader2 className="animate-spin" size={22} />
           </div>
         </section>
       ) : (
@@ -276,10 +298,16 @@ export default function Dashboard() {
 
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#f3ffca] transition-colors">
+                              <button
+                                onClick={() => navigate('/nutriologo/pacientes', { state: { patientId: paciente.id } })}
+                                className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#f3ffca] transition-colors"
+                              >
                                 Plan
                               </button>
-                              <button className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#ac8aff] transition-colors">
+                              <button
+                                onClick={() => navigate('/nutriologo/pacientes', { state: { patientId: paciente.id } })}
+                                className="text-[10px] font-bold uppercase bg-[#262626] px-3 py-1.5 rounded hover:text-[#ac8aff] transition-colors"
+                              >
                                 Seguimiento
                               </button>
                             </div>

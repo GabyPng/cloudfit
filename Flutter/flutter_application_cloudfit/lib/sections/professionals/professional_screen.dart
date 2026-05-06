@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants.dart';
 import 'models/professional_model.dart';
 import 'professional_detail_screen.dart';
 
 class ProfessionalsScreen extends StatefulWidget {
   static const String name = 'professionals_screen';
-
   const ProfessionalsScreen({super.key});
 
   @override
@@ -15,26 +15,24 @@ class ProfessionalsScreen extends StatefulWidget {
 
 class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
   final _supabase = Supabase.instance.client;
-  final TextEditingController _searchController = TextEditingController();
+  final _searchCtrl = TextEditingController();
 
   List<ProfessionalModel> _professionals = [];
   List<ProfessionalModel> _filtered = [];
   bool _isLoading = true;
   String? _error;
-
-  // null = todos, 2 = Coach, 3 = Nutriólogo
   int? _selectedRole;
 
   @override
   void initState() {
     super.initState();
     _fetchProfessionals();
-    _searchController.addListener(_applyFilters);
+    _searchCtrl.addListener(_applyFilters);
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -44,12 +42,12 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
           .from('users')
           .select(
               'user_id, name, avatar_url, role_id, objective, nutriologos(license_number, focus, certificate_uploads)')
-          .inFilter('role_id', [2, 3]).order('role_id');
+          .inFilter('role_id', [2, 3])
+          .order('role_id');
 
       setState(() {
-        _professionals = (response as List)
-            .map((e) => ProfessionalModel.fromMap(e))
-            .toList();
+        _professionals =
+            (response as List).map((e) => ProfessionalModel.fromMap(e)).toList();
         _isLoading = false;
       });
       _applyFilters();
@@ -62,18 +60,17 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
   }
 
   void _applyFilters() {
-    final query = _searchController.text.trim().toLowerCase();
+    final q = _searchCtrl.text.trim().toLowerCase();
     setState(() {
-      _filtered = _professionals.where((pro) {
-        final matchesName = pro.name.toLowerCase().contains(query);
-        final matchesRole =
-            _selectedRole == null || pro.roleId == _selectedRole;
-        return matchesName && matchesRole;
+      _filtered = _professionals.where((p) {
+        final nameMatch = p.name.toLowerCase().contains(q);
+        final roleMatch = _selectedRole == null || p.roleId == _selectedRole;
+        return nameMatch && roleMatch;
       }).toList();
     });
   }
 
-  void _setRoleFilter(int? roleId) {
+  void _setRole(int? roleId) {
     setState(() => _selectedRole = roleId);
     _applyFilters();
   }
@@ -81,136 +78,184 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        title: const Text(
-          "Profesionales",
-          style: TextStyle(fontWeight: FontWeight.bold),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(),
+            _buildSearch(),
+            _buildChips(),
+            Expanded(child: _buildBody()),
+          ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              setState(() => _isLoading = true);
-              _fetchProfessionals();
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildSearchBar(),
-          _buildFilterChips(),
-          Expanded(child: _buildBody()),
-        ],
       ),
     );
   }
 
-  Widget _buildSearchBar() {
+  // ── Header ────────────────────────────────────────────────────────────────
+  Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      padding: const EdgeInsets.fromLTRB(20, 16, 12, 10),
+      child: Row(children: [
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Profesionales',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold)),
+          const Text('Encuentra a tu equipo ideal',
+              style: TextStyle(color: Colors.white38, fontSize: 13)),
+        ]),
+        const Spacer(),
+        IconButton(
+          onPressed: () {
+            setState(() => _isLoading = true);
+            _fetchProfessionals();
+          },
+          icon: const Icon(Icons.refresh_rounded, color: Colors.white38),
+        ),
+      ]),
+    );
+  }
+
+  // ── Search bar ────────────────────────────────────────────────────────────
+  Widget _buildSearch() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
       child: TextField(
-        controller: _searchController,
-        style: const TextStyle(color: Colors.white),
+        controller: _searchCtrl,
+        style: const TextStyle(color: Colors.white, fontSize: 14),
         decoration: InputDecoration(
-          hintText: 'Buscar profesional...',
-          hintStyle: const TextStyle(color: Colors.white38),
-          prefixIcon: const Icon(Icons.search, color: Colors.white38),
-          suffixIcon: _searchController.text.isNotEmpty
+          hintText: 'Buscar por nombre...',
+          hintStyle: const TextStyle(color: Colors.white30),
+          prefixIcon:
+              const Icon(Icons.search_rounded, color: Colors.white30, size: 20),
+          suffixIcon: _searchCtrl.text.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.white38),
+                  icon: const Icon(Icons.close_rounded,
+                      color: Colors.white30, size: 18),
                   onPressed: () {
-                    _searchController.clear();
+                    _searchCtrl.clear();
                     _applyFilters();
                   },
                 )
               : null,
           filled: true,
-          fillColor: AppColors.cardGrey,
+          fillColor: AppColors.surface,
           contentPadding:
               const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide.none,
           ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide:
+                BorderSide(color: Colors.white.withValues(alpha: 0.07), width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.neonGreen, width: 1),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildFilterChips() {
+  // ── Filter chips ──────────────────────────────────────────────────────────
+  Widget _buildChips() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      child: Row(
-        children: [
-          _filterChip(label: 'Todos', roleId: null),
-          const SizedBox(width: 8),
-          _filterChip(label: 'Coaches', roleId: 2),
-          const SizedBox(width: 8),
-          _filterChip(label: 'Nutriólogos', roleId: 3),
-        ],
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+      child: Row(children: [
+        _chip(label: 'Todos', roleId: null, icon: Icons.people_outline),
+        const SizedBox(width: 8),
+        _chip(label: 'Coaches', roleId: 2, icon: Icons.fitness_center),
+        const SizedBox(width: 8),
+        _chip(
+            label: 'Nutriólogos',
+            roleId: 3,
+            icon: Icons.restaurant_menu_outlined),
+      ]),
     );
   }
 
-  Widget _filterChip({required String label, required int? roleId}) {
-    final isSelected = _selectedRole == roleId;
-    Color chipColor;
-    if (roleId == 2) {
-      chipColor = AppColors.neonGreen;
-    } else if (roleId == 3) {
-      chipColor = Colors.blue;
-    } else {
-      chipColor = Colors.white70;
-    }
-
+  Widget _chip(
+      {required String label, required int? roleId, required IconData icon}) {
+    final sel = _selectedRole == roleId;
+    final Color c = roleId == 2
+        ? AppColors.neonGreen
+        : roleId == 3
+            ? AppColors.electricPurple
+            : Colors.white70;
     return GestureDetector(
-      onTap: () => _setRoleFilter(roleId),
+      onTap: () => _setRole(roleId),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? chipColor.withOpacity(0.2) : AppColors.cardGrey,
-          borderRadius: BorderRadius.circular(20),
+          color: sel ? c.withValues(alpha: 0.15) : AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isSelected ? chipColor : Colors.transparent,
-            width: 1.5,
-          ),
+              color: sel ? c.withValues(alpha: 0.70) : Colors.white12,
+              width: 1),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? chipColor : Colors.white54,
-          ),
-        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 14, color: sel ? c : Colors.white38),
+          const SizedBox(width: 6),
+          Text(label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                color: sel ? c : Colors.white38,
+              )),
+        ]),
       ),
     );
   }
 
+  // ── Body states ───────────────────────────────────────────────────────────
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: AppColors.neonGreen),
-      );
+          child: CircularProgressIndicator(color: AppColors.neonGreen));
     }
 
     if (_error != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 48),
-            const SizedBox(height: 12),
-            Text(_error!, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _fetchProfessionals,
-              child: const Text('Reintentar'),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.coralOrange.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.wifi_off_rounded,
+                    color: AppColors.coralOrange, size: 40),
+              ),
+              const SizedBox(height: 16),
+              const Text('Sin conexión',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              Text(_error!,
+                  textAlign: TextAlign.center,
+                  style:
+                      const TextStyle(color: Colors.white38, fontSize: 13)),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: _fetchProfessionals,
+                child: const Text('Reintentar',
+                    style: TextStyle(color: AppColors.neonGreen)),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -220,13 +265,20 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.person_search, color: Colors.white24, size: 64),
-            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration:
+                  const BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
+              child: const Icon(Icons.person_search_outlined,
+                  color: Colors.white24, size: 44),
+            ),
+            const SizedBox(height: 16),
             Text(
-              _searchController.text.isNotEmpty
-                  ? 'Sin resultados para "${_searchController.text}"'
+              _searchCtrl.text.isNotEmpty
+                  ? 'Sin resultados para "${_searchCtrl.text}"'
                   : 'No hay profesionales disponibles',
-              style: const TextStyle(color: Colors.white38),
+              style: const TextStyle(color: Colors.white38, fontSize: 14),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -234,124 +286,201 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
       itemCount: _filtered.length,
-      itemBuilder: (context, index) => _professionalCard(_filtered[index]),
+      itemBuilder: (_, i) => _proCard(_filtered[i]),
     );
   }
 
-  Widget _professionalCard(ProfessionalModel pro) {
+  // ── Professional card ─────────────────────────────────────────────────────
+  Widget _proCard(ProfessionalModel pro) {
+    final isCoach = pro.roleId == 2;
+    final rc = isCoach ? AppColors.neonGreen : AppColors.electricPurple;
+    final rl = isCoach ? 'Coach' : 'Nutriólogo';
+
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ProfessionalDetailScreen(professional: pro),
-          ),
-        );
-      },
+      onTap: () => _goToDetail(pro),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 15),
-        padding: const EdgeInsets.all(15),
+        margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
-          color: AppColors.cardGrey,
-          borderRadius: BorderRadius.circular(25),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: rc.withValues(alpha: 0.18), width: 1),
         ),
-        child: Row(
-          children: [
-            Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                CircleAvatar(
-                  radius: 35,
-                  backgroundColor: AppColors.neonGreen.withOpacity(0.2),
-                  backgroundImage: (pro.avatarUrl != null &&
-                          pro.avatarUrl!.isNotEmpty)
-                      ? NetworkImage(pro.avatarUrl!)
-                      : null,
-                  child: (pro.avatarUrl == null || pro.avatarUrl!.isEmpty)
-                      ? Text(
-                          pro.name.isNotEmpty
-                              ? pro.name[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.neonGreen,
-                          ),
-                        )
-                      : null,
-                ),
-                if (pro.isOnline)
-                  Container(
-                    height: 15,
-                    width: 15,
-                    decoration: BoxDecoration(
-                      color: AppColors.neonGreen,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.cardGrey, width: 2),
+        child: Column(children: [
+          // Main row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            child: Row(children: [
+              // Avatar
+              Stack(children: [
+                Container(
+                  padding: const EdgeInsets.all(2.5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [rc, rc.withValues(alpha: 0.30)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    pro.name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16),
+                  child: CircleAvatar(
+                    radius: 30,
+                    backgroundColor: AppColors.cardGrey,
+                    backgroundImage: (pro.avatarUrl?.isNotEmpty == true)
+                        ? NetworkImage(pro.avatarUrl!)
+                        : null,
+                    child: (pro.avatarUrl?.isNotEmpty != true)
+                        ? Text(
+                            pro.name.isNotEmpty
+                                ? pro.name[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: rc),
+                          )
+                        : null,
                   ),
-                  Text(
-                    pro.specialty,
-                    style:
-                        const TextStyle(color: Colors.white38, fontSize: 12),
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        pro.rating,
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                if (pro.isOnline)
+                  Positioned(
+                    bottom: 2,
+                    right: 2,
+                    child: Container(
+                      width: 13,
+                      height: 13,
+                      decoration: BoxDecoration(
+                        color: AppColors.neonGreen,
+                        shape: BoxShape.circle,
+                        border:
+                            Border.all(color: AppColors.surface, width: 2),
                       ),
-                    ],
+                    ),
                   ),
-                ],
+              ]),
+              const SizedBox(width: 14),
+              // Info
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Expanded(
+                          child: Text(pro.name,
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white)),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: rc.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(rl,
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: rc)),
+                        ),
+                      ]),
+                      const SizedBox(height: 4),
+                      if (pro.objective?.isNotEmpty == true)
+                        Text(pro.objective!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.white38)),
+                      const SizedBox(height: 6),
+                      Row(children: [
+                        const Icon(Icons.star_rounded,
+                            color: Colors.amber, size: 14),
+                        const SizedBox(width: 3),
+                        Text(pro.rating,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
+                        if (!pro.isOnline) ...[
+                          const SizedBox(width: 10),
+                          const Text('Fuera de línea',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.white30)),
+                        ],
+                      ]),
+                    ]),
               ),
+            ]),
+          ),
+          // Bottom action strip
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.03),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+              border: Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
             ),
-            Container(
-              margin: const EdgeInsets.only(right: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: pro.roleId == 2
-                    ? AppColors.neonGreen.withOpacity(0.15)
-                    : Colors.blue.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                pro.roleId == 2 ? 'Coach' : 'Nutri',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color:
-                      pro.roleId == 2 ? AppColors.neonGreen : Colors.blue,
+            child: Row(children: [
+              Expanded(
+                child: _inlineBtn(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  label: 'Mensaje',
+                  color: rc,
+                  onTap: () async {
+                    final url = Uri.parse('https://wa.me/521234567890');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    }
+                  },
                 ),
               ),
-            ),
-            IconButton(
-              onPressed: () {
-              },
-              icon: const Icon(Icons.chat_bubble_outline,
-                  color: AppColors.neonGreen),
-            ),
-          ],
-        ),
+              Container(width: 1, height: 20, color: Colors.white12),
+              Expanded(
+                child: _inlineBtn(
+                  icon: Icons.arrow_forward_rounded,
+                  label: 'Ver perfil',
+                  color: Colors.white54,
+                  onTap: () => _goToDetail(pro),
+                ),
+              ),
+            ]),
+          ),
+        ]),
       ),
+    );
+  }
+
+  Widget _inlineBtn({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 6),
+        Text(label,
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+      ]),
+    );
+  }
+
+  void _goToDetail(ProfessionalModel pro) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (_) => ProfessionalDetailScreen(professional: pro)),
     );
   }
 }

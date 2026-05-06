@@ -31,12 +31,10 @@ class IntentClassifier
                 }
             }
 
-            if ($label !== '' && str_contains($text, $label)) {
+            $normalizedLabel = str_replace(['á', 'é', 'í', 'ó', 'ú', '¿', '?'], ['a', 'e', 'i', 'o', 'u', '', ''], mb_strtolower($label));
+            if ($normalizedLabel !== '' && str_contains($text, $normalizedLabel)) {
                 $score += 8;
             }
-
-            similar_text($text, $label, $labelSimilarity);
-            $score += (int) round($labelSimilarity / 12);
 
             if ($score > $bestScore) {
                 $bestScore = $score;

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Coach;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Routine;
+use App\Models\RoutineAssignment;
 use App\Models\User;
 use App\Models\WorkoutLog;
 use Carbon\Carbon;
@@ -75,11 +76,6 @@ class CoachController extends Controller
         // ── Clientes ────────────────────────────────────────────────
         $clientes = Client::where('clients.coach_id', $coachId)
             ->join('users', 'users.user_id', '=', 'clients.user_id')
-            ->leftJoin('routine_assignments', function ($join) {
-                $join->on('routine_assignments.client_id', '=', 'clients.user_id')
-                     ->where('routine_assignments.status', 'active');
-            })
-            ->leftJoin('routines', 'routines.id', '=', 'routine_assignments.routine_id')
             ->leftJoin(
                 DB::raw('(SELECT client_id, MAX(date) as last_date FROM workout_logs GROUP BY client_id) AS last_log'),
                 'last_log.client_id', '=', 'clients.user_id'
@@ -92,31 +88,63 @@ class CoachController extends Controller
                 'clients.user_id as id',
                 'users.name as nombre',
                 'users.avatar_url as avatar',
-                'routines.name as plan_nombre',
+                DB::raw('COALESCE(clients.goal, users.objective) as objetivo'),
                 'last_log.last_date',
                 'last_progress.weight as peso',
                 'last_progress.body_fat as grasa',
             ])
-            ->groupBy(
-                'clients.user_id',
-                'users.name',
-                'users.avatar_url',
-                'routines.name',
-                'last_log.last_date',
-                'last_progress.weight',
-                'last_progress.body_fat'
-            )
             ->orderBy('users.name')
+            ->get();
+
+        // Load active/paused routines for all clients in one query
+        $clientIds = $clientes->pluck('id');
+        $rutinasPorCliente = RoutineAssignment::whereIn('client_id', $clientIds)
+            ->where('coach_id', $coachId)
+            ->where('status', 'active')
+            ->with('routine:id,name,icon_type,accent_color,tag')
             ->get()
-            ->map(function ($row) use ($today) {
+            ->groupBy('client_id');
+
+        // Load direct routines assigned from mobile (routines.client_id set, no assignment record)
+        $directRoutinasPorCliente = Routine::whereIn('client_id', $clientIds)
+            ->where('is_active', true)
+            ->select('id', 'client_id', 'name', 'icon_type', 'accent_color', 'tag')
+            ->get()
+            ->groupBy('client_id');
+
+        $clientes = $clientes->map(function ($row) use ($today, $rutinasPorCliente, $directRoutinasPorCliente) {
                 $lastDate = $row->last_date ? Carbon::parse($row->last_date) : null;
                 $inactive = !$lastDate || $lastDate->lt($today->copy()->subDays(7));
+
+                $assignments = $rutinasPorCliente->get($row->id, collect());
+                $assignedRoutineIds = $assignments->pluck('routine_id')->filter()->toArray();
+                $rutinas = $assignments->map(fn ($a) => [
+                    'id'          => $a->routine_id,
+                    'name'        => $a->routine->name ?? 'Sin nombre',
+                    'iconType'    => $a->routine->icon_type ?? 'dumbbell',
+                    'accentColor' => $a->routine->accent_color ?? '#cafd00',
+                    'tag'         => $a->routine->tag ?? null,
+                ])->values()->toArray();
+
+                // Add direct mobile routines not already in assignments
+                foreach ($directRoutinasPorCliente->get($row->id, collect()) as $r) {
+                    if (!in_array($r->id, $assignedRoutineIds)) {
+                        $rutinas[] = [
+                            'id'          => $r->id,
+                            'name'        => $r->name,
+                            'iconType'    => $r->icon_type ?? 'dumbbell',
+                            'accentColor' => $r->accent_color ?? '#cafd00',
+                            'tag'         => $r->tag ?? null,
+                        ];
+                    }
+                }
 
                 return [
                     'id'           => $row->id,
                     'nombre'       => $row->nombre,
                     'avatar'       => $row->avatar,
-                    'plan_nombre'  => $row->plan_nombre ?? 'Sin plan',
+                    'objetivo'     => $row->objetivo,
+                    'rutinas'      => $rutinas,
                     'estado'       => $inactive ? 'inactivo' : 'activo',
                     'estado_label' => $inactive ? 'Inactivo' : 'Entrenado',
                     'peso'         => $row->peso ? (float) $row->peso : null,

@@ -50,7 +50,7 @@ class RutinasController extends Controller
                 'clients.user_id as id',
                 'users.name',
                 'users.avatar_url',
-                'clients.goal as objective',
+                DB::raw('COALESCE(clients.goal, users.objective) as objective'),
             ])
             ->orderBy('users.name')
             ->get()
@@ -105,7 +105,7 @@ class RutinasController extends Controller
             'name'      => $client->user->name,
             'email'     => $client->user->email,
             'badge'     => null,
-            'objective' => $client->goal,
+            'objective' => $client->goal ?? $client->user->objective,
             'avatar'    => $initials,
             'height'    => $client->height,
             'birthDate' => $client->birth_date?->toDateString(),
@@ -470,15 +470,14 @@ class RutinasController extends Controller
         $routine = Routine::where('coach_id', $coachId)
             ->findOrFail($data['routineId']);
 
-        // Check for existing active assignment for this client
-        $existing = RoutineAssignment::where('client_id', $data['clientId'])
-            ->where('coach_id', $coachId)
+        // Prevent assigning the same routine twice (active)
+        $duplicate = RoutineAssignment::where('client_id', $data['clientId'])
+            ->where('routine_id', $data['routineId'])
             ->where('status', 'active')
-            ->first();
+            ->exists();
 
-        if ($existing) {
-            // Mark the previous one as completed before assigning new
-            $existing->update(['status' => 'completed']);
+        if ($duplicate) {
+            return response()->json(['error' => 'Esta rutina ya está asignada activamente a este cliente.'], 422);
         }
 
         $assignment = RoutineAssignment::create([
@@ -557,6 +556,85 @@ class RutinasController extends Controller
         return response()->json([
             'id'     => $assignment->id,
             'status' => $assignment->status,
+        ]);
+    }
+
+    /* ══════════════════════════════════════════════════════════════════════
+     |  CLIENT ROUTINES (admin view)
+     |══════════════════════════════════════════════════════════════════════ */
+
+    /**
+     * GET /coach/rutinas/clients/{id}/routines
+     * All assignments (active/paused, with routine details + exercises) for a client.
+     */
+    public function clientRoutinesList(Request $request, int $clientId): JsonResponse
+    {
+        $coachId = $this->coachId($request);
+        if (!$coachId) {
+            return response()->json(['error' => 'Coach no encontrado'], 404);
+        }
+
+        $client = Client::where('coach_id', $coachId)
+            ->where('user_id', $clientId)
+            ->with('user')
+            ->first();
+
+        if (!$client) {
+            return response()->json(['error' => 'Cliente no encontrado'], 404);
+        }
+
+        $parts = explode(' ', $client->user->name);
+        $initials = '';
+        foreach (array_slice($parts, 0, 2) as $p) {
+            $initials .= mb_strtoupper(mb_substr($p, 0, 1));
+        }
+
+        $assignments = RoutineAssignment::where('client_id', $clientId)
+            ->where('coach_id', $coachId)
+            ->whereIn('status', ['active', 'paused'])
+            ->with(['routine.exercises'])
+            ->orderByRaw("CASE status WHEN 'active' THEN 0 ELSE 1 END")
+            ->orderByDesc('assigned_at')
+            ->get();
+
+        $assignedRoutineIds = $assignments->pluck('routine_id')->filter()->toArray();
+
+        $formattedAssignments = $assignments->map(fn ($a) => [
+            'assignmentId' => $a->id,
+            'status'       => $a->status,
+            'assignedAt'   => $a->assigned_at?->toISOString(),
+            'source'       => 'web',
+            'routine'      => $a->routine ? $this->formatRoutine($a->routine) : null,
+        ])->values();
+
+        // Include routines created directly from mobile (client_id set, no assignment record)
+        $mobileRoutines = Routine::where('client_id', $clientId)
+            ->where('is_active', true)
+            ->whereNotIn('id', $assignedRoutineIds)
+            ->with('exercises')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($r) => [
+                'assignmentId' => null,
+                'status'       => 'active',
+                'assignedAt'   => $r->created_at?->toISOString(),
+                'source'       => 'mobile',
+                'routine'      => $this->formatRoutine($r),
+            ]);
+
+        $allAssignments = $formattedAssignments->concat($mobileRoutines)->values();
+
+        return response()->json([
+            'client' => [
+                'id'        => $client->user_id,
+                'name'      => $client->user->name,
+                'email'     => $client->user->email,
+                'avatar'    => $initials,
+                'objective' => $client->goal ?? $client->user->objective,
+                'height'    => $client->height,
+                'birthDate' => $client->birth_date?->toDateString(),
+            ],
+            'assignments' => $allAssignments,
         ]);
     }
 
