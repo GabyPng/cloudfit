@@ -22,6 +22,10 @@ class Nutriologo extends Model
         'profile_visible',
         'social_links',
         'phone',
+        'is_verified',
+        'verified_at',
+        'verified_by',
+        'rejection_reason',
     ];
 
     protected $casts = [
@@ -30,6 +34,8 @@ class Nutriologo extends Model
         'social_links'        => 'array',
         'profile_visible'     => 'boolean',
         'consultation_price'  => 'decimal:2',
+        'is_verified'         => 'boolean',
+        'verified_at'         => 'datetime',
     ];
 
     public function user()

@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import 'share_progress_widget.dart';
 
 class ProgressScreen extends StatelessWidget {
   static const String name = 'progress_screen';
@@ -37,6 +38,8 @@ class ProgressScreen extends StatelessWidget {
                 _buildStatsRow(),
                 const SizedBox(height: 14),
                 _buildLastMeasurement(),
+                const SizedBox(height: 14),
+                const ShareProgressWidget(),
               ]),
             ),
           ),
