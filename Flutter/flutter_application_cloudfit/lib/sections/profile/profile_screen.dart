@@ -272,6 +272,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     null,
                   ),
                 ]),
+                const SizedBox(height: 20),
+                _buildSectionTitle("AYUDA"),
+                _buildMenuCard([
+                  _menuItem(
+                    Icons.support_agent_outlined,
+                    "Soporte y Ayuda",
+                    "Tickets",
+                    onTap: () => context.push('/cliente/support'),
+                  ),
+                ]),
                 const SizedBox(height: 30),
                 _buildLogoutButton(),
                 const SizedBox(height: 120),

@@ -224,28 +224,37 @@ Future<List<Map<String, dynamic>>> _getClients() async {
             ),
           ],
         ),
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.neonGreen.withOpacity(0.5), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.neonGreen.withOpacity(0.2),
-                blurRadius: 10,
-                spreadRadius: 2,
-              )
-            ],
-          ),
-          child: CircleAvatar(
-            backgroundColor: AppColors.cardGrey,
-            radius: 22,
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              onPressed: () => _supabase.auth.signOut(),
-              icon: const Icon(Icons.logout, color: Colors.white, size: 20),
+        Row(children: [
+          GestureDetector(
+            onTap: () => context.push('/coach-perfil'),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.neonGreen.withOpacity(0.12),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.neonGreen.withOpacity(0.4)),
+              ),
+              child: const Icon(Icons.person_outline,
+                  color: AppColors.neonGreen, size: 20),
             ),
           ),
-        ),
+          const SizedBox(width: 10),
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.neonGreen.withOpacity(0.5), width: 2),
+            ),
+            child: CircleAvatar(
+              backgroundColor: AppColors.cardGrey,
+              radius: 22,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => _supabase.auth.signOut(),
+                icon: const Icon(Icons.logout, color: Colors.white, size: 18),
+              ),
+            ),
+          ),
+        ]),
       ],
     );
   }

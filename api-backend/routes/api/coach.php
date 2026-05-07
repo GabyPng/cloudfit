@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Coach\CoachController;
+use App\Http\Controllers\Coach\CoachPerfilController;
 use App\Http\Controllers\Coach\ProgresoController;
 use App\Http\Controllers\Coach\RutinasController;
 use App\Http\Controllers\Coach\WeeklyPlanController;
@@ -40,6 +41,13 @@ Route::patch('/rutinas/assignments/{id}/status', [RutinasController::class, 'ass
 // ── Weekly Plan Module ─────────────────────────────────────────────────
 Route::get('/weekly-plan/{clientId}',  [WeeklyPlanController::class, 'show']);
 Route::post('/weekly-plan/{clientId}', [WeeklyPlanController::class, 'save']);
+
+// ── Progreso Module ────────────────────────────────────────────────────
+
+// ── Perfil del Coach ───────────────────────────────────────────────────
+Route::get('/perfil',                    [CoachPerfilController::class, 'show']);
+Route::put('/perfil',                    [CoachPerfilController::class, 'update']);
+Route::post('/perfil/certificates',      [CoachPerfilController::class, 'uploadCertificates']);
 
 // ── Progreso Module ────────────────────────────────────────────────────
 

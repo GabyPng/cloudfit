@@ -20,7 +20,9 @@ import 'package:flutter_application_cloudfit/sections/progress/progress_screen.d
 import 'package:flutter_application_cloudfit/sections/workout/exercise_detail_screen.dart';
 import 'package:flutter_application_cloudfit/sections/workout/models/exercise_model.dart';
 import 'package:flutter_application_cloudfit/sections/workout/workout_summary_screen.dart';
-import 'package:flutter_application_cloudfit/sections/roles/admin_index_screen.dart';
+import 'package:flutter_application_cloudfit/features/admin/presentation/screens/admin_main_screen.dart';
+import 'package:flutter_application_cloudfit/features/coach/presentation/screens/coach_perfil_screen.dart';
+import 'package:flutter_application_cloudfit/sections/support/support_screen.dart';
 import 'package:go_router/go_router.dart';
 import '../../sections/dashboard/main_screen.dart';
 import '../../sections/workout/exercise_screen.dart';
@@ -124,7 +126,17 @@ final appRouter = GoRouter(
 
     GoRoute(
       path: '/admin',
-      builder: (context, state) => const AdminIndexScreen(),
+      builder: (context, state) => const AdminMainScreen(),
+    ),
+    GoRoute(
+      path: '/coach-perfil',
+      name: CoachPerfilScreen.name,
+      builder: (context, state) => const CoachPerfilScreen(),
+    ),
+    GoRoute(
+      path: '/cliente/support',
+      name: SupportScreen.name,
+      builder: (context, state) => const SupportScreen(),
     ),
 
     StatefulShellRoute.indexedStack(
