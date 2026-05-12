@@ -66,13 +66,38 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
 
       final clientIdInt = int.parse(widget.clientId);
 
-      // All routines available for this client
-      final routinesData = await _supabase
+      // Routines created directly from mobile (client_id set in routines table)
+      final directData = await _supabase
           .from('routines')
           .select('id, name, training_plan')
-          .eq('client_id', widget.clientId)
+          .eq('client_id', clientIdInt)
           .eq('is_active', true)
           .order('created_at', ascending: false);
+
+      // Routines assigned from web (via routine_assignments table)
+      final assignedData = await _supabase
+          .from('routine_assignments')
+          .select('routines!inner(id, name, training_plan)')
+          .eq('client_id', clientIdInt)
+          .eq('status', 'active');
+
+      // Merge and deduplicate by id
+      final seen = <int>{};
+      final mergedRoutines = <Map<String, dynamic>>[];
+      for (final r in List<Map<String, dynamic>>.from(directData as List)) {
+        if (seen.add(r['id'] as int)) mergedRoutines.add(r);
+      }
+      for (final a in List<dynamic>.from(assignedData as List)) {
+        final r = a['routines'] as Map<String, dynamic>?;
+        if (r == null) continue;
+        if (seen.add(r['id'] as int)) {
+          mergedRoutines.add({
+            'id': r['id'],
+            'name': r['name'],
+            'training_plan': r['training_plan'],
+          });
+        }
+      }
 
       // Current weekly plan
       final planData = await _supabase
@@ -106,7 +131,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
       }
 
       setState(() {
-        _availableRoutines = List<Map<String, dynamic>>.from(routinesData);
+        _availableRoutines = mergedRoutines;
         _weeklyPlan = newPlan;
         _notesCtrl.text = clientData?['weekly_plan_notes'] as String? ?? '';
         _loading = false;

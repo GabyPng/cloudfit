@@ -217,6 +217,52 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
   }
 
   Widget _buildVideoPreview() {
+    final ex = _currentExercise;
+    final mediaUrl = ex?.mediaUrl;
+    final mediaType = ex?.mediaType;
+
+    if (mediaUrl != null && mediaUrl.isNotEmpty) {
+      final isGifOrImage =
+          mediaType == 'gif' || mediaType == 'image' || mediaUrl.contains('.gif');
+
+      if (isGifOrImage) {
+        return GestureDetector(
+          onTap: () => _showMediaFullscreen(mediaUrl),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: SizedBox(
+              height: 220,
+              width: double.infinity,
+              child: Image.network(
+                mediaUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    color: AppColors.cardGrey,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.neonGreen,
+                        value: progress.expectedTotalBytes != null
+                            ? progress.cumulativeBytesLoaded /
+                                progress.expectedTotalBytes!
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (_, __, ___) => _placeholderPreview(),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return _placeholderPreview();
+  }
+
+  Widget _placeholderPreview() {
     return Container(
       height: 180,
       width: double.infinity,
@@ -227,22 +273,49 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          const Icon(Icons.play_arrow_outlined, color: AppColors.neonGreen, size: 80),
+          const Icon(Icons.fitness_center_rounded,
+              color: AppColors.neonGreen, size: 60),
           Positioned(
             bottom: 15,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.black45,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Text(
-                'Presiona para ver técnica',
+                'Sin video de técnica disponible',
                 style: TextStyle(fontSize: 10),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showMediaFullscreen(String url) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(children: [
+          InteractiveViewer(
+            child: Center(
+              child: Image.network(url, fit: BoxFit.contain),
+            ),
+          ),
+          Positioned(
+            top: 40,
+            right: 16,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 28),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ),
+        ]),
       ),
     );
   }

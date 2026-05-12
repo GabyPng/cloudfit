@@ -9,9 +9,11 @@ import {
   FileText,
   Loader2,
   Plus,
+  Printer,
   RefreshCw,
   Search,
   Trash2,
+  UserX,
   Users,
   X,
   Utensils,
@@ -54,6 +56,147 @@ const emptyPlanForm = {
   ends_at: '',
   meals: [],
 };
+
+const MEAL_TYPE_ICONS = {
+  desayuno: '🌅', colacion_1: '🍎', comida: '🍽️', colacion_2: '🥜', cena: '🌙',
+};
+
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function printNutritionPlan(plan, meals = []) {
+  const totalCalories = meals.reduce((s, m) => s + (Number(m.calories) || 0), 0);
+  const totalProtein  = meals.reduce((s, m) => s + (Number(m.protein_g) || 0), 0);
+  const totalCarbs    = meals.reduce((s, m) => s + (Number(m.carbs_g) || 0), 0);
+  const totalFat      = meals.reduce((s, m) => s + (Number(m.fat_g) || 0), 0);
+
+  const mealTypeLabel = { desayuno:'Desayuno', colacion_1:'Colación 1', comida:'Comida', colacion_2:'Colación 2', cena:'Cena' };
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Plan Nutricional — ${esc(plan.title)}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:12mm 16mm}
+.hdr{border-bottom:3px solid #111;padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end}
+.hdr h1{font-size:18px;font-weight:900;text-transform:uppercase}
+.hdr .meta{font-size:9px;color:#555;text-align:right}
+.plan-header{background:#f5f5f5;padding:12px 16px;border-radius:6px;margin-bottom:14px}
+.plan-title{font-size:16px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
+.plan-goal{font-size:11px;color:#555;margin-bottom:6px}
+.plan-desc{font-size:10px;color:#777}
+.badges{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.badge{background:#111;color:#fff;font-size:8px;font-weight:700;padding:3px 8px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px}
+.badge.green{background:#2d4a00;color:#cafd00}
+.section-title{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;color:#555;margin:12px 0 6px}
+.macros-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.macro-card{border:1px solid #ddd;border-radius:5px;padding:8px 10px;text-align:center}
+.macro-val{font-size:20px;font-weight:900}
+.macro-lbl{font-size:8px;color:#777;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.macro-sub{font-size:9px;color:#999;margin-top:1px}
+table{width:100%;border-collapse:collapse;margin-bottom:14px}
+thead th{background:#111;color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+tbody tr:nth-child(even){background:#f9f9f9}
+tbody td{padding:6px 8px;font-size:10px;border-bottom:1px solid #eee;vertical-align:top}
+.meal-type{font-weight:700;font-size:9px;text-transform:uppercase;color:#555}
+.meal-name{font-weight:600}
+.meal-portion{font-size:9px;color:#777}
+.meal-notes{font-size:9px;color:#999;font-style:italic}
+.totals-row td{background:#f0f0f0;font-weight:700;border-top:2px solid #111}
+.summary-bar{display:flex;gap:20px;background:#f5f5f5;border:1px solid #ddd;padding:10px 14px;border-radius:5px;margin-bottom:10px;align-items:center}
+.summary-bar h3{font-size:10px;font-weight:900;text-transform:uppercase;color:#555;white-space:nowrap}
+.stat{text-align:center}
+.stat-val{font-size:18px;font-weight:900;line-height:1}
+.stat-lbl{font-size:7px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.ftr{border-top:1px solid #ccc;padding-top:8px;font-size:8px;color:#aaa;display:flex;justify-content:space-between}
+</style></head><body>
+<div class="hdr">
+  <div><h1>Plan Nutricional</h1></div>
+  <div class="meta">
+    Generado el ${new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'})}<br>
+    CloudFit — Sistema de Gestión Nutricional
+  </div>
+</div>
+<div class="plan-header">
+  <div class="plan-title">${esc(plan.title)}</div>
+  ${plan.goal ? `<div class="plan-goal">Objetivo: ${esc(plan.goal)}</div>` : ''}
+  ${plan.description ? `<div class="plan-desc">${esc(plan.description)}</div>` : ''}
+  <div class="badges">
+    ${plan.daily_calories ? `<span class="badge green">${esc(plan.daily_calories)} kcal/día</span>` : ''}
+    ${meals.length ? `<span class="badge">${meals.length} comidas</span>` : ''}
+    ${plan.starts_at ? `<span class="badge">Inicio: ${esc(plan.starts_at)}</span>` : ''}
+    ${plan.ends_at ? `<span class="badge">Fin: ${esc(plan.ends_at)}</span>` : ''}
+    <span class="badge">${plan.is_active ? 'ACTIVO' : 'INACTIVO'}</span>
+  </div>
+</div>
+${plan.macro_targets ? `
+<p class="section-title">Distribución de Macros</p>
+<div class="macros-grid">
+  <div class="macro-card">
+    <div class="macro-val" style="color:#6b46c1">${esc(plan.macro_targets.proteinas ?? 0)}%</div>
+    <div class="macro-lbl">Proteínas</div>
+    ${totalProtein > 0 ? `<div class="macro-sub">${totalProtein.toFixed(1)}g total</div>` : ''}
+  </div>
+  <div class="macro-card">
+    <div class="macro-val" style="color:#b7791f">${esc(plan.macro_targets.carbohidratos ?? 0)}%</div>
+    <div class="macro-lbl">Carbohidratos</div>
+    ${totalCarbs > 0 ? `<div class="macro-sub">${totalCarbs.toFixed(1)}g total</div>` : ''}
+  </div>
+  <div class="macro-card">
+    <div class="macro-val" style="color:#c05621">${esc(plan.macro_targets.grasas ?? 0)}%</div>
+    <div class="macro-lbl">Grasas</div>
+    ${totalFat > 0 ? `<div class="macro-sub">${totalFat.toFixed(1)}g total</div>` : ''}
+  </div>
+</div>` : ''}
+${meals.length > 0 ? `
+<p class="section-title">Comidas del Plan</p>
+<table>
+  <thead>
+    <tr>
+      <th style="width:18%">Tipo</th>
+      <th>Nombre / Porción</th>
+      <th style="width:10%;text-align:right">Kcal</th>
+      <th style="width:10%;text-align:right">Prot.</th>
+      <th style="width:10%;text-align:right">Carbs</th>
+      <th style="width:10%;text-align:right">Grasas</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${meals.map(m => `
+    <tr>
+      <td><div class="meal-type">${esc(mealTypeLabel[m.meal_type] ?? m.meal_type)}</div></td>
+      <td>
+        <div class="meal-name">${esc(m.name || '—')}</div>
+        ${m.portion ? `<div class="meal-portion">${esc(m.portion)}</div>` : ''}
+        ${m.notes ? `<div class="meal-notes">${esc(m.notes)}</div>` : ''}
+      </td>
+      <td style="text-align:right">${m.calories != null ? esc(m.calories) : '—'}</td>
+      <td style="text-align:right">${m.protein_g != null ? `${esc(m.protein_g)}g` : '—'}</td>
+      <td style="text-align:right">${m.carbs_g != null ? `${esc(m.carbs_g)}g` : '—'}</td>
+      <td style="text-align:right">${m.fat_g != null ? `${esc(m.fat_g)}g` : '—'}</td>
+    </tr>`).join('')}
+    ${totalCalories > 0 ? `
+    <tr class="totals-row">
+      <td colspan="2">TOTAL</td>
+      <td style="text-align:right">${Math.round(totalCalories)}</td>
+      <td style="text-align:right">${totalProtein.toFixed(1)}g</td>
+      <td style="text-align:right">${totalCarbs.toFixed(1)}g</td>
+      <td style="text-align:right">${totalFat.toFixed(1)}g</td>
+    </tr>` : ''}
+  </tbody>
+</table>` : '<p style="font-size:10px;color:#999;margin-bottom:14px;font-style:italic">Sin comidas configuradas en este plan.</p>'}
+<div class="ftr">
+  <span>CloudFit — Plan: ${esc(plan.title)}</span>
+  <span>Impreso el ${new Date().toLocaleDateString('es-MX')}</span>
+</div>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=750');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+}
 
 function MacroBar({ label, value, color }) {
   const pct = Math.min(100, Math.max(0, Number(value) || 0));
@@ -98,9 +241,9 @@ export default function NutriologoPlanesPage() {
   const kpis = useMemo(() => ({
     total: meta.total,
     activos: plans.filter((p) => p.is_active).length,
-    comidas: plans.reduce((sum, p) => sum + (p.meals_count ?? 0), 0),
+    sinPlan: patients.filter((p) => !p.current_plan_id).length,
     asignados: plans.reduce((sum, p) => sum + (p.assignments_count ?? 0), 0),
-  }), [plans, meta.total]);
+  }), [plans, meta.total, patients]);
 
   const getToken = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -178,7 +321,7 @@ export default function NutriologoPlanesPage() {
       try {
         setDetailLoading(true);
         const payload = await requestJson(`/api/nutriologo/planes/${selectedPlanId}`);
-        if (!ignore) setPlanDetail(payload);
+        if (!ignore) setPlanDetail(payload.data ?? payload);
       } catch {
         if (!ignore) setPlanDetail(null);
       } finally {
@@ -295,29 +438,6 @@ export default function NutriologoPlanesPage() {
     }
   };
 
-  const handleAssignPlan = async () => {
-    if (!assignForm.clientId) { showToast('Selecciona un paciente.', 'error'); return; }
-    if (!selectedPlanId) return;
-    try {
-      setSaving(true);
-      await requestJson(`/api/nutriologo/planes/${selectedPlanId}/asignar`, {
-        method: 'POST',
-        body: JSON.stringify({
-          client_id: Number(assignForm.clientId),
-          notes: assignForm.notes || null,
-          starts_at: assignForm.starts_at || new Date().toISOString().slice(0, 10),
-        }),
-      });
-      setAssignForm({ clientId: '', notes: '', starts_at: '' });
-      showToast('Plan asignado correctamente al paciente.');
-      refresh();
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const updateMeal = (index, field, value) => {
     setPlanForm((f) => {
       const meals = [...f.meals];
@@ -371,7 +491,7 @@ export default function NutriologoPlanesPage() {
         <section className="col-span-12 grid grid-cols-1 md:grid-cols-4 gap-6">
           <KpiCard label="Total Planes" value={kpis.total} icon={FileText} valueColor="text-[#cafd00]" />
           <KpiCard label="Planes Activos" value={kpis.activos} icon={CheckCircle2} iconColor="text-[#7ef0b3]" valueColor="text-[#7ef0b3]" />
-          <KpiCard label="Total Comidas" value={kpis.comidas} icon={Utensils} iconColor="text-[#ac8aff]" valueColor="text-[#ac8aff]" />
+          <KpiCard label="Sin plan asignado" value={kpis.sinPlan} icon={UserX} iconColor="text-[#ff7351]" valueColor="text-[#ff7351]" />
           <KpiCard label="Pacientes Asignados" value={kpis.asignados} icon={Users} iconColor="text-[#fce047]" valueColor="text-[#fce047]" />
         </section>
 
@@ -433,10 +553,13 @@ export default function NutriologoPlanesPage() {
           ) : (
             <div className="divide-y divide-[#484847]/5">
               {plans.map((plan) => (
-                <button
+                <div
                   key={plan.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedPlanId(String(plan.id))}
-                  className={`w-full text-left px-6 py-4 transition-colors hover:bg-[#20201f] group ${String(selectedPlanId) === String(plan.id) ? 'bg-[#1e1e1e] border-l-4 border-l-[#cafd00]' : ''}`}
+                  onKeyDown={(e) => e.key === 'Enter' && setSelectedPlanId(String(plan.id))}
+                  className={`w-full text-left px-6 py-4 transition-colors hover:bg-[#20201f] group cursor-pointer ${String(selectedPlanId) === String(plan.id) ? 'bg-[#1e1e1e] border-l-4 border-l-[#cafd00]' : ''}`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
@@ -463,7 +586,7 @@ export default function NutriologoPlanesPage() {
                       {plan.is_active ? <ToggleRight size={22} className="text-[#cafd00]" /> : <ToggleLeft size={22} />}
                     </button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -509,6 +632,13 @@ export default function NutriologoPlanesPage() {
                     )}
                   </div>
                   <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => printNutritionPlan(selectedPlan, planDetail?.meals ?? [])}
+                      className="p-2 rounded-lg bg-[#262626] text-[#adaaaa] hover:text-[#f3ffca] transition-colors"
+                      title="Imprimir plan"
+                    >
+                      <Printer size={15} />
+                    </button>
                     <button
                       onClick={openEdit}
                       className="p-2 rounded-lg bg-[#262626] text-[#adaaaa] hover:text-[#f3ffca] transition-colors"
@@ -602,15 +732,6 @@ export default function NutriologoPlanesPage() {
                     placeholder="Notas para el paciente..."
                     className="w-full bg-[#0e0e0e] rounded-lg px-3 py-3 text-sm text-white border border-[#484847]/20 focus:outline-none focus:ring-1 focus:ring-[#cafd00] resize-none"
                   />
-
-                  <button
-                    onClick={handleAssignPlan}
-                    disabled={saving || !assignForm.clientId}
-                    className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-[#cafd00] text-[#405100] font-black uppercase tracking-tighter disabled:opacity-50 shadow-lg shadow-[#cafd00]/10"
-                  >
-                    {saving ? <Loader2 className="animate-spin" size={16} /> : <Users size={16} />}
-                    Asignar plan
-                  </button>
                 </div>
               </div>
             </>

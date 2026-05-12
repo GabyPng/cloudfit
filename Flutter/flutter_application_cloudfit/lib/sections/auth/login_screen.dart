@@ -48,8 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on AuthException catch (e) {
       setState(() => _error = _mensajeError(e.message));
     } catch (e) {
-      setState(() => _error = 'Error técnico: $e'); 
-      print('DEBUG LOGIN: $e');
+      setState(() => _error = 'Error técnico: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -357,3 +356,4 @@ class _SocialBtn extends StatelessWidget {
     ),
   );
 }
+

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants.dart';
+import '../../../../shared/widgets/certificate_upload_widget.dart';
 import '../../../../shared/widgets/skeleton.dart';
 import '../../data/nutriologo_api.dart';
 
@@ -34,7 +35,7 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _load();
   }
 
@@ -266,6 +267,7 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
           tabs: const [
             Tab(text: 'Perfil'),
             Tab(text: 'Solicitudes'),
+            Tab(text: 'Certificados'),
           ],
         ),
       ),
@@ -276,6 +278,7 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
               children: [
                 _buildProfileTab(),
                 _buildSolicitudesTab(),
+                _buildCertificatesTab(),
               ],
             ),
     );
@@ -649,6 +652,78 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCertificatesTab() {
+    final uploads = (_profile['certificate_uploads'] as List?)
+            ?.cast<Map<String, dynamic>>() ??
+        [];
+    final userId = _profile['user_id'] as int?;
+    final isVerified = _profile['is_verified'] == true;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('MIS CERTIFICADOS',
+                      style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.1)),
+                ],
+              ),
+            ),
+            if (isVerified)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.neonGreen.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: AppColors.neonGreen.withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.verified_rounded,
+                        color: AppColors.neonGreen, size: 14),
+                    SizedBox(width: 4),
+                    Text('Verificado',
+                        style: TextStyle(
+                            color: AppColors.neonGreen,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+          ]),
+          const SizedBox(height: 14),
+          if (userId != null)
+            CertificateUploadWidget(
+              initialCertificates: uploads,
+              role: 'nutriologo',
+              userId: userId,
+              onUploaded: (certs) async {
+                try {
+                  await NutriologoApi.updatePerfil(
+                      {'certificate_uploads': certs});
+                  setState(() {
+                    _profile['certificate_uploads'] = certs;
+                  });
+                } catch (_) {}
+              },
+            ),
+          const SizedBox(height: 80),
+        ],
+      ),
     );
   }
 

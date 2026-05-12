@@ -6,7 +6,6 @@ import {
   CalendarDays,
   Dumbbell,
   TrendingUp,
-  User,
   LogOut,
 } from 'lucide-react';
 
@@ -15,7 +14,6 @@ const navItems = [
   { icon: CalendarDays, label: 'Plan Semanal', path: '/coach/clientes' },
   { icon: Dumbbell, label: 'Rutinas', path: '/coach/rutinas' },
   { icon: TrendingUp, label: 'Progreso Físico', path: '/coach/progreso' },
-  { icon: User, label: 'Mi Perfil', path: '/coach/perfil' },
 ];
 
 export default function CoachLayout({ children, coachName = 'Coach', coachRole = 'Senior Coach' }) {

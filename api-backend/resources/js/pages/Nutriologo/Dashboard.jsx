@@ -30,6 +30,24 @@ const initialData = {
   actividades: [],
 };
 
+const CACHE_KEY = 'cf_nutri_dashboard';
+const CACHE_TTL = 60_000;
+
+function readCache() {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    return Date.now() - ts < CACHE_TTL ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(data) {
+  try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data })); } catch {}
+}
+
 const statusDot = (estado) => {
   if (estado === 'alerta') {
     return <span className="w-2 h-2 bg-[#ff7351] rounded-full inline-block" />;
@@ -74,8 +92,9 @@ const typeConfig = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [data, setData] = useState(initialData);
-  const [loading, setLoading] = useState(true);
+  const cached = readCache();
+  const [data, setData] = useState(cached ?? initialData);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -116,11 +135,13 @@ export default function Dashboard() {
         const payload = await response.json();
 
         if (!ignore) {
-          setData({
+          const next = {
             stats: payload?.stats ?? initialData.stats,
             pacientes: payload?.pacientes ?? [],
             actividades: payload?.actividades ?? [],
-          });
+          };
+          writeCache(next);
+          setData(next);
         }
       } catch (err) {
         if (!ignore) {
@@ -145,11 +166,7 @@ export default function Dashboard() {
   return (
     <div className="grid grid-cols-12 gap-8">
       <section className="col-span-12 flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.25em] text-[#adaaaa]">Resumen nutricional</p>
-        <h1 className="text-4xl font-black font-headline text-white">Panel principal del nutriólogo</h1>
-        <p className="text-sm text-[#adaaaa] max-w-3xl">
-          Monitorea adherencia, seguimiento y alertas de tus pacientes desde un solo lugar.
-        </p>
+        <h1 className="text-4xl font-black font-headline text-white">Panel principal del Nutriólogo</h1>
       </section>
 
       {error && (
@@ -161,8 +178,7 @@ export default function Dashboard() {
       {loading ? (
         <section className="col-span-12 min-h-80 flex items-center justify-center bg-[#1a1a1a] rounded-xl">
           <div className="flex items-center gap-3 text-[#f3ffca]">
-            <Loader2 className="animate-spin" size={18} />
-            <span>Cargando información real del dashboard...</span>
+            <Loader2 className="animate-spin" size={22} />
           </div>
         </section>
       ) : (

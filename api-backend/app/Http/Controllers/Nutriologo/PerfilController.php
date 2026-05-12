@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Nutriologo;
 
 use App\Http\Controllers\Controller;
+use App\Models\Client;
 use App\Models\Nutriologo;
 use App\Models\NutritionPlanAssignment;
 use App\Models\NutritionPlan;
@@ -10,6 +11,7 @@ use App\Models\NutriologoContactRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class PerfilController extends Controller
 {
@@ -76,7 +78,7 @@ class PerfilController extends Controller
                 'location'           => $nutriologo->location,
                 'consultation_price' => $nutriologo->consultation_price,
                 'profile_visible'    => $nutriologo->profile_visible,
-                'social_links'       => $nutriologo->social_links ?? [],
+                'social_links'       => $nutriologo->social_links ?: new \stdClass(),
                 'phone'              => $nutriologo->phone,
                 'stats' => [
                     'total_patients'   => $totalPatients,
@@ -133,24 +135,36 @@ class PerfilController extends Controller
         if (!in_array($status, $allowed)) $status = 'pending';
 
         $query = NutriologoContactRequest::byNutriologo($nutriologo->id)
-            ->with('client:user_id,name,email')
+            ->with([
+                'client:user_id,name,email,avatar_url',
+                'clientProfile:user_id,goal,birth_date',
+            ])
             ->orderByDesc('created_at');
 
         if ($status !== 'all') {
             $query->where('status', $status);
         }
 
-        $solicitudes = $query->get()->map(fn($r) => [
-            'id'                 => $r->id,
-            'client_id'          => $r->client_id,
-            'client_name'        => $r->client?->name,
-            'client_email'       => $r->client?->email,
-            'message'            => $r->message,
-            'status'             => $r->status,
-            'nutriologo_response'=> $r->nutriologo_response,
-            'responded_at'       => $r->responded_at?->toISOString(),
-            'created_at'         => $r->created_at->toISOString(),
-        ]);
+        $solicitudes = $query->get()->map(function ($r) {
+            $age = null;
+            if ($r->clientProfile?->birth_date) {
+                $age = now()->diffInYears($r->clientProfile->birth_date);
+            }
+            return [
+                'id'                 => $r->id,
+                'client_id'          => $r->client_id,
+                'client_name'        => $r->client?->name,
+                'client_email'       => $r->client?->email,
+                'client_avatar'      => $r->client?->avatar_url,
+                'client_goal'        => $r->clientProfile?->goal,
+                'client_age'         => $age,
+                'message'            => $r->message,
+                'status'             => $r->status,
+                'nutriologo_response'=> $r->nutriologo_response,
+                'responded_at'       => $r->responded_at?->toISOString(),
+                'created_at'         => $r->created_at->toISOString(),
+            ];
+        });
 
         return response()->json(['data' => $solicitudes]);
     }
@@ -175,15 +189,36 @@ class PerfilController extends Controller
             'response' => 'nullable|string|max:500',
         ]);
 
-        $solicitud->update([
-            'status'               => $validated['status'],
-            'nutriologo_response'  => $validated['response'] ?? null,
-            'responded_at'         => now(),
-        ]);
+        DB::transaction(function () use ($solicitud, $validated, $nutriologo) {
+            $solicitud->update([
+                'status'               => $validated['status'],
+                'nutriologo_response'  => $validated['response'] ?? null,
+                'responded_at'         => now(),
+            ]);
+
+            if ($validated['status'] === 'accepted') {
+                // Assign this nutriólogo to the client's profile
+                Client::updateOrCreate(
+                    ['user_id' => $solicitud->client_id],
+                    ['nutritionist_id' => $nutriologo->user_id]
+                );
+
+                // Reject any other pending requests from this client to other nutriólogos
+                NutriologoContactRequest::where('client_id', $solicitud->client_id)
+                    ->where('id', '!=', $solicitud->id)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'rejected', 'responded_at' => now()]);
+            } elseif ($validated['status'] === 'rejected') {
+                // If this nutriólogo was already assigned, remove the link
+                Client::where('user_id', $solicitud->client_id)
+                    ->where('nutritionist_id', $nutriologo->user_id)
+                    ->update(['nutritionist_id' => null]);
+            }
+        });
 
         return response()->json([
             'message' => $validated['status'] === 'accepted'
-                ? 'Solicitud aceptada. El cliente puede ver tu disponibilidad.'
+                ? 'Solicitud aceptada. El cliente ahora es tu paciente.'
                 : 'Solicitud rechazada.',
             'data' => $solicitud->fresh(),
         ]);

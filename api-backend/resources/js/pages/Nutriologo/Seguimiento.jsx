@@ -8,6 +8,7 @@ import {
   Clock,
   Loader2,
   Plus,
+  Printer,
   RefreshCw,
   Search,
   TrendingDown,
@@ -64,6 +65,158 @@ function DeltaIcon({ current, previous }) {
   return diff > 0
     ? <TrendingUp size={12} className="text-[#ff7351]" />
     : <TrendingDown size={12} className="text-[#7ef0b3]" />;
+}
+
+// ─── Print ────────────────────────────────────────────────────────────────────
+
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function printPatientHistory(clientInfo, lastRecord, prevRecord, timeline) {
+  const planEntries     = timeline.filter(e => e.type === 'asignacion_plan');
+  const progressEntries = timeline.filter(e => e.type === 'progreso');
+  const dietEntries     = timeline.filter(e => e.type === 'cambio_dieta');
+
+  const statusLabel = { active:'Activo', paused:'Pausado', completed:'Completado', cancelled:'Cancelado' };
+  const changeLabel = { plan_change:'Cambio de plan', meal_update:'Actualización de comida', macro_adjust:'Ajuste de macros', calorie_adjust:'Ajuste calórico', observation:'Observación' };
+  const statusChangeLabel = { pending:'Pendiente', approved:'Aprobado', rejected:'Rechazado' };
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Historial — ${esc(clientInfo?.name)}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:12mm 16mm}
+.hdr{border-bottom:3px solid #111;padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end}
+.hdr h1{font-size:18px;font-weight:900;text-transform:uppercase}
+.hdr .meta{font-size:9px;color:#555;text-align:right}
+.client-info{background:#f5f5f5;padding:10px 14px;border-radius:6px;margin-bottom:14px;display:flex;gap:20px;align-items:center}
+.client-avatar{width:36px;height:36px;background:#111;color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;flex-shrink:0}
+.client-name{font-size:14px;font-weight:900;text-transform:uppercase}
+.client-email{font-size:10px;color:#666;margin-top:2px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.kpi-card{border:1px solid #ddd;border-radius:5px;padding:8px 10px;text-align:center}
+.kpi-val{font-size:18px;font-weight:900}
+.kpi-lbl{font-size:8px;color:#777;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.section{margin-bottom:16px}
+.section-title{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;color:#555;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;margin-bottom:8px}
+thead th{background:#111;color:#fff;padding:5px 7px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+tbody tr:nth-child(even){background:#f9f9f9}
+tbody td{padding:5px 7px;font-size:10px;border-bottom:1px solid #eee;vertical-align:top}
+.badge{display:inline-block;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.4px}
+.badge-active{background:#dcfce7;color:#166534}
+.badge-paused{background:#fef9c3;color:#854d0e}
+.badge-completed{background:#ede9fe;color:#5b21b6}
+.badge-cancelled{background:#fee2e2;color:#991b1b}
+.badge-pending{background:#fef9c3;color:#854d0e}
+.badge-approved{background:#dcfce7;color:#166534}
+.badge-rejected{background:#fee2e2;color:#991b1b}
+.ftr{border-top:1px solid #ccc;padding-top:8px;font-size:8px;color:#aaa;display:flex;justify-content:space-between}
+</style></head><body>
+<div class="hdr">
+  <div><h1>Historial de Seguimiento Nutricional</h1></div>
+  <div class="meta">
+    Generado el ${new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'})}<br>
+    CloudFit — Sistema de Gestión Nutricional
+  </div>
+</div>
+<div class="client-info">
+  <div class="client-avatar">${esc(clientInfo?.name?.charAt(0).toUpperCase())}</div>
+  <div>
+    <div class="client-name">${esc(clientInfo?.name)}</div>
+    <div class="client-email">${esc(clientInfo?.email)}</div>
+  </div>
+</div>
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-val">${lastRecord?.weight_kg != null ? `${esc(lastRecord.weight_kg)} kg` : '—'}</div>
+    <div class="kpi-lbl">Peso actual</div>
+    ${prevRecord?.weight_kg != null ? `<div style="font-size:8px;color:#777;margin-top:2px">Anterior: ${esc(prevRecord.weight_kg)} kg</div>` : ''}
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-val">${lastRecord?.bmi != null ? esc(lastRecord.bmi) : '—'}</div>
+    <div class="kpi-lbl">IMC</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-val">${lastRecord?.body_fat_pct != null ? `${esc(lastRecord.body_fat_pct)}%` : '—'}</div>
+    <div class="kpi-lbl">% Grasa corporal</div>
+    ${prevRecord?.body_fat_pct != null ? `<div style="font-size:8px;color:#777;margin-top:2px">Anterior: ${esc(prevRecord.body_fat_pct)}%</div>` : ''}
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-val">${lastRecord?.adherence_pct != null ? `${esc(lastRecord.adherence_pct)}%` : '—'}</div>
+    <div class="kpi-lbl">Adherencia</div>
+  </div>
+</div>
+
+${planEntries.length > 0 ? `
+<div class="section">
+  <div class="section-title">Planes Nutricionales Asignados (${planEntries.length})</div>
+  <table>
+    <thead><tr><th>Fecha</th><th>Plan</th><th>Objetivo</th><th>Kcal/día</th><th>Estado</th></tr></thead>
+    <tbody>
+      ${planEntries.map(e => `
+      <tr>
+        <td>${esc(e.date)}</td>
+        <td><strong>${esc(e.plan_title ?? 'Sin título')}</strong></td>
+        <td>${esc(e.plan_goal ?? '—')}</td>
+        <td>${e.plan_calories != null ? esc(e.plan_calories) : '—'}</td>
+        <td><span class="badge badge-${e.status ?? 'active'}">${esc(statusLabel[e.status] ?? e.status)}</span></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+</div>` : ''}
+
+${progressEntries.length > 0 ? `
+<div class="section">
+  <div class="section-title">Registros de Progreso (${progressEntries.length})</div>
+  <table>
+    <thead><tr><th>Fecha</th><th>Peso</th><th>IMC</th><th>% Grasa</th><th>Músculo</th><th>Adherencia</th><th>Notas</th></tr></thead>
+    <tbody>
+      ${progressEntries.map(e => `
+      <tr>
+        <td>${esc(e.date)}</td>
+        <td>${e.weight_kg != null ? `${esc(e.weight_kg)} kg` : '—'}</td>
+        <td>${e.bmi != null ? esc(e.bmi) : '—'}</td>
+        <td>${e.body_fat_pct != null ? `${esc(e.body_fat_pct)}%` : '—'}</td>
+        <td>${e.muscle_mass_kg != null ? `${esc(e.muscle_mass_kg)} kg` : '—'}</td>
+        <td>${e.adherence_pct != null ? `${esc(e.adherence_pct)}%` : '—'}</td>
+        <td style="max-width:150px;font-style:italic;color:#666">${esc(e.notes ?? '')}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+</div>` : ''}
+
+${dietEntries.length > 0 ? `
+<div class="section">
+  <div class="section-title">Cambios de Dieta Propuestos (${dietEntries.length})</div>
+  <table>
+    <thead><tr><th>Fecha</th><th>Tipo</th><th>Razón</th><th>Estado</th></tr></thead>
+    <tbody>
+      ${dietEntries.map(e => `
+      <tr>
+        <td>${esc(e.date)}</td>
+        <td>${esc(changeLabel[e.change_type] ?? e.change_type)}</td>
+        <td style="max-width:200px">${esc(e.reason ?? '—')}</td>
+        <td><span class="badge badge-${e.status ?? 'pending'}">${esc(statusChangeLabel[e.status] ?? e.status)}</span></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+</div>` : ''}
+
+${timeline.length === 0 ? '<p style="font-size:10px;color:#999;font-style:italic;margin-bottom:14px">Sin registros de seguimiento.</p>' : ''}
+
+<div class="ftr">
+  <span>CloudFit — Paciente: ${esc(clientInfo?.name)}</span>
+  <span>Historial impreso el ${new Date().toLocaleDateString('es-MX')}</span>
+</div>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=1100,height=750');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -259,7 +412,11 @@ export default function NutriologoSeguimientoPage() {
   };
   const emptyDiet = {
     date: new Date().toISOString().split('T')[0],
-    change_type: 'observation', reason: '', previous_value: '', new_value: '',
+    change_type: 'observation', reason: '',
+    prev_calories: '', new_calories: '',
+    prev_protein: '', prev_carbs: '', prev_fat: '',
+    new_protein: '', new_carbs: '', new_fat: '',
+    prev_text: '', new_text: '',
   };
 
   const [progressForm, setProgressForm] = useState(emptyProgress);
@@ -375,21 +532,31 @@ export default function NutriologoSeguimientoPage() {
     }
   };
 
+  const buildDietValues = (form) => {
+    const { change_type: type } = form;
+    let previousValue = null;
+    let newValue = null;
+    if (type === 'calorie_adjust') {
+      if (form.prev_calories) previousValue = { calorias: Number(form.prev_calories) };
+      if (form.new_calories)  newValue      = { calorias: Number(form.new_calories) };
+    } else if (type === 'macro_adjust') {
+      const hasPrev = form.prev_protein || form.prev_carbs || form.prev_fat;
+      const hasNew  = form.new_protein  || form.new_carbs  || form.new_fat;
+      if (hasPrev) previousValue = { proteina_g: Number(form.prev_protein) || undefined, carbohidratos_g: Number(form.prev_carbs) || undefined, grasa_g: Number(form.prev_fat) || undefined };
+      if (hasNew)  newValue      = { proteina_g: Number(form.new_protein)  || undefined, carbohidratos_g: Number(form.new_carbs)  || undefined, grasa_g: Number(form.new_fat)  || undefined };
+    } else if (type === 'meal_update' || type === 'plan_change') {
+      if (form.prev_text) previousValue = { descripcion: form.prev_text };
+      if (form.new_text)  newValue      = { descripcion: form.new_text };
+    }
+    return { previousValue, newValue };
+  };
+
   // ── Submit diet change ─────────────────────────────────────────────────────
   const handleDietSubmit = async (e) => {
     e.preventDefault();
     setSavingDiet(true);
     const token = await getToken();
-    let previousValue = null;
-    let newValue = null;
-    try {
-      if (dietForm.previous_value.trim()) previousValue = JSON.parse(dietForm.previous_value);
-      if (dietForm.new_value.trim()) newValue = JSON.parse(dietForm.new_value);
-    } catch {
-      showToast('Los campos de valores deben ser JSON válido o dejarse vacíos.', 'error');
-      setSavingDiet(false);
-      return;
-    }
+    const { previousValue, newValue } = buildDietValues(dietForm);
     const body = {
       change_type: dietForm.change_type, reason: dietForm.reason, date: dietForm.date,
       ...(previousValue !== null && { previous_value: previousValue }),
@@ -480,16 +647,20 @@ export default function NutriologoSeguimientoPage() {
                     className={`w-full text-left px-4 py-3.5 border-b border-[#484847]/5 transition-all ${
                       isActive
                         ? 'bg-[#1a1a1a] border-l-4 border-l-[#cafd00]'
-                        : 'border-l-4 border-l-transparent hover:bg-[#131313] group'
+                        : 'border-l-4 border-l-transparent hover:bg-[#131313]'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#262626] flex items-center justify-center text-sm font-black text-[#cafd00] shrink-0">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${
+                        isActive
+                          ? 'bg-[#cafd00]/10 text-[#cafd00]'
+                          : 'bg-[#262626] text-[#adaaaa]'
+                      }`}>
                         {patient.name?.charAt(0).toUpperCase() ?? '?'}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-white truncate">{patient.name}</p>
-                        <p className="text-[11px] text-[#adaaaa] truncate">{patient.email}</p>
+                        <p className={`text-sm font-bold truncate ${isActive ? 'text-white' : 'text-[#adaaaa]'}`}>{patient.name}</p>
+                        <p className="text-[11px] text-[#6f6f6f] truncate">{patient.email}</p>
                         <div className="flex items-center gap-2 mt-1">
                           {patient.last_record_date && (
                             <span className="text-[10px] text-[#6f6f6f]">{daysSince(patient.last_record_date)}</span>
@@ -538,12 +709,20 @@ export default function NutriologoSeguimientoPage() {
                   <h1 className="text-3xl font-black text-white tracking-tight font-headline">{clientInfo?.name}</h1>
                   <p className="text-sm text-[#adaaaa]">{clientInfo?.email}</p>
                 </div>
-                <button
-                  onClick={() => setRefreshKey(k => k + 1)}
-                  className="flex items-center gap-2 text-[#adaaaa] hover:text-white text-xs font-bold uppercase tracking-wider transition-colors px-3 py-2 rounded-xl hover:bg-[#1a1a1a]"
-                >
-                  <RefreshCw size={13} /> Actualizar
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => printPatientHistory(clientInfo, progressRecords[0] ?? null, progressRecords[1] ?? null, timeline)}
+                    className="flex items-center gap-2 text-[#adaaaa] hover:text-white text-xs font-bold uppercase tracking-wider transition-colors px-3 py-2 rounded-xl hover:bg-[#1a1a1a] border border-[#484847]/20"
+                  >
+                    <Printer size={13} /> Imprimir
+                  </button>
+                  <button
+                    onClick={() => setRefreshKey(k => k + 1)}
+                    className="flex items-center gap-2 text-[#adaaaa] hover:text-white text-xs font-bold uppercase tracking-wider transition-colors px-3 py-2 rounded-xl hover:bg-[#1a1a1a]"
+                  >
+                    <RefreshCw size={13} /> Actualizar
+                  </button>
+                </div>
               </div>
 
               {/* ── KPI chips ────────────────────────────────────────────── */}
@@ -685,26 +864,86 @@ export default function NutriologoSeguimientoPage() {
                         className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all resize-none"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4 mt-4">
-                      <div>
-                        <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">Valor anterior (JSON)</label>
-                        <textarea
-                          rows={3} value={dietForm.previous_value}
-                          onChange={e => setDietForm(f => ({ ...f, previous_value: e.target.value }))}
-                          placeholder='{"calorias": 2000}'
-                          className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-xs text-[#ff7351] placeholder-[#484847] font-mono focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all resize-none"
-                        />
+                    {dietForm.change_type === 'calorie_adjust' && (
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">Calorías anteriores</label>
+                          <input
+                            type="number" min="0" placeholder="2000"
+                            value={dietForm.prev_calories}
+                            onChange={e => setDietForm(f => ({ ...f, prev_calories: e.target.value }))}
+                            className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">Calorías propuestas</label>
+                          <input
+                            type="number" min="0" placeholder="1800"
+                            value={dietForm.new_calories}
+                            onChange={e => setDietForm(f => ({ ...f, new_calories: e.target.value }))}
+                            className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">Valor propuesto (JSON)</label>
-                        <textarea
-                          rows={3} value={dietForm.new_value}
-                          onChange={e => setDietForm(f => ({ ...f, new_value: e.target.value }))}
-                          placeholder='{"calorias": 1800}'
-                          className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-xs text-[#7ef0b3] placeholder-[#484847] font-mono focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all resize-none"
-                        />
+                    )}
+
+                    {dietForm.change_type === 'macro_adjust' && (
+                      <div className="mt-4 space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa]">Macros anteriores (g)</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[['prev_protein','Proteína'],['prev_carbs','Carbohidratos'],['prev_fat','Grasa']].map(([key, label]) => (
+                            <div key={key}>
+                              <label className="block text-[10px] text-[#6f6f6f] mb-1">{label}</label>
+                              <input type="number" min="0" step="0.1" placeholder="0"
+                                value={dietForm[key]}
+                                onChange={e => setDietForm(f => ({ ...f, [key]: e.target.value }))}
+                                className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa]">Macros propuestos (g)</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[['new_protein','Proteína'],['new_carbs','Carbohidratos'],['new_fat','Grasa']].map(([key, label]) => (
+                            <div key={key}>
+                              <label className="block text-[10px] text-[#6f6f6f] mb-1">{label}</label>
+                              <input type="number" min="0" step="0.1" placeholder="0"
+                                value={dietForm[key]}
+                                onChange={e => setDietForm(f => ({ ...f, [key]: e.target.value }))}
+                                className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {(dietForm.change_type === 'meal_update' || dietForm.change_type === 'plan_change') && (
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">
+                            {dietForm.change_type === 'plan_change' ? 'Plan anterior' : 'Comida anterior'}
+                          </label>
+                          <input type="text"
+                            value={dietForm.prev_text}
+                            onChange={e => setDietForm(f => ({ ...f, prev_text: e.target.value }))}
+                            placeholder={dietForm.change_type === 'plan_change' ? 'Nombre del plan actual' : 'Nombre de la comida actual'}
+                            className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#adaaaa] mb-1.5">
+                            {dietForm.change_type === 'plan_change' ? 'Plan propuesto' : 'Comida propuesta'}
+                          </label>
+                          <input type="text"
+                            value={dietForm.new_text}
+                            onChange={e => setDietForm(f => ({ ...f, new_text: e.target.value }))}
+                            placeholder={dietForm.change_type === 'plan_change' ? 'Nombre del nuevo plan' : 'Nombre de la nueva comida'}
+                            className="w-full bg-[#0e0e0e] border-none rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#484847] focus:outline-none focus:ring-2 focus:ring-[#cafd00]/30 transition-all"
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div className="flex justify-end gap-3 mt-5">
                       <button
                         type="button"

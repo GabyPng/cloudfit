@@ -36,6 +36,14 @@ const SPECIALTIES_OPTIONS = [
   'Oncológica', 'Renal', 'Trastornos alimenticios',
 ];
 
+const GOAL_LABELS = {
+  lose_weight:   'Bajar de peso',
+  gain_muscle:   'Ganar músculo',
+  maintain:      'Mantener peso',
+  improve_health:'Mejorar salud',
+  increase_endurance: 'Resistencia',
+};
+
 const REQUEST_STATUS_BADGE = {
   pending:  'bg-[#3b2e08] text-[#fce047] border border-[#fce047]/30',
   accepted: 'bg-[#10261d] text-[#7ef0b3] border border-[#7ef0b3]/30',
@@ -86,8 +94,10 @@ function RequestCard({ request, onRespond, responding }) {
   return (
     <div className="bg-[#131313] border border-[#2a2a2a] rounded-xl overflow-hidden">
       <div className="px-5 py-4 flex items-start gap-4">
-        <div className="w-10 h-10 rounded-full bg-[#262626] flex items-center justify-center text-sm font-bold text-[#cafd00] shrink-0">
-          {request.client_name?.charAt(0).toUpperCase() ?? '?'}
+        <div className="w-10 h-10 rounded-full bg-[#262626] flex items-center justify-center text-sm font-bold text-[#cafd00] shrink-0 overflow-hidden border border-[#2a2a2a]">
+          {request.client_avatar
+            ? <img src={request.client_avatar} alt="" className="w-full h-full object-cover" />
+            : (request.client_name?.charAt(0).toUpperCase() ?? '?')}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -97,6 +107,16 @@ function RequestCard({ request, onRespond, responding }) {
             </span>
           </div>
           <p className="text-xs text-[#adaaaa] mt-0.5">{request.client_email}</p>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {request.client_goal && (
+              <span className="text-[10px] bg-[#1a1a1a] border border-[#2a2a2a] rounded px-2 py-0.5 text-[#ac8aff]">
+                {GOAL_LABELS[request.client_goal] ?? request.client_goal}
+              </span>
+            )}
+            {request.client_age != null && (
+              <span className="text-[10px] text-[#6f6f6f]">{request.client_age} años</span>
+            )}
+          </div>
           {request.message && (
             <p className="text-sm text-[#adaaaa] mt-2 leading-relaxed line-clamp-2">{request.message}</p>
           )}
@@ -223,7 +243,13 @@ export default function NutriologoPerfilPage() {
           headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
         });
         const payload = await res.json();
-        if (!ignore) setSolicitudes(res.ok ? (payload.data ?? []) : []);
+        if (!ignore) {
+          if (!res.ok) {
+            console.error('[Solicitudes] API error', res.status, payload);
+            setMsg(payload?.error ?? payload?.message ?? `Error ${res.status} al cargar solicitudes`);
+          }
+          setSolicitudes(res.ok ? (payload.data ?? []) : []);
+        }
       } finally {
         if (!ignore) setLoadingSolic(false);
       }

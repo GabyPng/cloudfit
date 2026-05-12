@@ -9,8 +9,8 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminIndexPage from './pages/Admin';
 import CoachIndexPage from './pages/Coach';
 import NutriologoIndexPage from './pages/Nutriologo';
-import NutriologoPacientesPage from './pages/Nutriologo/Pacientes';
 import NutriologoPlanesPage from './pages/Nutriologo/Planes';
+import NutriologoPlanSemanalPage from './pages/Nutriologo/PlanSemanal';
 import NutriologoSeguimientoPage from './pages/Nutriologo/Seguimiento';
 import NutriologoPerfilPage from './pages/Nutriologo/Perfil';
 import ClienteIndexPage from './pages/Cliente';
@@ -50,7 +50,7 @@ function App() {
                     path="/nutriologo/pacientes"
                     element={(
                         <ProtectedRoute allowedRoles={['nutriologo']}>
-                            <NutriologoPacientesPage />
+                            <NutriologoSeguimientoPage />
                         </ProtectedRoute>
                     )}
                 />
@@ -63,18 +63,18 @@ function App() {
                     )}
                 />
                 <Route
-                    path="/nutriologo/perfil"
+                    path="/nutriologo/plan-semanal"
                     element={(
                         <ProtectedRoute allowedRoles={['nutriologo']}>
-                            <NutriologoPerfilPage />
+                            <NutriologoPlanSemanalPage />
                         </ProtectedRoute>
                     )}
                 />
                 <Route
-                    path="/nutriologo/seguimiento"
+                    path="/nutriologo/perfil"
                     element={(
                         <ProtectedRoute allowedRoles={['nutriologo']}>
-                            <NutriologoSeguimientoPage />
+                            <NutriologoPerfilPage />
                         </ProtectedRoute>
                     )}
                 />

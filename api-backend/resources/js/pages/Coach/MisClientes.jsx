@@ -36,7 +36,7 @@ async function apiFetch(path, opts = {}) {
   return res.json();
 }
 
-function printWeeklyPlan(client, weeklyPlan) {
+function printWeeklyPlan(client, weeklyPlan, notes = '') {
   const days = DAYS.map(d => ({ ...d, routines: weeklyPlan[d.key] || [] }));
   const activeDays = days.filter(d => d.routines.length > 0).length;
   const totalRoutines = days.reduce((s, d) => s + d.routines.length, 0);
@@ -120,6 +120,7 @@ body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:12mm 16mm}
   <div class="stat"><div class="stat-val">${totalRoutines}</div><div class="stat-lbl">Total rutinas</div></div>
   <div class="stat"><div class="stat-val">${days.reduce((s,d)=>s+d.routines.reduce((ss,r)=>ss+(r.estDuration||0),0),0)}</div><div class="stat-lbl">Min totales</div></div>
 </div>
+${notes ? `<div style="margin-bottom:10px;padding:8px 12px;background:#f9f9f9;border:1px solid #ddd;border-radius:5px;font-size:9px;color:#444"><strong style="text-transform:uppercase;letter-spacing:.5px">Notas:</strong> ${notes}</div>` : ''}
 <div class="ftr">
   <span>CloudFit — Coach: ${client.name}</span>
   <span>Plan semanal impreso el ${new Date().toLocaleDateString('es-MX')}</span>
@@ -341,7 +342,7 @@ export default function PlanSemanal() {
   const handlePrint = () => {
     const client = clients.find(c => c.id === selectedClientId);
     if (!client) return;
-    printWeeklyPlan(client, weeklyPlan);
+    printWeeklyPlan(client, weeklyPlan, notes);
   };
 
   const selectedClient = clients.find(c => c.id === selectedClientId);

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Client;
 
 class NutriologoContactRequest extends Model
 {
@@ -28,6 +29,11 @@ class NutriologoContactRequest extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'client_id', 'user_id');
+    }
+
+    public function clientProfile(): BelongsTo
+    {
+        return $this->belongsTo(Client::class, 'client_id', 'user_id');
     }
 
     public function scopePending($query)
