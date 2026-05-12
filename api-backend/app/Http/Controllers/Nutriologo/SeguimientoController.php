@@ -293,6 +293,7 @@ class SeguimientoController extends Controller
         $pending = DietChangeRequest::byProposer($user->user_id)
             ->with('client:user_id,name,email')
             ->orderByDesc('created_at')
+            ->limit(100)
             ->get()
             ->map(fn($d) => [
                 'id'             => $d->id,

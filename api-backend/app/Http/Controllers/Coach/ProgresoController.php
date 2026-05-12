@@ -8,6 +8,7 @@ use App\Models\ProgressRecord;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class ProgresoController extends Controller
@@ -16,7 +17,8 @@ class ProgresoController extends Controller
     {
         $email = $request->attributes->get('supabase_email');
         if (!$email) return null;
-        return User::where('email', $email)->value('user_id');
+
+        return Cache::remember('coach_uid_' . md5($email), 300, fn() => User::where('email', $email)->value('user_id'));
     }
 
     private function verifyClientBelongsToCoach(int $clientId, int $coachId): bool
@@ -72,6 +74,7 @@ class ProgresoController extends Controller
         $records = ProgressRecord::where('client_id', $clientId)
             ->orderBy('date')
             ->select(['date', 'weight_kg', 'body_fat_pct', 'muscle_mass_kg'])
+            ->limit(365)
             ->get()
             ->map(fn($r) => [
                 'fecha'   => $r->date->format('Y-m-d'),
@@ -81,10 +84,10 @@ class ProgresoController extends Controller
             ]);
 
         $monthAgo = now()->subDays(30)->format('Y-m-d');
-        $recent = $records->filter(fn($r) => $r['fecha'] >= $monthAgo);
-        $rFirst = $recent->first();
-        $rLast  = $recent->last();
-        $last   = $records->last();
+        $recent   = $records->filter(fn($r) => $r['fecha'] >= $monthAgo);
+        $rFirst   = $recent->first();
+        $rLast    = $recent->last();
+        $last     = $records->last();
 
         $kpis = [
             'peso_actual'    => $last ? $last['peso']    : null,
@@ -124,6 +127,7 @@ class ProgresoController extends Controller
             ->join('routine_exercises as re', 're.routine_id', '=', 'wl.routine_id')
             ->where('wl.client_id', $clientId)
             ->where('wl.is_complete', true)
+            ->where('wl.date', '>=', now()->subDays(730)->toDateString())
             ->where(function ($q) use ($terms) {
                 foreach ($terms as $term) {
                     $q->orWhereRaw('LOWER(re.exercise_name) LIKE ?', ['%' . strtolower($term) . '%']);
@@ -132,6 +136,7 @@ class ProgresoController extends Controller
             ->orderBy('wl.date')
             ->select(['wl.date', DB::raw('MAX(re.weight) as peso_max'), DB::raw('MAX(re.reps) as reps')])
             ->groupBy('wl.date')
+            ->limit(200)
             ->get()
             ->map(function ($log) {
                 $peso = (float) ($log->peso_max ?? 0);
@@ -174,6 +179,7 @@ class ProgresoController extends Controller
             ->where('wl.is_complete', true)
             ->where('wl.date', '>=', $sevenDaysAgo)
             ->select([DB::raw('LOWER(re.exercise_name) as exercise_name'), 're.sets', 're.reps', 're.weight'])
+            ->limit(500)
             ->get();
 
         $muscleMappings = [

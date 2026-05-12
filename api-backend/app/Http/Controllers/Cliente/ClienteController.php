@@ -7,9 +7,18 @@ use App\Models\DietChangeRequest;
 use App\Models\NutritionPlanAssignment;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ClienteController extends Controller
 {
+    private function clientUser(Request $request): ?User
+    {
+        $email = $request->attributes->get('supabase_email');
+        if (!$email) return null;
+
+        return Cache::remember('client_user_' . md5($email), 300, fn() => User::where('email', $email)->first());
+    }
+
     public function dashboard(Request $request)
     {
         return response()->json([
@@ -25,7 +34,7 @@ class ClienteController extends Controller
 
     public function planNutricional(Request $request)
     {
-        $clientUser = User::where('email', $request->attributes->get('supabase_email'))->first();
+        $clientUser = $this->clientUser($request);
         if (!$clientUser) return response()->json(['error' => 'No autenticado'], 401);
 
         $assignment = NutritionPlanAssignment::where('client_id', $clientUser->user_id)
@@ -72,7 +81,7 @@ class ClienteController extends Controller
 
     public function cambiosDieta(Request $request)
     {
-        $clientUser = User::where('email', $request->attributes->get('supabase_email'))->first();
+        $clientUser = $this->clientUser($request);
         if (!$clientUser) return response()->json(['error' => 'No autenticado'], 401);
 
         $changes = DietChangeRequest::byClient($clientUser->user_id)
@@ -97,7 +106,7 @@ class ClienteController extends Controller
 
     public function responderCambioDieta(Request $request, int $id)
     {
-        $clientUser = User::where('email', $request->attributes->get('supabase_email'))->first();
+        $clientUser = $this->clientUser($request);
         if (!$clientUser) return response()->json(['error' => 'No autenticado'], 401);
 
         $change = DietChangeRequest::where('id', $id)

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\WorkoutLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class CoachController extends Controller
@@ -20,11 +21,9 @@ class CoachController extends Controller
     private function resolveCoachId(Request $request): ?int
     {
         $email = $request->attributes->get('supabase_email');
-        if (!$email) {
-            return null;
-        }
+        if (!$email) return null;
 
-        return User::where('email', $email)->value('user_id');
+        return Cache::remember('coach_uid_' . md5($email), 300, fn() => User::where('email', $email)->value('user_id'));
     }
 
     public function dashboard(Request $request)
@@ -36,54 +35,61 @@ class CoachController extends Controller
 
         $today = Carbon::today();
 
-        // ── KPIs ────────────────────────────────────────────────────
-        $totalAtletas = Client::where('coach_id', $coachId)->count();
-
-        $nuevosEsteMes = Client::where('coach_id', $coachId)
-            ->whereYear('created_at', $today->year)
-            ->whereMonth('created_at', $today->month)
-            ->count();
-
+        // ── 1. Client IDs — single pluck reused in all subsequent queries ──
         $clientIds = Client::where('coach_id', $coachId)->pluck('user_id');
 
-        $clientesConRutinaActiva = DB::table('routine_assignments')
+        // ── 2. KPIs: totalAtletas + nuevosEsteMes in one aggregate query ──
+        $clientStats = DB::table('clients')
             ->where('coach_id', $coachId)
-            ->where('status', 'active')
-            ->distinct('client_id')
-            ->count('client_id');
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(CASE WHEN created_at >= ? AND created_at < ? THEN 1 ELSE 0 END) as nuevos', [
+                $today->copy()->startOfMonth()->toDateTimeString(),
+                $today->copy()->addMonth()->startOfMonth()->toDateTimeString(),
+            ])
+            ->first();
 
-        $entrenaronHoy = WorkoutLog::whereIn('client_id', $clientIds)
-            ->where('date', $today)
-            ->where('is_complete', true)
-            ->distinct('client_id')
-            ->count('client_id');
+        $totalAtletas  = $clientStats->total ?? 0;
+        $nuevosEsteMes = $clientStats->nuevos ?? 0;
+
+        // ── 3. Activity KPIs: all workout + assignment stats in one query ──
+        $wlHoy    = DB::table('workout_logs')->select('client_id')->where('date', $today)->where('is_complete', true)->distinct();
+        $wlSemana = DB::table('workout_logs')->select('client_id')->where('date', '>=', $today->copy()->subDays(7))->where('is_complete', true)->distinct();
+
+        $actStats = DB::table('clients')
+            ->where('clients.coach_id', $coachId)
+            ->leftJoinSub($wlHoy, 'wl_hoy', 'wl_hoy.client_id', '=', 'clients.user_id')
+            ->leftJoinSub($wlSemana, 'wl_semana', 'wl_semana.client_id', '=', 'clients.user_id')
+            ->selectRaw('(SELECT COUNT(DISTINCT client_id) FROM routine_assignments WHERE coach_id = ? AND status = ?) as con_rutina', [$coachId, 'active'])
+            ->selectRaw('(SELECT COUNT(*) FROM routines WHERE coach_id = ? AND is_active = 1) as planes_activos', [$coachId])
+            ->selectRaw('COUNT(DISTINCT CASE WHEN wl_hoy.client_id IS NOT NULL THEN clients.user_id END) as entrenaron_hoy')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN wl_semana.client_id IS NULL THEN clients.user_id END) as alerta_inactividad')
+            ->first();
+
+        $clientesConRutinaActiva = $actStats->con_rutina ?? 0;
+        $planesActivos           = $actStats->planes_activos ?? 0;
+        $entrenaronHoy           = $actStats->entrenaron_hoy ?? 0;
+        $alertasInactividad      = $actStats->alerta_inactividad ?? 0;
 
         $porcentajeCumplimiento = $clientesConRutinaActiva > 0
             ? round(($entrenaronHoy / $clientesConRutinaActiva) * 100)
             : 0;
 
-        $clientesActivos = WorkoutLog::whereIn('client_id', $clientIds)
-            ->where('date', '>=', $today->copy()->subDays(7))
-            ->distinct('client_id')
-            ->pluck('client_id');
+        // ── 4. Clientes list ─────────────────────────────────────────────
+        // Portable "latest progress per client" — works on MySQL, PostgreSQL, SQLite
+        $lastProgress = DB::table('progress as p2')
+            ->joinSub(
+                DB::table('progress')->selectRaw('client_id, MAX(date) as max_date')->groupBy('client_id'),
+                'lp', fn($join) => $join->on('p2.client_id', '=', 'lp.client_id')->whereColumn('p2.date', 'lp.max_date')
+            )
+            ->select(['p2.client_id', 'p2.weight', 'p2.body_fat']);
 
-        $alertasInactividad = $clientIds->diff($clientesActivos)->count();
-
-        $planesActivos = Routine::where('coach_id', $coachId)
-            ->where('is_active', true)
-            ->count();
-
-        // ── Clientes ────────────────────────────────────────────────
         $clientes = Client::where('clients.coach_id', $coachId)
             ->join('users', 'users.user_id', '=', 'clients.user_id')
             ->leftJoin(
                 DB::raw('(SELECT client_id, MAX(date) as last_date FROM workout_logs GROUP BY client_id) AS last_log'),
                 'last_log.client_id', '=', 'clients.user_id'
             )
-            ->leftJoin(
-                DB::raw('(SELECT DISTINCT ON (client_id) client_id, weight, body_fat FROM progress ORDER BY client_id, date DESC) AS last_progress'),
-                'last_progress.client_id', '=', 'clients.user_id'
-            )
+            ->leftJoinSub($lastProgress, 'last_progress', 'last_progress.client_id', '=', 'clients.user_id')
             ->select([
                 'clients.user_id as id',
                 'users.name as nombre',
@@ -96,8 +102,7 @@ class CoachController extends Controller
             ->orderBy('users.name')
             ->get();
 
-        // Load active/paused routines for all clients in one query
-        $clientIds = $clientes->pluck('id');
+        // Load active/paused routines for all clients in one query ($clientIds already set above)
         $rutinasPorCliente = RoutineAssignment::whereIn('client_id', $clientIds)
             ->where('coach_id', $coachId)
             ->where('status', 'active')

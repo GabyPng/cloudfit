@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class WeeklyPlanController extends Controller
@@ -16,7 +17,8 @@ class WeeklyPlanController extends Controller
     {
         $email = $request->attributes->get('supabase_email');
         if (!$email) return null;
-        return User::where('email', $email)->value('user_id');
+
+        return Cache::remember('coach_uid_' . md5($email), 300, fn() => User::where('email', $email)->value('user_id'));
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -46,10 +47,12 @@ class CheckRole
 
         $email = (string) ($request->attributes->get('supabase_email') ?? '');
         if ($email !== '') {
-            $localRole = User::query()
-                ->with('role:role_id,name')
-                ->where('email', $email)
-                ->first()?->role?->name;
+            $localRole = Cache::remember('user_role_' . md5($email), 300, fn() =>
+                User::query()
+                    ->with('role:role_id,name')
+                    ->where('email', $email)
+                    ->first()?->role?->name
+            );
 
             $normalizedLocalRole = $this->normalizeRole($localRole);
 

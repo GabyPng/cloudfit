@@ -10,6 +10,7 @@ use App\Models\RoutineExercise;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -22,11 +23,9 @@ class RutinasController extends Controller
     private function coachId(Request $request): ?int
     {
         $email = $request->attributes->get('supabase_email');
-        if (!$email) {
-            return null;
-        }
+        if (!$email) return null;
 
-        return User::where('email', $email)->value('user_id');
+        return Cache::remember('coach_uid_' . md5($email), 300, fn() => User::where('email', $email)->value('user_id'));
     }
 
     /* ══════════════════════════════════════════════════════════════════════
@@ -310,7 +309,7 @@ class RutinasController extends Controller
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
-        $routine = Routine::where('coach_id', $coachId)->findOrFail($routineId);
+        $routine = Routine::where('coach_id', $coachId)->with('exercises')->findOrFail($routineId);
 
         return response()->json(
             $routine->exercises->map(fn ($ex) => $this->formatExercise($ex))
