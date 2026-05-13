@@ -6,6 +6,7 @@ import CoachRegisterForm from './auth/forms/CoachRegisterForm';
 import NutriologoRegisterForm from './auth/forms/NutriologoRegisterForm';
 import { registerUser } from '../lib/registerUser';
 import { getRoleHomePathFromRole } from '../lib/roleRouting';
+import { track } from '../lib/analytics';
 
 export default function Register() {
   const [selectedRole, setSelectedRole] = useState('cliente');
@@ -58,12 +59,14 @@ export default function Register() {
     }
 
     if (result.requiresEmailConfirmation) {
+      track('sign_up', { user_role: selectedRole, method: 'email_confirmation' });
       setMessage('Registro exitoso. Revisa tu correo electrónico para verificar la cuenta si es necesario, y luego inicia sesión.');
       resetForm();
       setLoading(false);
       return;
     }
 
+    track('sign_up', { user_role: selectedRole });
     navigate(getRoleHomePathFromRole(selectedRole), { replace: true });
   };
 

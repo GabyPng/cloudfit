@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Mail, Lock, Loader2 } from 'lucide-react';
 import { getRoleHomePathFromSession } from '../lib/roleRouting';
 import { syncLocalUserProfile } from '../lib/localUserSync';
+import { track } from '../lib/analytics';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -39,6 +40,8 @@ export default function Login() {
       }
       setLoading(false);
     } else {
+      const role = data.session?.user?.user_metadata?.role ?? 'unknown';
+      track('login', { user_role: role });
       syncLocalUserProfile(data.session)
         .catch(() => null)
         .finally(() => {
