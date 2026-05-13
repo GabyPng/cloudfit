@@ -47,17 +47,17 @@ class CheckRole
 
         $email = (string) ($request->attributes->get('supabase_email') ?? '');
         if ($email !== '') {
-            $localRole = Cache::remember('user_role_' . md5($email), 300, fn() =>
-                User::query()
-                    ->with('role:role_id,name')
-                    ->where('email', $email)
-                    ->first()?->role?->name
+            $localRole = Cache::remember('user_role_'.md5($email), 300, fn () => User::query()
+                ->with('role:role_id,name')
+                ->where('email', $email)
+                ->first()?->role?->name
             );
 
             $normalizedLocalRole = $this->normalizeRole($localRole);
 
             if ($normalizedLocalRole && in_array($normalizedLocalRole, $requiredRoles, true)) {
                 $request->attributes->set('supabase_role', $normalizedLocalRole);
+
                 return $next($request);
             }
         }
@@ -69,9 +69,9 @@ class CheckRole
         }
 
         return response()->json([
-            'message'        => 'No tienes permiso para acceder a este recurso.',
+            'message' => 'No tienes permiso para acceder a este recurso.',
             'required_roles' => $requiredRoles,
-            'your_role'      => $requestRole,
+            'your_role' => $requestRole,
         ], 403);
     }
 }

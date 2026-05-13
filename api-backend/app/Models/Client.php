@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Client extends Model
 {
     protected $primaryKey = 'user_id';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -22,7 +23,7 @@ class Client extends Model
     {
         return [
             'birth_date' => 'date',
-            'height'     => 'decimal:2',
+            'height' => 'decimal:2',
         ];
     }
 

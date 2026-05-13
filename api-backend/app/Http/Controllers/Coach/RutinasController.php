@@ -23,9 +23,11 @@ class RutinasController extends Controller
     private function coachId(Request $request): ?int
     {
         $email = $request->attributes->get('supabase_email');
-        if (!$email) return null;
+        if (! $email) {
+            return null;
+        }
 
-        return Cache::remember('coach_uid_' . md5($email), 300, fn() => User::where('email', $email)->value('user_id'));
+        return Cache::remember('coach_uid_'.md5($email), 300, fn () => User::where('email', $email)->value('user_id'));
     }
 
     /* ══════════════════════════════════════════════════════════════════════
@@ -39,7 +41,7 @@ class RutinasController extends Controller
     public function clientsList(Request $request): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -62,11 +64,11 @@ class RutinasController extends Controller
                 }
 
                 return [
-                    'id'        => $c->id,
-                    'name'      => $c->name,
-                    'badge'     => null, // can be extended later ("Pro", etc.)
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'badge' => null, // can be extended later ("Pro", etc.)
                     'objective' => $c->objective ?? 'Sin objetivo',
-                    'avatar'    => $initials,
+                    'avatar' => $initials,
                 ];
             });
 
@@ -80,7 +82,7 @@ class RutinasController extends Controller
     public function clientDetail(Request $request, int $id): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -89,7 +91,7 @@ class RutinasController extends Controller
             ->with('user')
             ->first();
 
-        if (!$client) {
+        if (! $client) {
             return response()->json(['error' => 'Cliente no encontrado'], 404);
         }
 
@@ -100,13 +102,13 @@ class RutinasController extends Controller
         }
 
         return response()->json([
-            'id'        => $client->user_id,
-            'name'      => $client->user->name,
-            'email'     => $client->user->email,
-            'badge'     => null,
+            'id' => $client->user_id,
+            'name' => $client->user->name,
+            'email' => $client->user->email,
+            'badge' => null,
             'objective' => $client->goal ?? $client->user->objective,
-            'avatar'    => $initials,
-            'height'    => $client->height,
+            'avatar' => $initials,
+            'height' => $client->height,
             'birthDate' => $client->birth_date?->toDateString(),
         ]);
     }
@@ -122,7 +124,7 @@ class RutinasController extends Controller
     public function routinesList(Request $request): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -145,26 +147,26 @@ class RutinasController extends Controller
     public function routineStore(Request $request): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
         $data = $request->validate([
-            'name'             => 'required|string|max:255',
-            'description'      => 'nullable|string',
-            'tag'              => 'nullable|string|max:100',
-            'icon_type'        => ['nullable', Rule::in(['dumbbell', 'zap', 'heart'])],
-            'accent_color'     => 'nullable|string|max:20',
-            'difficulty'       => 'nullable|integer|min:0|max:100',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'tag' => 'nullable|string|max:100',
+            'icon_type' => ['nullable', Rule::in(['dumbbell', 'zap', 'heart'])],
+            'accent_color' => 'nullable|string|max:20',
+            'difficulty' => 'nullable|integer|min:0|max:100',
             'difficulty_label' => 'nullable|string|max:50',
-            'duration_label'   => 'nullable|string|max:100',
-            'training_plan'    => 'nullable|string|max:100',
-            'exercises'        => 'nullable|array',
-            'exercises.*.name'   => 'required|string|max:255',
-            'exercises.*.sets'   => 'required|integer|min:1',
-            'exercises.*.reps'   => 'required|integer|min:1',
+            'duration_label' => 'nullable|string|max:100',
+            'training_plan' => 'nullable|string|max:100',
+            'exercises' => 'nullable|array',
+            'exercises.*.name' => 'required|string|max:255',
+            'exercises.*.sets' => 'required|integer|min:1',
+            'exercises.*.reps' => 'required|integer|min:1',
             'exercises.*.weight' => 'nullable|string|max:20',
-            'exercises.*.rest'   => ['required', Rule::in(['30s', '45s', '60s', '90s', '120s', '150s', '180s'])],
+            'exercises.*.rest' => ['required', Rule::in(['30s', '45s', '60s', '90s', '120s', '150s', '180s'])],
         ]);
 
         return DB::transaction(function () use ($data, $coachId) {
@@ -173,34 +175,34 @@ class RutinasController extends Controller
             $difficultyLabel = $data['difficulty_label'] ?? ($difficulty <= 40 ? 'Basico' : ($difficulty <= 70 ? 'Intermedio' : 'Avanzado'));
 
             $routine = Routine::create([
-                'name'             => $data['name'],
-                'description'      => $data['description'] ?? null,
-                'coach_id'         => $coachId,
-                'client_id'        => null,
-                'is_active'        => true,
-                'tag'              => $data['tag'] ?? strtoupper($data['name']),
-                'icon_type'        => $data['icon_type'] ?? 'dumbbell',
-                'accent_color'     => $data['accent_color'] ?? '#cafd00',
-                'difficulty'       => $difficulty,
+                'name' => $data['name'],
+                'description' => $data['description'] ?? null,
+                'coach_id' => $coachId,
+                'client_id' => null,
+                'is_active' => true,
+                'tag' => $data['tag'] ?? strtoupper($data['name']),
+                'icon_type' => $data['icon_type'] ?? 'dumbbell',
+                'accent_color' => $data['accent_color'] ?? '#cafd00',
+                'difficulty' => $difficulty,
                 'difficulty_label' => $difficultyLabel,
-                'duration_label'   => $data['duration_label'] ?? null,
-                'training_plan'    => $data['training_plan'] ?? null,
+                'duration_label' => $data['duration_label'] ?? null,
+                'training_plan' => $data['training_plan'] ?? null,
             ]);
 
-            if (!empty($data['exercises'])) {
+            if (! empty($data['exercises'])) {
                 foreach ($data['exercises'] as $index => $ex) {
                     $this->upsertExerciseCatalog($ex['name']);
                     $exerciseId = DB::table('exercise_catalog')->where('name', $ex['name'])->value('exercise_id');
 
                     RoutineExercise::create([
-                        'routine_id'    => $routine->id,
-                        'exercise_id'   => $exerciseId,
+                        'routine_id' => $routine->id,
+                        'exercise_id' => $exerciseId,
                         'exercise_name' => $ex['name'],
-                        'sets'          => $ex['sets'],
-                        'reps'          => (string) $ex['reps'],
-                        'weight'        => $ex['weight'] ?? null,
-                        'rest_time'     => $ex['rest'],
-                        'order'         => $index + 1,
+                        'sets' => $ex['sets'],
+                        'reps' => (string) $ex['reps'],
+                        'weight' => $ex['weight'] ?? null,
+                        'rest_time' => $ex['rest'],
+                        'order' => $index + 1,
                     ]);
                 }
             }
@@ -218,41 +220,41 @@ class RutinasController extends Controller
     public function routineUpdate(Request $request, int $id): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
         $routine = Routine::where('coach_id', $coachId)->findOrFail($id);
 
         $data = $request->validate([
-            'name'             => 'sometimes|required|string|max:255',
-            'description'      => 'nullable|string',
-            'tag'              => 'nullable|string|max:100',
-            'icon_type'        => ['nullable', Rule::in(['dumbbell', 'zap', 'heart'])],
-            'accent_color'     => 'nullable|string|max:20',
-            'difficulty'       => 'nullable|integer|min:0|max:100',
+            'name' => 'sometimes|required|string|max:255',
+            'description' => 'nullable|string',
+            'tag' => 'nullable|string|max:100',
+            'icon_type' => ['nullable', Rule::in(['dumbbell', 'zap', 'heart'])],
+            'accent_color' => 'nullable|string|max:20',
+            'difficulty' => 'nullable|integer|min:0|max:100',
             'difficulty_label' => 'nullable|string|max:50',
-            'duration_label'   => 'nullable|string|max:100',
-            'training_plan'    => 'nullable|string|max:100',
-            'exercises'        => 'nullable|array',
-            'exercises.*.name'   => 'required|string|max:255',
-            'exercises.*.sets'   => 'required|integer|min:1',
-            'exercises.*.reps'   => 'required|integer|min:1',
+            'duration_label' => 'nullable|string|max:100',
+            'training_plan' => 'nullable|string|max:100',
+            'exercises' => 'nullable|array',
+            'exercises.*.name' => 'required|string|max:255',
+            'exercises.*.sets' => 'required|integer|min:1',
+            'exercises.*.reps' => 'required|integer|min:1',
             'exercises.*.weight' => 'nullable|string|max:20',
-            'exercises.*.rest'   => ['required', Rule::in(['30s', '45s', '60s', '90s', '120s', '150s', '180s'])],
+            'exercises.*.rest' => ['required', Rule::in(['30s', '45s', '60s', '90s', '120s', '150s', '180s'])],
         ]);
 
         DB::transaction(function () use ($routine, $data) {
             $routine->update([
-                'name'             => $data['name'] ?? $routine->name,
-                'description'      => $data['description'] ?? $routine->description,
-                'tag'              => $data['tag'] ?? $routine->tag,
-                'icon_type'        => $data['icon_type'] ?? $routine->icon_type,
-                'accent_color'     => $data['accent_color'] ?? $routine->accent_color,
-                'difficulty'       => $data['difficulty'] ?? $routine->difficulty,
+                'name' => $data['name'] ?? $routine->name,
+                'description' => $data['description'] ?? $routine->description,
+                'tag' => $data['tag'] ?? $routine->tag,
+                'icon_type' => $data['icon_type'] ?? $routine->icon_type,
+                'accent_color' => $data['accent_color'] ?? $routine->accent_color,
+                'difficulty' => $data['difficulty'] ?? $routine->difficulty,
                 'difficulty_label' => $data['difficulty_label'] ?? $routine->difficulty_label,
-                'duration_label'   => $data['duration_label'] ?? $routine->duration_label,
-                'training_plan'    => $data['training_plan'] ?? $routine->training_plan,
+                'duration_label' => $data['duration_label'] ?? $routine->duration_label,
+                'training_plan' => $data['training_plan'] ?? $routine->training_plan,
             ]);
 
             if (isset($data['exercises'])) {
@@ -262,14 +264,14 @@ class RutinasController extends Controller
                     $exerciseId = DB::table('exercise_catalog')->where('name', $ex['name'])->value('exercise_id');
 
                     RoutineExercise::create([
-                        'routine_id'    => $routine->id,
-                        'exercise_id'   => $exerciseId,
+                        'routine_id' => $routine->id,
+                        'exercise_id' => $exerciseId,
                         'exercise_name' => $ex['name'],
-                        'sets'          => $ex['sets'],
-                        'reps'          => (string) $ex['reps'],
-                        'weight'        => $ex['weight'] ?? null,
-                        'rest_time'     => $ex['rest'],
-                        'order'         => $index + 1,
+                        'sets' => $ex['sets'],
+                        'reps' => (string) $ex['reps'],
+                        'weight' => $ex['weight'] ?? null,
+                        'rest_time' => $ex['rest'],
+                        'order' => $index + 1,
                     ]);
                 }
             }
@@ -285,7 +287,7 @@ class RutinasController extends Controller
     public function routineDestroy(Request $request, int $id): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -305,7 +307,7 @@ class RutinasController extends Controller
     public function exercisesList(Request $request, int $routineId): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -322,18 +324,18 @@ class RutinasController extends Controller
     public function exerciseStore(Request $request, int $routineId): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
         $routine = Routine::where('coach_id', $coachId)->findOrFail($routineId);
 
         $data = $request->validate([
-            'name'   => 'required|string|max:255',
-            'sets'   => 'required|integer|min:1',
-            'reps'   => 'required|integer|min:1',
+            'name' => 'required|string|max:255',
+            'sets' => 'required|integer|min:1',
+            'reps' => 'required|integer|min:1',
             'weight' => 'nullable|string|max:20',
-            'rest'   => ['required', Rule::in(['30s', '45s', '60s', '90s', '120s', '150s', '180s'])],
+            'rest' => ['required', Rule::in(['30s', '45s', '60s', '90s', '120s', '150s', '180s'])],
         ]);
 
         $this->upsertExerciseCatalog($data['name']);
@@ -342,14 +344,14 @@ class RutinasController extends Controller
         $maxOrder = $routine->exercises()->max('order') ?? 0;
 
         $exercise = RoutineExercise::create([
-            'routine_id'    => $routine->id,
-            'exercise_id'   => $exerciseId,
+            'routine_id' => $routine->id,
+            'exercise_id' => $exerciseId,
             'exercise_name' => $data['name'],
-            'sets'          => $data['sets'],
-            'reps'          => (string) $data['reps'],
-            'weight'        => $data['weight'] ?? null,
-            'rest_time'     => $data['rest'],
-            'order'         => $maxOrder + 1,
+            'sets' => $data['sets'],
+            'reps' => (string) $data['reps'],
+            'weight' => $data['weight'] ?? null,
+            'rest_time' => $data['rest'],
+            'order' => $maxOrder + 1,
         ]);
 
         return response()->json($this->formatExercise($exercise), 201);
@@ -362,7 +364,7 @@ class RutinasController extends Controller
     public function exerciseUpdate(Request $request, int $id): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -370,11 +372,11 @@ class RutinasController extends Controller
             ->findOrFail($id);
 
         $data = $request->validate([
-            'name'   => 'sometimes|required|string|max:255',
-            'sets'   => 'sometimes|required|integer|min:1',
-            'reps'   => 'sometimes|required|integer|min:1',
+            'name' => 'sometimes|required|string|max:255',
+            'sets' => 'sometimes|required|integer|min:1',
+            'reps' => 'sometimes|required|integer|min:1',
             'weight' => 'nullable|string|max:20',
-            'rest'   => ['sometimes', 'required', Rule::in(['30s', '45s', '60s', '90s', '120s', '150s', '180s'])],
+            'rest' => ['sometimes', 'required', Rule::in(['30s', '45s', '60s', '90s', '120s', '150s', '180s'])],
         ]);
 
         $updates = [];
@@ -383,10 +385,18 @@ class RutinasController extends Controller
             $this->upsertExerciseCatalog($data['name']);
             $updates['exercise_id'] = DB::table('exercise_catalog')->where('name', $data['name'])->value('exercise_id');
         }
-        if (isset($data['sets']))   $updates['sets']      = $data['sets'];
-        if (isset($data['reps']))   $updates['reps']      = (string) $data['reps'];
-        if (array_key_exists('weight', $data)) $updates['weight'] = $data['weight'];
-        if (isset($data['rest']))   $updates['rest_time'] = $data['rest'];
+        if (isset($data['sets'])) {
+            $updates['sets'] = $data['sets'];
+        }
+        if (isset($data['reps'])) {
+            $updates['reps'] = (string) $data['reps'];
+        }
+        if (array_key_exists('weight', $data)) {
+            $updates['weight'] = $data['weight'];
+        }
+        if (isset($data['rest'])) {
+            $updates['rest_time'] = $data['rest'];
+        }
 
         $exercise->update($updates);
 
@@ -399,7 +409,7 @@ class RutinasController extends Controller
     public function exerciseDestroy(Request $request, int $id): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -418,15 +428,15 @@ class RutinasController extends Controller
     public function exercisesReorder(Request $request, int $routineId): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
         $routine = Routine::where('coach_id', $coachId)->findOrFail($routineId);
 
         $data = $request->validate([
-            'order'        => 'required|array',
-            'order.*.id'   => 'required|integer',
+            'order' => 'required|array',
+            'order.*.id' => 'required|integer',
             'order.*.order' => 'required|integer|min:1',
         ]);
 
@@ -452,12 +462,12 @@ class RutinasController extends Controller
     public function assignmentStore(Request $request): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
         $data = $request->validate([
-            'clientId'  => 'required|integer',
+            'clientId' => 'required|integer',
             'routineId' => 'required|integer',
         ]);
 
@@ -480,23 +490,23 @@ class RutinasController extends Controller
         }
 
         $assignment = RoutineAssignment::create([
-            'client_id'   => $data['clientId'],
-            'routine_id'  => $data['routineId'],
-            'coach_id'    => $coachId,
-            'status'      => 'active',
+            'client_id' => $data['clientId'],
+            'routine_id' => $data['routineId'],
+            'coach_id' => $coachId,
+            'status' => 'active',
             'assigned_at' => now(),
         ]);
 
         $assignment->load(['client.user', 'routine']);
 
         return response()->json([
-            'id'          => $assignment->id,
-            'clientId'    => $assignment->client_id,
-            'clientName'  => $assignment->client->user->name ?? null,
-            'routineId'   => $assignment->routine_id,
+            'id' => $assignment->id,
+            'clientId' => $assignment->client_id,
+            'clientName' => $assignment->client->user->name ?? null,
+            'routineId' => $assignment->routine_id,
             'routineName' => $assignment->routine->name ?? null,
-            'status'      => $assignment->status,
-            'assignedAt'  => $assignment->assigned_at->toISOString(),
+            'status' => $assignment->status,
+            'assignedAt' => $assignment->assigned_at->toISOString(),
         ], 201);
     }
 
@@ -507,7 +517,7 @@ class RutinasController extends Controller
     public function assignmentsList(Request $request): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -521,13 +531,13 @@ class RutinasController extends Controller
         $assignments = $query->orderByDesc('assigned_at')
             ->get()
             ->map(fn ($a) => [
-                'id'          => $a->id,
-                'clientId'    => $a->client_id,
-                'clientName'  => $a->client->user->name ?? null,
-                'routineId'   => $a->routine_id,
+                'id' => $a->id,
+                'clientId' => $a->client_id,
+                'clientName' => $a->client->user->name ?? null,
+                'routineId' => $a->routine_id,
                 'routineName' => $a->routine->name ?? null,
-                'status'      => $a->status,
-                'assignedAt'  => $a->assigned_at?->toISOString(),
+                'status' => $a->status,
+                'assignedAt' => $a->assigned_at?->toISOString(),
             ]);
 
         return response()->json($assignments);
@@ -540,7 +550,7 @@ class RutinasController extends Controller
     public function assignmentStatus(Request $request, int $id): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -553,7 +563,7 @@ class RutinasController extends Controller
         $assignment->update(['status' => $data['status']]);
 
         return response()->json([
-            'id'     => $assignment->id,
+            'id' => $assignment->id,
             'status' => $assignment->status,
         ]);
     }
@@ -569,7 +579,7 @@ class RutinasController extends Controller
     public function clientRoutinesList(Request $request, int $clientId): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -578,7 +588,7 @@ class RutinasController extends Controller
             ->with('user')
             ->first();
 
-        if (!$client) {
+        if (! $client) {
             return response()->json(['error' => 'Cliente no encontrado'], 404);
         }
 
@@ -600,10 +610,10 @@ class RutinasController extends Controller
 
         $formattedAssignments = $assignments->map(fn ($a) => [
             'assignmentId' => $a->id,
-            'status'       => $a->status,
-            'assignedAt'   => $a->assigned_at?->toISOString(),
-            'source'       => 'web',
-            'routine'      => $a->routine ? $this->formatRoutine($a->routine) : null,
+            'status' => $a->status,
+            'assignedAt' => $a->assigned_at?->toISOString(),
+            'source' => 'web',
+            'routine' => $a->routine ? $this->formatRoutine($a->routine) : null,
         ])->values();
 
         // Include routines created directly from mobile (client_id set, no assignment record)
@@ -615,22 +625,22 @@ class RutinasController extends Controller
             ->get()
             ->map(fn ($r) => [
                 'assignmentId' => null,
-                'status'       => 'active',
-                'assignedAt'   => $r->created_at?->toISOString(),
-                'source'       => 'mobile',
-                'routine'      => $this->formatRoutine($r),
+                'status' => 'active',
+                'assignedAt' => $r->created_at?->toISOString(),
+                'source' => 'mobile',
+                'routine' => $this->formatRoutine($r),
             ]);
 
         $allAssignments = $formattedAssignments->concat($mobileRoutines)->values();
 
         return response()->json([
             'client' => [
-                'id'        => $client->user_id,
-                'name'      => $client->user->name,
-                'email'     => $client->user->email,
-                'avatar'    => $initials,
+                'id' => $client->user_id,
+                'name' => $client->user->name,
+                'email' => $client->user->email,
+                'avatar' => $initials,
                 'objective' => $client->goal ?? $client->user->objective,
-                'height'    => $client->height,
+                'height' => $client->height,
                 'birthDate' => $client->birth_date?->toDateString(),
             ],
             'assignments' => $allAssignments,
@@ -644,35 +654,35 @@ class RutinasController extends Controller
     private function formatRoutine(Routine $routine): array
     {
         return [
-            'id'              => $routine->id,
-            'name'            => $routine->name,
-            'description'     => $routine->description,
-            'tag'             => $routine->tag,
-            'iconType'        => $routine->icon_type,
-            'accentColor'     => $routine->accent_color,
-            'difficulty'      => $routine->difficulty,
+            'id' => $routine->id,
+            'name' => $routine->name,
+            'description' => $routine->description,
+            'tag' => $routine->tag,
+            'iconType' => $routine->icon_type,
+            'accentColor' => $routine->accent_color,
+            'difficulty' => $routine->difficulty,
             'difficultyLabel' => $routine->difficulty_label,
-            'durationLabel'   => $routine->duration_label,
-            'trainingPlan'    => $routine->training_plan,
-            'isActive'        => $routine->is_active,
-            'highlighted'     => $routine->difficulty > 50,
-            'totalVolume'     => $routine->total_volume,
-            'estDuration'     => $routine->est_duration,
-            'exercises'       => $routine->exercises->map(fn ($ex) => $this->formatExercise($ex))->values(),
-            'createdAt'       => $routine->created_at?->toISOString(),
+            'durationLabel' => $routine->duration_label,
+            'trainingPlan' => $routine->training_plan,
+            'isActive' => $routine->is_active,
+            'highlighted' => $routine->difficulty > 50,
+            'totalVolume' => $routine->total_volume,
+            'estDuration' => $routine->est_duration,
+            'exercises' => $routine->exercises->map(fn ($ex) => $this->formatExercise($ex))->values(),
+            'createdAt' => $routine->created_at?->toISOString(),
         ];
     }
 
     private function formatExercise(RoutineExercise $ex): array
     {
         return [
-            'id'     => $ex->id,
-            'name'   => $ex->exercise_name,
-            'sets'   => $ex->sets,
-            'reps'   => (int) $ex->reps,
+            'id' => $ex->id,
+            'name' => $ex->exercise_name,
+            'sets' => $ex->sets,
+            'reps' => (int) $ex->reps,
             'weight' => $ex->weight ?? '',
-            'rest'   => $ex->rest_time,
-            'order'  => $ex->order,
+            'rest' => $ex->rest_time,
+            'order' => $ex->order,
         ];
     }
 

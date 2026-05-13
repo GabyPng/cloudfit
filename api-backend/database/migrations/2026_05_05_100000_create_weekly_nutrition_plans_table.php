@@ -22,7 +22,7 @@ return new class extends Migration
         });
 
         Schema::table('clients', function (Blueprint $table) {
-            if (!Schema::hasColumn('clients', 'weekly_nutrition_notes')) {
+            if (! Schema::hasColumn('clients', 'weekly_nutrition_notes')) {
                 $table->text('weekly_nutrition_notes')->nullable();
             }
         });

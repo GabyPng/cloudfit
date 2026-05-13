@@ -148,10 +148,10 @@ class ChatbotController extends Controller
         $hint = trim($message) !== '' ? "Tu mensaje fue: '{$message}'." : 'No pude identificar claramente tu intención.';
 
         return match ($roleName) {
-            'coach' => $hint . " Puedo ayudarte con clientes, rutinas, progreso o búsqueda de ejercicios. Prueba con algo como: 'muéstrame mis clientes' o usa uno de los botones.",
-            'nutriologo' => $hint . " Puedo ayudarte con pacientes, planes nutricionales, macros y comidas. Prueba con algo como: 'muéstrame mis pacientes' o 'ver macros del plan'.",
-            'cliente' => $hint . " Puedo ayudarte con tus rutinas, tu plan nutricional, tus macros o tus especialistas asignados. Intenta reformularlo o usar los botones sugeridos.",
-            default => $hint . ' Intenta con una de las opciones sugeridas para que pueda ayudarte mejor.',
+            'coach' => $hint." Puedo ayudarte con clientes, rutinas, progreso o búsqueda de ejercicios. Prueba con algo como: 'muéstrame mis clientes' o usa uno de los botones.",
+            'nutriologo' => $hint." Puedo ayudarte con pacientes, planes nutricionales, macros y comidas. Prueba con algo como: 'muéstrame mis pacientes' o 'ver macros del plan'.",
+            'cliente' => $hint.' Puedo ayudarte con tus rutinas, tu plan nutricional, tus macros o tus especialistas asignados. Intenta reformularlo o usar los botones sugeridos.',
+            default => $hint.' Intenta con una de las opciones sugeridas para que pueda ayudarte mejor.',
         };
     }
 }

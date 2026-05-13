@@ -18,7 +18,7 @@ return new class extends Migration
         // If you ever need to restore it, you can recreate the schema
         // But since it was unused, we leave the down() empty or optional.
         // To be safe, we provide a minimal recreation (without foreign keys).
-        if (!Schema::hasTable('exercises')) {
+        if (! Schema::hasTable('exercises')) {
             Schema::create('exercises', function ($table) {
                 $table->id();
                 $table->string('name');

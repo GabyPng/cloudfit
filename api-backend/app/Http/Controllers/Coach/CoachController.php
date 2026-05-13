@@ -21,15 +21,17 @@ class CoachController extends Controller
     private function resolveCoachId(Request $request): ?int
     {
         $email = $request->attributes->get('supabase_email');
-        if (!$email) return null;
+        if (! $email) {
+            return null;
+        }
 
-        return Cache::remember('coach_uid_' . md5($email), 300, fn() => User::where('email', $email)->value('user_id'));
+        return Cache::remember('coach_uid_'.md5($email), 300, fn () => User::where('email', $email)->value('user_id'));
     }
 
     public function dashboard(Request $request)
     {
         $coachId = $this->resolveCoachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -48,11 +50,11 @@ class CoachController extends Controller
             ])
             ->first();
 
-        $totalAtletas  = $clientStats->total ?? 0;
+        $totalAtletas = $clientStats->total ?? 0;
         $nuevosEsteMes = $clientStats->nuevos ?? 0;
 
         // ── 3. Activity KPIs: all workout + assignment stats in one query ──
-        $wlHoy    = DB::table('workout_logs')->select('client_id')->where('date', $today)->where('is_complete', true)->distinct();
+        $wlHoy = DB::table('workout_logs')->select('client_id')->where('date', $today)->where('is_complete', true)->distinct();
         $wlSemana = DB::table('workout_logs')->select('client_id')->where('date', '>=', $today->copy()->subDays(7))->where('is_complete', true)->distinct();
 
         $actStats = DB::table('clients')
@@ -66,9 +68,9 @@ class CoachController extends Controller
             ->first();
 
         $clientesConRutinaActiva = $actStats->con_rutina ?? 0;
-        $planesActivos           = $actStats->planes_activos ?? 0;
-        $entrenaronHoy           = $actStats->entrenaron_hoy ?? 0;
-        $alertasInactividad      = $actStats->alerta_inactividad ?? 0;
+        $planesActivos = $actStats->planes_activos ?? 0;
+        $entrenaronHoy = $actStats->entrenaron_hoy ?? 0;
+        $alertasInactividad = $actStats->alerta_inactividad ?? 0;
 
         $porcentajeCumplimiento = $clientesConRutinaActiva > 0
             ? round(($entrenaronHoy / $clientesConRutinaActiva) * 100)
@@ -79,7 +81,7 @@ class CoachController extends Controller
         $lastProgress = DB::table('progress as p2')
             ->joinSub(
                 DB::table('progress')->selectRaw('client_id, MAX(date) as max_date')->groupBy('client_id'),
-                'lp', fn($join) => $join->on('p2.client_id', '=', 'lp.client_id')->whereColumn('p2.date', 'lp.max_date')
+                'lp', fn ($join) => $join->on('p2.client_id', '=', 'lp.client_id')->whereColumn('p2.date', 'lp.max_date')
             )
             ->select(['p2.client_id', 'p2.weight', 'p2.body_fat']);
 
@@ -118,44 +120,44 @@ class CoachController extends Controller
             ->groupBy('client_id');
 
         $clientes = $clientes->map(function ($row) use ($today, $rutinasPorCliente, $directRoutinasPorCliente) {
-                $lastDate = $row->last_date ? Carbon::parse($row->last_date) : null;
-                $inactive = !$lastDate || $lastDate->lt($today->copy()->subDays(7));
+            $lastDate = $row->last_date ? Carbon::parse($row->last_date) : null;
+            $inactive = ! $lastDate || $lastDate->lt($today->copy()->subDays(7));
 
-                $assignments = $rutinasPorCliente->get($row->id, collect());
-                $assignedRoutineIds = $assignments->pluck('routine_id')->filter()->toArray();
-                $rutinas = $assignments->map(fn ($a) => [
-                    'id'          => $a->routine_id,
-                    'name'        => $a->routine->name ?? 'Sin nombre',
-                    'iconType'    => $a->routine->icon_type ?? 'dumbbell',
-                    'accentColor' => $a->routine->accent_color ?? '#cafd00',
-                    'tag'         => $a->routine->tag ?? null,
-                ])->values()->toArray();
+            $assignments = $rutinasPorCliente->get($row->id, collect());
+            $assignedRoutineIds = $assignments->pluck('routine_id')->filter()->toArray();
+            $rutinas = $assignments->map(fn ($a) => [
+                'id' => $a->routine_id,
+                'name' => $a->routine->name ?? 'Sin nombre',
+                'iconType' => $a->routine->icon_type ?? 'dumbbell',
+                'accentColor' => $a->routine->accent_color ?? '#cafd00',
+                'tag' => $a->routine->tag ?? null,
+            ])->values()->toArray();
 
-                // Add direct mobile routines not already in assignments
-                foreach ($directRoutinasPorCliente->get($row->id, collect()) as $r) {
-                    if (!in_array($r->id, $assignedRoutineIds)) {
-                        $rutinas[] = [
-                            'id'          => $r->id,
-                            'name'        => $r->name,
-                            'iconType'    => $r->icon_type ?? 'dumbbell',
-                            'accentColor' => $r->accent_color ?? '#cafd00',
-                            'tag'         => $r->tag ?? null,
-                        ];
-                    }
+            // Add direct mobile routines not already in assignments
+            foreach ($directRoutinasPorCliente->get($row->id, collect()) as $r) {
+                if (! in_array($r->id, $assignedRoutineIds)) {
+                    $rutinas[] = [
+                        'id' => $r->id,
+                        'name' => $r->name,
+                        'iconType' => $r->icon_type ?? 'dumbbell',
+                        'accentColor' => $r->accent_color ?? '#cafd00',
+                        'tag' => $r->tag ?? null,
+                    ];
                 }
+            }
 
-                return [
-                    'id'           => $row->id,
-                    'nombre'       => $row->nombre,
-                    'avatar'       => $row->avatar,
-                    'objetivo'     => $row->objetivo,
-                    'rutinas'      => $rutinas,
-                    'estado'       => $inactive ? 'inactivo' : 'activo',
-                    'estado_label' => $inactive ? 'Inactivo' : 'Entrenado',
-                    'peso'         => $row->peso ? (float) $row->peso : null,
-                    'grasa'        => $row->grasa ? (float) $row->grasa : null,
-                ];
-            });
+            return [
+                'id' => $row->id,
+                'nombre' => $row->nombre,
+                'avatar' => $row->avatar,
+                'objetivo' => $row->objetivo,
+                'rutinas' => $rutinas,
+                'estado' => $inactive ? 'inactivo' : 'activo',
+                'estado_label' => $inactive ? 'Inactivo' : 'Entrenado',
+                'peso' => $row->peso ? (float) $row->peso : null,
+                'grasa' => $row->grasa ? (float) $row->grasa : null,
+            ];
+        });
 
         // ── Actividad Reciente ──────────────────────────────────────
         $actividades = collect();
@@ -171,10 +173,10 @@ class CoachController extends Controller
             ->limit(5)
             ->get()
             ->map(fn ($log) => [
-                'tipo'           => 'rutina_completada',
+                'tipo' => 'rutina_completada',
                 'cliente_nombre' => $log->cliente_nombre,
-                'detalle'        => "completó {$log->rutina_nombre}",
-                'tiempo_hace'    => Carbon::parse($log->created_at)->diffForHumans(),
+                'detalle' => "completó {$log->rutina_nombre}",
+                'tiempo_hace' => Carbon::parse($log->created_at)->diffForHumans(),
             ]);
         $actividades = $actividades->merge($completadas);
 
@@ -188,10 +190,10 @@ class CoachController extends Controller
             ->limit(3)
             ->get()
             ->map(fn ($p) => [
-                'tipo'           => 'peso_registrado',
+                'tipo' => 'peso_registrado',
                 'cliente_nombre' => $p->cliente_nombre,
-                'detalle'        => "registró {$p->weight} kg",
-                'tiempo_hace'    => Carbon::parse($p->created_at)->diffForHumans(),
+                'detalle' => "registró {$p->weight} kg",
+                'tiempo_hace' => Carbon::parse($p->created_at)->diffForHumans(),
             ]);
         $actividades = $actividades->merge($pesoReciente);
 
@@ -203,23 +205,23 @@ class CoachController extends Controller
             ->limit(3)
             ->get()
             ->map(fn ($c) => [
-                'tipo'           => 'nuevo_cliente',
+                'tipo' => 'nuevo_cliente',
                 'cliente_nombre' => $c->cliente_nombre,
-                'detalle'        => 'se unió a tu equipo',
-                'tiempo_hace'    => Carbon::parse($c->created_at)->diffForHumans(),
+                'detalle' => 'se unió a tu equipo',
+                'tiempo_hace' => Carbon::parse($c->created_at)->diffForHumans(),
             ]);
         $actividades = $actividades->merge($nuevos);
 
         $actividades = $actividades->take(8)->values();
 
         return response()->json([
-            'totalAtletas'           => $totalAtletas,
-            'nuevosEsteMes'          => $nuevosEsteMes,
+            'totalAtletas' => $totalAtletas,
+            'nuevosEsteMes' => $nuevosEsteMes,
             'porcentajeCumplimiento' => $porcentajeCumplimiento,
-            'alertasInactividad'     => $alertasInactividad,
-            'planesActivos'          => $planesActivos,
-            'clientes'               => $clientes,
-            'actividades'            => $actividades,
+            'alertasInactividad' => $alertasInactividad,
+            'planesActivos' => $planesActivos,
+            'clientes' => $clientes,
+            'actividades' => $actividades,
         ]);
     }
 

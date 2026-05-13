@@ -2,7 +2,7 @@ name: CI – Cloudfit
 
 on:
   push:
-    branches: [main]
+    branches: [main, pipeline]
   pull_request:
     branches: [main]
 

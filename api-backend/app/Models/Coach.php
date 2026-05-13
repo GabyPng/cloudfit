@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Coach extends Model
 {
     protected $primaryKey = 'user_id';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -29,12 +30,12 @@ class Coach extends Model
 
     protected $casts = [
         'certificate_uploads' => 'array',
-        'specialties'         => 'array',
-        'social_links'        => 'array',
-        'profile_visible'     => 'boolean',
-        'is_verified'         => 'boolean',
-        'session_price'       => 'decimal:2',
-        'verified_at'         => 'datetime',
+        'specialties' => 'array',
+        'social_links' => 'array',
+        'profile_visible' => 'boolean',
+        'is_verified' => 'boolean',
+        'session_price' => 'decimal:2',
+        'verified_at' => 'datetime',
     ];
 
     public function user()

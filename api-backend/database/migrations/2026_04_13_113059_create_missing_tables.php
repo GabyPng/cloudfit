@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up()
     {
-        if (!Schema::hasTable('workout_logs')) {
+        if (! Schema::hasTable('workout_logs')) {
             Schema::create('workout_logs', function (Blueprint $table) {
                 $table->id('log_id');
                 $table->foreignId('client_id')->constrained('clients', 'user_id')->cascadeOnDelete();
@@ -19,7 +19,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('progress')) {
+        if (! Schema::hasTable('progress')) {
             Schema::create('progress', function (Blueprint $table) {
                 $table->id('progress_id');
                 $table->foreignId('client_id')->constrained('clients', 'user_id')->cascadeOnDelete();
@@ -30,7 +30,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('tickets')) {
+        if (! Schema::hasTable('tickets')) {
             Schema::create('tickets', function (Blueprint $table) {
                 $table->id('ticket_id');
                 $table->foreignId('user_id')->constrained('users', 'user_id')->cascadeOnDelete();
@@ -41,7 +41,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('messages')) {
+        if (! Schema::hasTable('messages')) {
             Schema::create('messages', function (Blueprint $table) {
                 $table->id('message_id');
                 $table->foreignId('ticket_id')->constrained('tickets', 'ticket_id')->cascadeOnDelete();
@@ -52,7 +52,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('managements')) {
+        if (! Schema::hasTable('managements')) {
             Schema::create('managements', function (Blueprint $table) {
                 $table->id('management_id');
                 $table->foreignId('admin_id')->constrained('admins', 'user_id')->cascadeOnDelete();
@@ -63,7 +63,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('certificates')) {
+        if (! Schema::hasTable('certificates')) {
             Schema::create('certificates', function (Blueprint $table) {
                 $table->id('certificate_id');
                 $table->foreignId('admin_id')->constrained('admins', 'user_id')->cascadeOnDelete();

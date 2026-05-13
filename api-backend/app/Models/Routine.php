@@ -24,7 +24,7 @@ class Routine extends Model
     protected function casts(): array
     {
         return [
-            'is_active'  => 'boolean',
+            'is_active' => 'boolean',
             'difficulty' => 'integer',
         ];
     }
@@ -64,9 +64,9 @@ class Routine extends Model
     public function scopeLevel($query, string $level)
     {
         return match ($level) {
-            'basics'   => $query->where('difficulty', '<=', 40),
+            'basics' => $query->where('difficulty', '<=', 40),
             'advanced' => $query->where('difficulty', '>', 40),
-            default    => $query,
+            default => $query,
         };
     }
 

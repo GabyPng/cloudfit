@@ -23,7 +23,7 @@ class RoutineExercise extends Model
     protected function casts(): array
     {
         return [
-            'sets'  => 'integer',
+            'sets' => 'integer',
             'order' => 'integer',
         ];
     }

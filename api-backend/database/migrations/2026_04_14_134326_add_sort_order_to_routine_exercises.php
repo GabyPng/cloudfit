@@ -9,7 +9,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('routine_exercises', function (Blueprint $table) {
-            if (!Schema::hasColumn('routine_exercises', 'sort_order')) {
+            if (! Schema::hasColumn('routine_exercises', 'sort_order')) {
                 $table->integer('sort_order')->nullable()->after('notes');
             }
         });

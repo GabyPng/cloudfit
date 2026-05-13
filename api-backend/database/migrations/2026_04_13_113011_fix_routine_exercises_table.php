@@ -2,14 +2,20 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('exercise_catalog')) {
+        // Esta migración usa sintaxis exclusiva de PostgreSQL (JOIN UPDATE, ALTER COLUMN,
+        // composite PK). En SQLite (entorno de testing) no hay datos que migrar, se omite.
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
+        if (! Schema::hasTable('exercise_catalog')) {
             Schema::create('exercise_catalog', function (Blueprint $table) {
                 $table->id('exercise_id');
                 $table->string('name')->unique();
@@ -17,26 +23,26 @@ return new class extends Migration
             });
         }
 
-        DB::statement("
+        DB::statement('
             INSERT INTO exercise_catalog (name, created_at, updated_at)
             SELECT DISTINCT exercise_name, NOW(), NOW()
             FROM routine_exercises
             WHERE exercise_name IS NOT NULL
             ON CONFLICT (name) DO NOTHING
-        ");
+        ');
 
-        if (!Schema::hasColumn('routine_exercises', 'exercise_id')) {
+        if (! Schema::hasColumn('routine_exercises', 'exercise_id')) {
             Schema::table('routine_exercises', function (Blueprint $table) {
                 $table->unsignedBigInteger('exercise_id')->nullable();
             });
         }
 
-        DB::statement("
+        DB::statement('
             UPDATE routine_exercises re
             SET exercise_id = ec.exercise_id
             FROM exercise_catalog ec
             WHERE re.exercise_name = ec.name
-        ");
+        ');
 
         DB::statement('ALTER TABLE routine_exercises ALTER COLUMN exercise_id SET NOT NULL');
         DB::statement('ALTER TABLE routine_exercises DROP CONSTRAINT IF EXISTS routine_exercises_pkey');

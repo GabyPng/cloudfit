@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::table('routines', function (Blueprint $table) {
             $table->dropForeign(['user_id']);
 
-            if (Schema::hasColumn('routines', 'user_id') && !Schema::hasColumn('routines', 'client_id')) {
+            if (Schema::hasColumn('routines', 'user_id') && ! Schema::hasColumn('routines', 'client_id')) {
                 $table->renameColumn('user_id', 'client_id');
             }
 
@@ -31,7 +31,7 @@ return new class extends Migration
 
         Schema::table('routines', function (Blueprint $table) {
             $table->dropForeign(['client_id']);
-            if (Schema::hasColumn('routines', 'client_id') && !Schema::hasColumn('routines', 'user_id')) {
+            if (Schema::hasColumn('routines', 'client_id') && ! Schema::hasColumn('routines', 'user_id')) {
                 $table->renameColumn('client_id', 'user_id');
             }
             $table->foreign('user_id')->references('user_id')->on('users')->cascadeOnDelete();

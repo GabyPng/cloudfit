@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\JwtTestHelper;
 use Tests\TestCase;
 
@@ -19,16 +20,12 @@ class ProtectedRoutesTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Rutas que requieren autenticación (supabase.auth).
-     * Todas deben devolver 401 sin token.
-     */
     private array $rutasProtegidas = [
-        ['GET',  '/api/me'],
-        ['GET',  '/api/admin/dashboard'],
-        ['GET',  '/api/coach/dashboard'],
-        ['GET',  '/api/nutriologo/dashboard'],
-        ['GET',  '/api/cliente/dashboard'],
+        ['GET', '/api/me'],
+        ['GET', '/api/admin/dashboard'],
+        ['GET', '/api/coach/dashboard'],
+        ['GET', '/api/nutriologo/dashboard'],
+        ['GET', '/api/cliente/dashboard'],
     ];
 
     protected function setUp(): void
@@ -39,23 +36,21 @@ class ProtectedRoutesTest extends TestCase
 
     // ── Tests de rechazo sin token ────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function rutas_protegidas_devuelven_401_sin_token(): void
     {
         foreach ($this->rutasProtegidas as [$method, $uri]) {
-            $response = $this->json($method, $uri);
-
-            $response->assertStatus(401)
+            $this->json($method, $uri)
+                ->assertStatus(401)
                 ->assertJsonFragment(['message' => 'Token requerido.']);
         }
     }
 
     // ── Tests de rechazo con token inválido ──────────────────────────────
 
-    /** @test */
+    #[Test]
     public function ruta_me_devuelve_401_con_token_malformado(): void
     {
-        // El JWKS está vacío: firebase/jwt no puede verificar → lanza excepción → 401
         Http::fake([
             '*/auth/v1/.well-known/jwks.json' => Http::response(['keys' => []], 200),
         ]);
@@ -65,7 +60,7 @@ class ProtectedRoutesTest extends TestCase
             ->assertStatus(401);
     }
 
-    /** @test */
+    #[Test]
     public function ruta_me_devuelve_401_con_token_expirado(): void
     {
         [$privateKey, $jwks] = JwtTestHelper::generateKeyPair();
@@ -75,7 +70,7 @@ class ProtectedRoutesTest extends TestCase
         ]);
 
         $tokenExpirado = JwtTestHelper::makeToken($privateKey, [
-            'exp' => time() - 3600, // ya expiró
+            'exp' => time() - 3600,
             'iat' => time() - 7200,
         ]);
 
@@ -87,7 +82,7 @@ class ProtectedRoutesTest extends TestCase
 
     // ── Tests de rechazo por rol insuficiente ────────────────────────────
 
-    /** @test */
+    #[Test]
     public function ruta_admin_devuelve_403_con_rol_cliente(): void
     {
         [$privateKey, $jwks] = JwtTestHelper::generateKeyPair();
@@ -96,16 +91,14 @@ class ProtectedRoutesTest extends TestCase
             '*/auth/v1/.well-known/jwks.json' => Http::response($jwks, 200),
         ]);
 
-        $token = JwtTestHelper::makeToken($privateKey, [
-            'user_metadata' => ['role' => 'CLIENTE'],
-        ]);
+        $token = JwtTestHelper::makeToken($privateKey, ['user_metadata' => ['role' => 'CLIENTE']]);
 
         $this->withToken($token)
             ->getJson('/api/admin/dashboard')
             ->assertStatus(403);
     }
 
-    /** @test */
+    #[Test]
     public function ruta_coach_devuelve_403_con_rol_cliente(): void
     {
         [$privateKey, $jwks] = JwtTestHelper::generateKeyPair();
@@ -114,16 +107,14 @@ class ProtectedRoutesTest extends TestCase
             '*/auth/v1/.well-known/jwks.json' => Http::response($jwks, 200),
         ]);
 
-        $token = JwtTestHelper::makeToken($privateKey, [
-            'user_metadata' => ['role' => 'CLIENTE'],
-        ]);
+        $token = JwtTestHelper::makeToken($privateKey, ['user_metadata' => ['role' => 'CLIENTE']]);
 
         $this->withToken($token)
             ->getJson('/api/coach/dashboard')
             ->assertStatus(403);
     }
 
-    /** @test */
+    #[Test]
     public function ruta_nutriologo_devuelve_403_con_rol_coach(): void
     {
         [$privateKey, $jwks] = JwtTestHelper::generateKeyPair();
@@ -132,9 +123,7 @@ class ProtectedRoutesTest extends TestCase
             '*/auth/v1/.well-known/jwks.json' => Http::response($jwks, 200),
         ]);
 
-        $token = JwtTestHelper::makeToken($privateKey, [
-            'user_metadata' => ['role' => 'COACH'],
-        ]);
+        $token = JwtTestHelper::makeToken($privateKey, ['user_metadata' => ['role' => 'COACH']]);
 
         $this->withToken($token)
             ->getJson('/api/nutriologo/dashboard')
@@ -143,7 +132,7 @@ class ProtectedRoutesTest extends TestCase
 
     // ── Test de token válido pasa el middleware ───────────────────────────
 
-    /** @test */
+    #[Test]
     public function token_valido_pasa_el_middleware_de_autenticacion(): void
     {
         [$privateKey, $jwks] = JwtTestHelper::generateKeyPair();
@@ -152,12 +141,8 @@ class ProtectedRoutesTest extends TestCase
             '*/auth/v1/.well-known/jwks.json' => Http::response($jwks, 200),
         ]);
 
-        $token = JwtTestHelper::makeToken($privateKey, [
-            'user_metadata' => ['role' => 'CLIENTE'],
-        ]);
+        $token = JwtTestHelper::makeToken($privateKey, ['user_metadata' => ['role' => 'CLIENTE']]);
 
-        // El middleware deja pasar el token → el controlador responde (puede ser 404
-        // si el usuario no existe en BD local, pero definitivamente NO es 401).
         $response = $this->withToken($token)->getJson('/api/me');
 
         $this->assertNotEquals(401, $response->status(), 'El middleware rechazó un token válido.');
