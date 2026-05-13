@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import NutriologoLayout from './NutriologoLayout';
+import { track } from '../../lib/analytics';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -522,6 +523,11 @@ export default function NutriologoSeguimientoPage() {
           ? { ...p, last_record_date: body.date, last_weight_kg: body.weight_kg || p.last_weight_kg, last_adherence: body.adherence_pct || p.last_adherence }
           : p
       ));
+      track('progress_logged', {
+        patient_id: selectedId,
+        has_weight: !!body.weight_kg,
+        has_adherence: !!body.adherence_pct,
+      });
       setProgressForm(emptyProgress);
       setProgressOpen(false);
       showToast('Registro de progreso guardado correctamente.');
@@ -574,6 +580,10 @@ export default function NutriologoSeguimientoPage() {
       setPatients(prev => prev.map(p =>
         String(p.id) === String(selectedId) ? { ...p, pending_changes: (p.pending_changes ?? 0) + 1 } : p
       ));
+      track('diet_change_proposed', {
+        patient_id: selectedId,
+        change_type: dietForm.change_type,
+      });
       setDietForm(emptyDiet);
       setDietOpen(false);
       showToast('Propuesta enviada. El cliente recibirá una notificación.');

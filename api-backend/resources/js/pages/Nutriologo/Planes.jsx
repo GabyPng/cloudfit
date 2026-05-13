@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { syncLocalUserProfile } from '../../lib/localUserSync';
+import { track } from '../../lib/analytics';
 import KpiCard from '../Coach/components/KpiCard';
 import NutriologoLayout from './NutriologoLayout';
 
@@ -394,9 +395,11 @@ export default function NutriologoPlanesPage() {
 
       if (modal === 'create') {
         await requestJson('/api/nutriologo/planes', { method: 'POST', body: JSON.stringify(body) });
+        track('plan_created', { plan_title: body.title, meals_count: body.meals.length, daily_calories: body.daily_calories ?? null });
         showToast('Plan nutricional creado correctamente.');
       } else {
         await requestJson(`/api/nutriologo/planes/${selectedPlanId}`, { method: 'PUT', body: JSON.stringify(body) });
+        track('plan_updated', { plan_id: selectedPlanId });
         showToast('Plan actualizado correctamente.');
       }
 
@@ -413,6 +416,7 @@ export default function NutriologoPlanesPage() {
     try {
       setSaving(true);
       await requestJson(`/api/nutriologo/planes/${selectedPlanId}`, { method: 'DELETE' });
+      track('plan_deleted', { plan_id: selectedPlanId });
       setSelectedPlanId(null);
       setPlanDetail(null);
       setModal(null);
