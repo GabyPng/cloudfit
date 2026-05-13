@@ -16,9 +16,11 @@ class WeeklyPlanController extends Controller
     private function coachId(Request $request): ?int
     {
         $email = $request->attributes->get('supabase_email');
-        if (!$email) return null;
+        if (! $email) {
+            return null;
+        }
 
-        return Cache::remember('coach_uid_' . md5($email), 300, fn() => User::where('email', $email)->value('user_id'));
+        return Cache::remember('coach_uid_'.md5($email), 300, fn () => User::where('email', $email)->value('user_id'));
     }
 
     /**
@@ -30,7 +32,7 @@ class WeeklyPlanController extends Controller
     public function show(Request $request, int $clientId): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
@@ -62,15 +64,15 @@ class WeeklyPlanController extends Controller
     public function save(Request $request, int $clientId): JsonResponse
     {
         $coachId = $this->coachId($request);
-        if (!$coachId) {
+        if (! $coachId) {
             return response()->json(['error' => 'Coach no encontrado'], 404);
         }
 
         $validated = $request->validate([
-            'plan'     => 'required|array',
-            'plan.*'   => 'array',
+            'plan' => 'required|array',
+            'plan.*' => 'array',
             'plan.*.*' => 'integer|exists:routines,id',
-            'notes'    => 'nullable|string|max:2000',
+            'notes' => 'nullable|string|max:2000',
         ]);
 
         DB::transaction(function () use ($clientId, $coachId, $validated) {
@@ -80,18 +82,18 @@ class WeeklyPlanController extends Controller
                 ->delete();
 
             $rows = [];
-            $now  = now();
+            $now = now();
 
             foreach (self::VALID_DAYS as $day) {
                 foreach (($validated['plan'][$day] ?? []) as $order => $routineId) {
                     $rows[] = [
-                        'client_id'   => $clientId,
-                        'coach_id'    => $coachId,
-                        'routine_id'  => $routineId,
+                        'client_id' => $clientId,
+                        'coach_id' => $coachId,
+                        'routine_id' => $routineId,
                         'day_of_week' => $day,
-                        'sort_order'  => $order,
-                        'created_at'  => $now,
-                        'updated_at'  => $now,
+                        'sort_order' => $order,
+                        'created_at' => $now,
+                        'updated_at' => $now,
                     ];
                 }
             }

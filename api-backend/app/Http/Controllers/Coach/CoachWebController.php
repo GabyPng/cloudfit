@@ -19,7 +19,7 @@ class CoachWebController extends Controller
     public function inicio(Request $request)
     {
         $coachId = Auth::id();
-        $today   = Carbon::today();
+        $today = Carbon::today();
 
         // ── KPIs ────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ class CoachWebController extends Controller
             ->join('users', 'users.user_id', '=', 'clients.user_id')
             ->leftJoin('routines', function ($join) {
                 $join->on('routines.client_id', '=', 'clients.user_id')
-                     ->where('routines.is_active', true);
+                    ->where('routines.is_active', true);
             })
             ->leftJoin(
                 DB::raw('(SELECT client_id, MAX(date) as last_date FROM workout_logs GROUP BY client_id) AS last_log'),
@@ -101,13 +101,13 @@ class CoachWebController extends Controller
             ->paginate(10)
             ->through(function ($row) use ($today) {
                 $lastDate = $row->last_date ? Carbon::parse($row->last_date) : null;
-                $inactive = !$lastDate || $lastDate->lt($today->copy()->subDays(7));
+                $inactive = ! $lastDate || $lastDate->lt($today->copy()->subDays(7));
 
-                $row->estado       = $inactive ? 'inactivo' : 'activo';
+                $row->estado = $inactive ? 'inactivo' : 'activo';
                 $row->estado_label = $inactive ? 'Inactivo' : 'Entrenado';
-                $row->plan_nombre  = $row->plan_nombre ?? 'Sin plan';
-                $row->peso         = $row->peso ?? '—';
-                $row->grasa        = $row->grasa ?? '—';
+                $row->plan_nombre = $row->plan_nombre ?? 'Sin plan';
+                $row->peso = $row->peso ?? '—';
+                $row->grasa = $row->grasa ?? '—';
 
                 return $row;
             });
@@ -128,10 +128,10 @@ class CoachWebController extends Controller
             ->limit(5)
             ->get()
             ->map(fn ($log) => (object) [
-                'tipo'           => 'rutina_completada',
+                'tipo' => 'rutina_completada',
                 'cliente_nombre' => $log->cliente_nombre,
-                'detalle'        => "completó {$log->rutina_nombre}",
-                'tiempo_hace'    => Carbon::parse($log->created_at)->diffForHumans(),
+                'detalle' => "completó {$log->rutina_nombre}",
+                'tiempo_hace' => Carbon::parse($log->created_at)->diffForHumans(),
             ]);
         $actividades = $actividades->merge($completadas);
 
@@ -146,10 +146,10 @@ class CoachWebController extends Controller
             ->limit(3)
             ->get()
             ->map(fn ($p) => (object) [
-                'tipo'           => 'peso_registrado',
+                'tipo' => 'peso_registrado',
                 'cliente_nombre' => $p->cliente_nombre,
-                'detalle'        => "registró {$p->weight} kg",
-                'tiempo_hace'    => Carbon::parse($p->created_at)->diffForHumans(),
+                'detalle' => "registró {$p->weight} kg",
+                'tiempo_hace' => Carbon::parse($p->created_at)->diffForHumans(),
             ]);
         $actividades = $actividades->merge($pesoReciente);
 
@@ -162,10 +162,10 @@ class CoachWebController extends Controller
             ->limit(3)
             ->get()
             ->map(fn ($c) => (object) [
-                'tipo'           => 'nuevo_cliente',
+                'tipo' => 'nuevo_cliente',
                 'cliente_nombre' => $c->cliente_nombre,
-                'detalle'        => 'se unió a tu equipo',
-                'tiempo_hace'    => Carbon::parse($c->created_at)->diffForHumans(),
+                'detalle' => 'se unió a tu equipo',
+                'tiempo_hace' => Carbon::parse($c->created_at)->diffForHumans(),
             ]);
         $actividades = $actividades->merge($nuevos);
 
@@ -210,13 +210,13 @@ class CoachWebController extends Controller
     private function emptyDashboardData(): array
     {
         return [
-            'totalAtletas'           => 0,
-            'nuevosEsteMes'          => 0,
+            'totalAtletas' => 0,
+            'nuevosEsteMes' => 0,
             'porcentajeCumplimiento' => 0,
-            'alertasInactividad'     => 0,
-            'planesActivos'          => 0,
-            'clientes'               => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10),
-            'actividades'            => collect(),
+            'alertasInactividad' => 0,
+            'planesActivos' => 0,
+            'clientes' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10),
+            'actividades' => collect(),
         ];
     }
 }

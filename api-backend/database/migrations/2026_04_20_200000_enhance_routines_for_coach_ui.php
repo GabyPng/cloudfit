@@ -11,28 +11,28 @@ return new class extends Migration
         // ── Enhance routines table ──────────────────────────────────────
         Schema::table('routines', function (Blueprint $table) {
             // The frontend needs these extra columns for the routine cards
-            if (!Schema::hasColumn('routines', 'tag')) {
+            if (! Schema::hasColumn('routines', 'tag')) {
                 $table->string('tag')->nullable()->after('name');
             }
-            if (!Schema::hasColumn('routines', 'icon_type')) {
+            if (! Schema::hasColumn('routines', 'icon_type')) {
                 $table->string('icon_type')->default('dumbbell')->after('tag');
                 // "dumbbell" | "zap" | "heart"
             }
-            if (!Schema::hasColumn('routines', 'accent_color')) {
+            if (! Schema::hasColumn('routines', 'accent_color')) {
                 $table->string('accent_color')->default('#cafd00')->after('icon_type');
             }
-            if (!Schema::hasColumn('routines', 'difficulty')) {
+            if (! Schema::hasColumn('routines', 'difficulty')) {
                 $table->unsignedSmallInteger('difficulty')->default(50)->after('accent_color');
                 // 0-100 scale; <=40 = basics, >40 = advanced
             }
-            if (!Schema::hasColumn('routines', 'difficulty_label')) {
+            if (! Schema::hasColumn('routines', 'difficulty_label')) {
                 $table->string('difficulty_label')->default('Intermedio')->after('difficulty');
             }
-            if (!Schema::hasColumn('routines', 'duration_label')) {
+            if (! Schema::hasColumn('routines', 'duration_label')) {
                 $table->string('duration_label')->nullable()->after('difficulty_label');
                 // e.g. "8 semanas · 4 días/semana"
             }
-            if (!Schema::hasColumn('routines', 'training_plan')) {
+            if (! Schema::hasColumn('routines', 'training_plan')) {
                 $table->string('training_plan')->nullable()->after('duration_label');
                 // e.g. "Fuerza Max", "Cardio Hit"
             }
@@ -40,25 +40,25 @@ return new class extends Migration
 
         // ── Add weight column to routine_exercises ──────────────────────
         Schema::table('routine_exercises', function (Blueprint $table) {
-            if (!Schema::hasColumn('routine_exercises', 'weight')) {
+            if (! Schema::hasColumn('routine_exercises', 'weight')) {
                 $table->string('weight')->nullable()->after('rest_time');
                 // nullable = bodyweight exercises
             }
         });
 
         // ── Assignments table ───────────────────────────────────────────
-        if (!Schema::hasTable('routine_assignments')) {
+        if (! Schema::hasTable('routine_assignments')) {
             Schema::create('routine_assignments', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('client_id')
-                      ->constrained('clients', 'user_id')
-                      ->cascadeOnDelete();
+                    ->constrained('clients', 'user_id')
+                    ->cascadeOnDelete();
                 $table->foreignId('routine_id')
-                      ->constrained('routines', 'id')
-                      ->cascadeOnDelete();
+                    ->constrained('routines', 'id')
+                    ->cascadeOnDelete();
                 $table->foreignId('coach_id')
-                      ->constrained('coaches', 'user_id')
-                      ->cascadeOnDelete();
+                    ->constrained('coaches', 'user_id')
+                    ->cascadeOnDelete();
                 $table->string('status')->default('active');
                 // "active" | "paused" | "completed"
                 $table->timestamp('assigned_at')->useCurrent();

@@ -20,8 +20,8 @@ class Ticket extends Model
 
     protected $casts = [
         'resolved_at' => 'datetime',
-        'created_at'  => 'datetime',
-        'updated_at'  => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     public function user()

@@ -22,10 +22,10 @@ class ProgressRecord extends Model
     ];
 
     protected $casts = [
-        'date'           => 'date',
-        'weight_kg'      => 'decimal:2',
-        'bmi'            => 'decimal:2',
-        'body_fat_pct'   => 'decimal:2',
+        'date' => 'date',
+        'weight_kg' => 'decimal:2',
+        'bmi' => 'decimal:2',
+        'body_fat_pct' => 'decimal:2',
         'muscle_mass_kg' => 'decimal:2',
     ];
 

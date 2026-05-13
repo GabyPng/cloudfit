@@ -30,12 +30,12 @@ class Nutriologo extends Model
 
     protected $casts = [
         'certificate_uploads' => 'array',
-        'specialties'         => 'array',
-        'social_links'        => 'array',
-        'profile_visible'     => 'boolean',
-        'consultation_price'  => 'decimal:2',
-        'is_verified'         => 'boolean',
-        'verified_at'         => 'datetime',
+        'specialties' => 'array',
+        'social_links' => 'array',
+        'profile_visible' => 'boolean',
+        'consultation_price' => 'decimal:2',
+        'is_verified' => 'boolean',
+        'verified_at' => 'datetime',
     ];
 
     public function user()

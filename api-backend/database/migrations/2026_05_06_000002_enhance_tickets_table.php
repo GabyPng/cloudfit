@@ -9,16 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tickets', function (Blueprint $table) {
-            if (!Schema::hasColumn('tickets', 'category')) {
+            if (! Schema::hasColumn('tickets', 'category')) {
                 $table->enum('category', ['bug', 'duda', 'sugerencia'])->default('duda')->after('subject');
             }
-            if (!Schema::hasColumn('tickets', 'urgency')) {
+            if (! Schema::hasColumn('tickets', 'urgency')) {
                 $table->enum('urgency', ['baja', 'media', 'alta'])->default('media')->after('category');
             }
-            if (!Schema::hasColumn('tickets', 'resolved_at')) {
+            if (! Schema::hasColumn('tickets', 'resolved_at')) {
                 $table->timestamp('resolved_at')->nullable()->after('urgency');
             }
-            if (!Schema::hasColumn('tickets', 'assigned_admin_id')) {
+            if (! Schema::hasColumn('tickets', 'assigned_admin_id')) {
                 $table->unsignedBigInteger('assigned_admin_id')->nullable()->after('resolved_at');
             }
         });

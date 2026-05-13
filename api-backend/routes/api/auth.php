@@ -7,10 +7,10 @@ use Illuminate\Support\Facades\Route;
 
 // Rutas PÚBLICAS (sin autenticación)
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login',    [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login']);
 
 // Rutas PROTEGIDAS (requieren token Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/me',      [AuthController::class, 'me']);
+    Route::get('/me', [AuthController::class, 'me']);
 });

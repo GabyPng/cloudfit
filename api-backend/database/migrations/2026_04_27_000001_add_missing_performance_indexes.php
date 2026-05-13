@@ -12,7 +12,7 @@ return new class extends Migration
         // workout_logs: dashboard filters by (client_id, date, is_complete) and (client_id, date)
         if (Schema::hasTable('workout_logs')) {
             Schema::table('workout_logs', function (Blueprint $table) {
-                if (!$this->indexExists('workout_logs', 'wl_client_date_complete_idx')) {
+                if (! $this->indexExists('workout_logs', 'wl_client_date_complete_idx')) {
                     $table->index(['client_id', 'date', 'is_complete'], 'wl_client_date_complete_idx');
                 }
             });
@@ -21,7 +21,7 @@ return new class extends Migration
         // progress (coach table): subquery orders by (client_id, date DESC)
         if (Schema::hasTable('progress')) {
             Schema::table('progress', function (Blueprint $table) {
-                if (!$this->indexExists('progress', 'progress_client_date_idx')) {
+                if (! $this->indexExists('progress', 'progress_client_date_idx')) {
                     $table->index(['client_id', 'date'], 'progress_client_date_idx');
                 }
             });
@@ -30,10 +30,10 @@ return new class extends Migration
         // routine_assignments: filters by (coach_id, status) and (client_id, coach_id, status)
         if (Schema::hasTable('routine_assignments')) {
             Schema::table('routine_assignments', function (Blueprint $table) {
-                if (!$this->indexExists('routine_assignments', 'ra_coach_status_idx')) {
+                if (! $this->indexExists('routine_assignments', 'ra_coach_status_idx')) {
                     $table->index(['coach_id', 'status'], 'ra_coach_status_idx');
                 }
-                if (!$this->indexExists('routine_assignments', 'ra_client_coach_status_idx')) {
+                if (! $this->indexExists('routine_assignments', 'ra_client_coach_status_idx')) {
                     $table->index(['client_id', 'coach_id', 'status'], 'ra_client_coach_status_idx');
                 }
             });
@@ -42,7 +42,7 @@ return new class extends Migration
         // nutrition_plan_assignments: dashboard aggregates by (nutriologo_id, status)
         if (Schema::hasTable('nutrition_plan_assignments')) {
             Schema::table('nutrition_plan_assignments', function (Blueprint $table) {
-                if (!$this->indexExists('nutrition_plan_assignments', 'npa_nutriologo_status_idx')) {
+                if (! $this->indexExists('nutrition_plan_assignments', 'npa_nutriologo_status_idx')) {
                     $table->index(['nutriologo_id', 'status'], 'npa_nutriologo_status_idx');
                 }
             });
@@ -51,7 +51,7 @@ return new class extends Migration
         // routine_exercises: eager-loaded ordered by (routine_id, order)
         if (Schema::hasTable('routine_exercises')) {
             Schema::table('routine_exercises', function (Blueprint $table) {
-                if (!$this->indexExists('routine_exercises', 're_routine_order_idx')) {
+                if (! $this->indexExists('routine_exercises', 're_routine_order_idx')) {
                     $table->index(['routine_id', 'order'], 're_routine_order_idx');
                 }
             });
@@ -60,7 +60,7 @@ return new class extends Migration
         // clients: nuevos-este-mes count filters by (coach_id, created_at)
         if (Schema::hasTable('clients')) {
             Schema::table('clients', function (Blueprint $table) {
-                if (!$this->indexExists('clients', 'clients_coach_created_idx')) {
+                if (! $this->indexExists('clients', 'clients_coach_created_idx')) {
                     $table->index(['coach_id', 'created_at'], 'clients_coach_created_idx');
                 }
             });

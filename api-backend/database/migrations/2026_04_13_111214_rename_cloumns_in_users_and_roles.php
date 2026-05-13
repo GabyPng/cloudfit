@@ -10,7 +10,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            if (Schema::hasColumn('users', 'id') && !Schema::hasColumn('users', 'user_id')) {
+            if (Schema::hasColumn('users', 'id') && ! Schema::hasColumn('users', 'user_id')) {
                 $table->renameColumn('id', 'user_id');
             }
             if (Schema::hasColumn('users', 'supabase_id')) {
@@ -19,12 +19,14 @@ return new class extends Migration
         });
 
         Schema::table('roles', function (Blueprint $table) {
-            if (Schema::hasColumn('roles', 'id') && !Schema::hasColumn('roles', 'role_id')) {
+            if (Schema::hasColumn('roles', 'id') && ! Schema::hasColumn('roles', 'role_id')) {
                 $table->renameColumn('id', 'role_id');
             }
         });
 
-        DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_id_foreign');
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_id_foreign');
+        }
 
         if (Schema::hasColumn('users', 'role_id') && Schema::hasColumn('roles', 'role_id')) {
             Schema::table('users', function (Blueprint $table) {
@@ -38,13 +40,13 @@ return new class extends Migration
         DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_id_foreign');
 
         Schema::table('users', function (Blueprint $table) {
-            if (Schema::hasColumn('users', 'user_id') && !Schema::hasColumn('users', 'id')) {
+            if (Schema::hasColumn('users', 'user_id') && ! Schema::hasColumn('users', 'id')) {
                 $table->renameColumn('user_id', 'id');
             }
         });
 
         Schema::table('roles', function (Blueprint $table) {
-            if (Schema::hasColumn('roles', 'role_id') && !Schema::hasColumn('roles', 'id')) {
+            if (Schema::hasColumn('roles', 'role_id') && ! Schema::hasColumn('roles', 'id')) {
                 $table->renameColumn('role_id', 'id');
             }
         });

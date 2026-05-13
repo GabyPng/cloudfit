@@ -22,8 +22,9 @@ class ValeriaCruzProgressSeeder extends Seeder
     {
         // ── 1. Resolve the real coach ──────────────────────────────────
         $coach = User::where('email', 'coach1@gmail.com')->first();
-        if (!$coach) {
+        if (! $coach) {
             $this->command->warn('⚠ coach1@gmail.com not found — skipping.');
+
             return;
         }
 
@@ -31,8 +32,9 @@ class ValeriaCruzProgressSeeder extends Seeder
 
         // ── 2. Find Valeria Cruz ───────────────────────────────────────
         $valeria = User::where('email', 'valeria.c@cloudfit.test')->first();
-        if (!$valeria) {
+        if (! $valeria) {
             $this->command->warn('⚠ Valeria Cruz (valeria.c@cloudfit.test) not found — skipping.');
+
             return;
         }
 
@@ -57,41 +59,41 @@ class ValeriaCruzProgressSeeder extends Seeder
 
         foreach ($compositionData as $entry) {
             ProgressRecord::create([
-                'client_id'       => $clientId,
-                'author_id'       => $coachId,
-                'author_role'     => 'nutriologo',
-                'date'            => Carbon::now()->subWeeks($entry['weeks_ago'])->format('Y-m-d'),
-                'weight_kg'       => $entry['weight'],
-                'bmi'             => round($entry['weight'] / (1.65 * 1.65), 2),
-                'body_fat_pct'    => $entry['fat'],
-                'muscle_mass_kg'  => $entry['muscle'],
+                'client_id' => $clientId,
+                'author_id' => $coachId,
+                'author_role' => 'nutriologo',
+                'date' => Carbon::now()->subWeeks($entry['weeks_ago'])->format('Y-m-d'),
+                'weight_kg' => $entry['weight'],
+                'bmi' => round($entry['weight'] / (1.65 * 1.65), 2),
+                'body_fat_pct' => $entry['fat'],
+                'muscle_mass_kg' => $entry['muscle'],
                 'calories_target' => 1900,
-                'adherence_pct'   => rand(78, 95),
-                'notes'           => $entry['weeks_ago'] === 0
+                'adherence_pct' => rand(78, 95),
+                'notes' => $entry['weeks_ago'] === 0
                     ? 'Excelente progreso, manteniendo adherencia al plan.'
                     : null,
             ]);
         }
 
-        $this->command->info("  ✓ 9 progress_records created.");
+        $this->command->info('  ✓ 9 progress_records created.');
 
         // ── 4. Routine with exercises that map to the fatigue keywords ──
         $routine = Routine::updateOrCreate(
             [
                 'coach_id' => $coachId,
-                'name'     => 'Total Body Valeria',
+                'name' => 'Total Body Valeria',
             ],
             [
-                'description'      => 'Rutina full‑body de tonificación para Valeria',
-                'tag'              => 'TONIFICACIÓN',
-                'icon_type'        => 'dumbbell',
-                'accent_color'     => '#cafd00',
-                'difficulty'       => 55,
+                'description' => 'Rutina full‑body de tonificación para Valeria',
+                'tag' => 'TONIFICACIÓN',
+                'icon_type' => 'dumbbell',
+                'accent_color' => '#cafd00',
+                'difficulty' => 55,
                 'difficulty_label' => 'Intermedio',
-                'duration_label'   => '8 semanas · 4 días/semana',
-                'training_plan'    => 'Tonificación',
-                'is_active'        => true,
-                'client_id'        => $clientId,
+                'duration_label' => '8 semanas · 4 días/semana',
+                'training_plan' => 'Tonificación',
+                'is_active' => true,
+                'client_id' => $clientId,
             ]
         );
 
@@ -109,7 +111,7 @@ class ValeriaCruzProgressSeeder extends Seeder
             ['name' => 'Plancha Frontal',             'sets' => 3, 'reps' => '45', 'weight' => '',    'rest' => '30s',  'order' => 8],
             ['name' => 'Elevaciones Laterales',       'sets' => 3, 'reps' => '15', 'weight' => '8',   'rest' => '45s',  'order' => 9],
             ['name' => 'Gemelos en Máquina',          'sets' => 4, 'reps' => '15', 'weight' => '40',  'rest' => '45s',  'order' => 10],
-            ['name' => 'Encogimientos con Mancuernas','sets' => 3, 'reps' => '12', 'weight' => '16',  'rest' => '45s',  'order' => 11],
+            ['name' => 'Encogimientos con Mancuernas', 'sets' => 3, 'reps' => '12', 'weight' => '16',  'rest' => '45s',  'order' => 11],
         ];
 
         foreach ($exercises as $ex) {
@@ -123,14 +125,14 @@ class ValeriaCruzProgressSeeder extends Seeder
                 ->value('exercise_id');
 
             RoutineExercise::create([
-                'routine_id'    => $routine->id,
-                'exercise_id'   => $catalogId,
+                'routine_id' => $routine->id,
+                'exercise_id' => $catalogId,
                 'exercise_name' => $ex['name'],
-                'sets'          => $ex['sets'],
-                'reps'          => $ex['reps'],
-                'weight'        => $ex['weight'] ?: null,
-                'rest_time'     => $ex['rest'],
-                'order'         => $ex['order'],
+                'sets' => $ex['sets'],
+                'reps' => $ex['reps'],
+                'weight' => $ex['weight'] ?: null,
+                'rest_time' => $ex['rest'],
+                'order' => $ex['order'],
             ]);
         }
 
@@ -148,19 +150,19 @@ class ValeriaCruzProgressSeeder extends Seeder
 
         foreach ($logDates as $date) {
             DB::table('workout_logs')->insert([
-                'client_id'   => $clientId,
-                'routine_id'  => $routine->id,
-                'date'        => $date,
+                'client_id' => $clientId,
+                'routine_id' => $routine->id,
+                'date' => $date,
                 'is_complete' => true,
-                'created_at'  => now(),
-                'updated_at'  => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
 
-        $this->command->info("  ✓ 4 completed workout_logs in the last 7 days.");
+        $this->command->info('  ✓ 4 completed workout_logs in the last 7 days.');
         $this->command->info('');
         $this->command->info("✅ Valeria Cruz (user_id={$clientId}) ready for coach1@gmail.com:");
-        $this->command->info("   — Composición: 9 registros (8 semanas)");
-        $this->command->info("   — Fatiga: 4 sesiones → all 12 muscle groups active");
+        $this->command->info('   — Composición: 9 registros (8 semanas)');
+        $this->command->info('   — Fatiga: 4 sesiones → all 12 muscle groups active');
     }
 }

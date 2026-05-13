@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -34,19 +34,21 @@ return new class extends Migration
         foreach ($drops as [$table, $idx]) {
             try {
                 Schema::table($table, fn (Blueprint $t) => $t->dropIndex($idx));
-            } catch (\Throwable) {}
+            } catch (\Throwable) {
+            }
         }
     }
 
     private function addIndexIfMissing(string $table, array $columns, string $name): void
     {
         try {
-            $existing = DB::select("SELECT indexname FROM pg_indexes WHERE tablename = ? AND indexname = ?", [$table, $name]);
+            $existing = DB::select('SELECT indexname FROM pg_indexes WHERE tablename = ? AND indexname = ?', [$table, $name]);
             if (empty($existing)) {
                 Schema::table($table, function (Blueprint $t) use ($columns, $name) {
                     $t->index($columns, $name);
                 });
             }
-        } catch (\Throwable) {}
+        } catch (\Throwable) {
+        }
     }
 };

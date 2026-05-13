@@ -23,9 +23,9 @@ class DietChangeRequest extends Model
 
     protected $casts = [
         'previous_value' => 'array',
-        'new_value'      => 'array',
-        'date'           => 'date',
-        'responded_at'   => 'datetime',
+        'new_value' => 'array',
+        'date' => 'date',
+        'responded_at' => 'datetime',
     ];
 
     public function client(): BelongsTo

@@ -12,7 +12,7 @@ class AnalyticsController extends Controller
     public function overview()
     {
         $totalUsers = User::count();
-        $activeUsers7d  = User::where('updated_at', '>=', now()->subDays(7))->count();
+        $activeUsers7d = User::where('updated_at', '>=', now()->subDays(7))->count();
         $activeUsers30d = User::where('updated_at', '>=', now()->subDays(30))->count();
 
         $byRole = DB::table('users')
@@ -32,13 +32,13 @@ class AnalyticsController extends Controller
 
         return response()->json([
             'data' => [
-                'total_users'           => $totalUsers,
-                'active_users_7d'       => $activeUsers7d,
-                'active_users_30d'      => $activeUsers30d,
-                'by_role'               => $byRole,
-                'pending_verification'  => $pendingVerification,
-                'open_tickets'          => $openTickets,
-                'workout_logs_today'    => $workoutLogsToday,
+                'total_users' => $totalUsers,
+                'active_users_7d' => $activeUsers7d,
+                'active_users_30d' => $activeUsers30d,
+                'by_role' => $byRole,
+                'pending_verification' => $pendingVerification,
+                'open_tickets' => $openTickets,
+                'workout_logs_today' => $workoutLogsToday,
             ],
         ]);
     }
@@ -50,7 +50,7 @@ class AnalyticsController extends Controller
         $days = $period === 'month' ? 30 : 7;
 
         $data = DB::table('users')
-            ->select(DB::raw("DATE(created_at) as date"), DB::raw('count(*) as count'))
+            ->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
             ->where('created_at', '>=', now()->subDays($days))
             ->groupBy(DB::raw('DATE(created_at)'))
             ->orderBy('date')
@@ -81,7 +81,7 @@ class AnalyticsController extends Controller
 
         return response()->json([
             'data' => [
-                'coaches'     => $coaches,
+                'coaches' => $coaches,
                 'nutriologos' => $nutriologos,
             ],
         ]);
@@ -90,7 +90,7 @@ class AnalyticsController extends Controller
     public function usage()
     {
         $workoutLogs = DB::table('workout_logs')
-            ->select(DB::raw("DATE(date) as date"), DB::raw('count(*) as count'))
+            ->select(DB::raw('DATE(date) as date'), DB::raw('count(*) as count'))
             ->where('date', '>=', now()->subDays(14))
             ->groupBy(DB::raw('DATE(date)'))
             ->orderBy('date')

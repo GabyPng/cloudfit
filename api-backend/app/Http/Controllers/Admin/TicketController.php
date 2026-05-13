@@ -13,20 +13,23 @@ class TicketController extends Controller
     private function adminUserId(Request $request): ?int
     {
         $email = $request->attributes->get('supabase_email');
-        if (!$email) return null;
+        if (! $email) {
+            return null;
+        }
+
         return User::where('email', $email)->value('user_id');
     }
 
     public function index(Request $request)
     {
-        $status   = $request->query('status');
+        $status = $request->query('status');
         $category = $request->query('category');
-        $urgency  = $request->query('urgency');
+        $urgency = $request->query('urgency');
 
         $tickets = Ticket::with('user:user_id,name,email,avatar_url')
-            ->when($status,   fn ($q) => $q->where('status', $status))
+            ->when($status, fn ($q) => $q->where('status', $status))
             ->when($category, fn ($q) => $q->where('category', $category))
-            ->when($urgency,  fn ($q) => $q->where('urgency', $urgency))
+            ->when($urgency, fn ($q) => $q->where('urgency', $urgency))
             ->orderByDesc('created_at')
             ->paginate(20);
 
@@ -34,8 +37,8 @@ class TicketController extends Controller
             'data' => $tickets->map(fn ($t) => $this->formatTicket($t)),
             'meta' => [
                 'current_page' => $tickets->currentPage(),
-                'last_page'    => $tickets->lastPage(),
-                'total'        => $tickets->total(),
+                'last_page' => $tickets->lastPage(),
+                'total' => $tickets->total(),
             ],
         ]);
     }
@@ -58,7 +61,7 @@ class TicketController extends Controller
 
         $ticket = Ticket::findOrFail($ticketId);
         $ticket->update([
-            'status'      => $validated['status'],
+            'status' => $validated['status'],
             'resolved_at' => in_array($validated['status'], ['resolved', 'closed']) ? now() : null,
         ]);
 
@@ -72,13 +75,13 @@ class TicketController extends Controller
         ]);
 
         $adminId = $this->adminUserId($request);
-        $ticket  = Ticket::findOrFail($ticketId);
+        $ticket = Ticket::findOrFail($ticketId);
 
         $message = Message::create([
             'ticket_id' => $ticket->ticket_id,
             'sender_id' => $adminId,
-            'content'   => $validated['content'],
-            'sent_at'   => now(),
+            'content' => $validated['content'],
+            'sent_at' => now(),
         ]);
 
         if ($ticket->status === 'open') {
@@ -91,26 +94,26 @@ class TicketController extends Controller
     private function formatTicket(Ticket $ticket, bool $withMessages = false): array
     {
         $result = [
-            'ticket_id'         => $ticket->ticket_id,
-            'subject'           => $ticket->subject,
-            'status'            => $ticket->status,
-            'category'          => $ticket->category,
-            'urgency'           => $ticket->urgency,
-            'resolved_at'       => $ticket->resolved_at?->toISOString(),
-            'created_at'        => $ticket->created_at?->toISOString(),
-            'user_id'           => $ticket->user_id,
-            'user_name'         => $ticket->user?->name,
-            'user_email'        => $ticket->user?->email,
-            'user_avatar'       => $ticket->user?->avatar_url,
+            'ticket_id' => $ticket->ticket_id,
+            'subject' => $ticket->subject,
+            'status' => $ticket->status,
+            'category' => $ticket->category,
+            'urgency' => $ticket->urgency,
+            'resolved_at' => $ticket->resolved_at?->toISOString(),
+            'created_at' => $ticket->created_at?->toISOString(),
+            'user_id' => $ticket->user_id,
+            'user_name' => $ticket->user?->name,
+            'user_email' => $ticket->user?->email,
+            'user_avatar' => $ticket->user?->avatar_url,
         ];
 
         if ($withMessages) {
             $result['messages'] = $ticket->messages->map(fn ($m) => [
                 'message_id' => $m->message_id,
-                'sender_id'  => $m->sender_id,
-                'sender_name'=> $m->sender?->name,
-                'content'    => $m->content,
-                'sent_at'    => $m->sent_at?->toISOString(),
+                'sender_id' => $m->sender_id,
+                'sender_name' => $m->sender?->name,
+                'content' => $m->content,
+                'sent_at' => $m->sent_at?->toISOString(),
             ]);
         }
 
