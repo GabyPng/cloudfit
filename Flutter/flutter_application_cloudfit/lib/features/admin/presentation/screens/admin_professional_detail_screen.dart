@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:html' as html;
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants.dart';
 import '../../data/admin_api.dart';
 
@@ -424,13 +424,13 @@ class _AdminProfessionalDetailScreenState
         .getPublicUrl(path);
   }
 
-  void _openCertificate(String? path, bool isPdf) {
+  Future<void> _openCertificate(String? path, bool isPdf) async {
     if (path == null) return;
     final url = _getPublicUrl(path);
 
     if (isPdf) {
-      // Abrir PDF en nueva pestaña del navegador
-      html.window.open(url, '_blank');
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       // Mostrar imagen en dialog fullscreen
       showDialog(
