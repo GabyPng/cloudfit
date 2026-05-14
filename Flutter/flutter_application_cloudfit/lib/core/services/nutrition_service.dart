@@ -1,29 +1,48 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/api_config.dart';
 import '../../sections/nutrition/models/nutrition_model.dart';
 
 class NutritionService {
   static final _supabase = Supabase.instance.client;
 
-  static Future<String?> _token() async =>
-      Supabase.instance.client.auth.currentSession?.accessToken;
+  static Future<int?> _clientId() async {
+    final authId = _supabase.auth.currentUser?.id;
+    if (authId == null) return null;
+    final row = await _supabase
+        .from('users')
+        .select('user_id')
+        .eq('supabase_id', authId)
+        .maybeSingle();
+    return row?['user_id'] as int?;
+  }
 
   /// Returns pending diet change requests for the logged-in client.
   static Future<List<Map<String, dynamic>>> getDietChanges() async {
-    final token = await _token();
-    if (token == null) return [];
-    final res = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/cliente/cambios-dieta'),
-      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-    );
-    if (res.statusCode != 200) return [];
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    final data = body['data'] as List? ?? [];
-    return data
-        .whereType<Map<String, dynamic>>()
-        .where((d) => d['status'] == 'pending')
+    final clientId = await _clientId();
+    if (clientId == null) return [];
+
+    final rows = await _supabase
+        .from('diet_change_requests')
+        .select(
+          'id, change_type, previous_value, new_value, reason, status,'
+          ' client_response, responded_at, date, users!proposed_by(name)',
+        )
+        .eq('client_id', clientId)
+        .eq('status', 'pending')
+        .order('created_at', ascending: false);
+
+    return (rows as List)
+        .map((d) => <String, dynamic>{
+              'id': d['id'],
+              'proposed_by': (d['users'] as Map?)?['name'],
+              'change_type': d['change_type'],
+              'previous_value': d['previous_value'],
+              'new_value': d['new_value'],
+              'reason': d['reason'],
+              'status': d['status'],
+              'client_response': d['client_response'],
+              'responded_at': d['responded_at'],
+              'date': d['date'],
+            })
         .toList();
   }
 
@@ -31,21 +50,22 @@ class NutritionService {
   /// [status] must be 'approved' or 'rejected'.
   static Future<bool> responderCambioDieta(
       int id, String status, {String? response}) async {
-    final token = await _token();
-    if (token == null) return false;
-    final res = await http.patch(
-      Uri.parse('${ApiConfig.baseUrl}/cliente/cambios-dieta/$id/responder'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'status': status,
-        if (response != null && response.isNotEmpty) 'client_response': response,
-      }),
-    );
-    return res.statusCode == 200;
+    final clientId = await _clientId();
+    if (clientId == null) return false;
+
+    await _supabase
+        .from('diet_change_requests')
+        .update({
+          'status': status,
+          'client_response':
+              (response?.isNotEmpty == true) ? response : null,
+          'responded_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', id)
+        .eq('client_id', clientId)
+        .eq('status', 'pending');
+
+    return true;
   }
 
   /// Returns the active nutrition plan assigned to the logged-in client,
@@ -86,8 +106,6 @@ class NutritionService {
     final planData = assignment['nutrition_plans'] as Map<String, dynamic>?;
     if (planData == null) return null;
 
-    // NutritionPlanModel.fromMap expects key 'meals'; Supabase returns the
-    // nested relation under the table name 'nutrition_plan_meals'.
     final reshaped = Map<String, dynamic>.from(planData)
       ..['meals'] = planData['nutrition_plan_meals'] ?? [];
 

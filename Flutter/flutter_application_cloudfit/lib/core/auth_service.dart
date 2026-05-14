@@ -57,12 +57,29 @@ class AuthService {
         .eq('supabase_id', authId)
         .maybeSingle();
 
-    if (row == null) return;
+    if (row == null) {
+      // No profile row — registration sync failed; retry now using metadata
+      final meta = _client.auth.currentUser?.userMetadata;
+      final roleFromMeta = meta?['role'] as String?;
+      final nameFromMeta = meta?['nombre'] as String?;
+      try {
+        await syncCurrentUser(
+          name: nameFromMeta,
+          role: roleFromMeta ?? 'cliente',
+        );
+      } catch (_) {}
+      return;
+    }
+
     final roleName = (row['roles'] as Map?)?['name'] as String?;
     if (roleName == null) return;
 
     _localRoleOverride = roleName;
-    await _client.auth.updateUser(UserAttributes(data: {'role': roleName}));
+    try {
+      await _client.auth.updateUser(UserAttributes(data: {'role': roleName}));
+    } catch (_) {
+      // Non-critical — role already set via _localRoleOverride
+    }
   }
 
   static Future<void> updateUserMetadata(Map<String, dynamic> metadata) async {
@@ -124,6 +141,7 @@ class AuthService {
             'email': email,
             'name': userName,
             'role_id': roleId,
+            'password': 'SUPABASE_MANAGED', // placeholder — auth is handled by Supabase
             if (profile?['objective'] != null) 'objective': profile!['objective'],
           })
           .select('user_id')

@@ -178,11 +178,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         profile['certificateUploads'] = uploadedCertificates;
       }
 
-      await AuthService.syncCurrentUser(
-        name: _nameCtrl.text.trim(),
-        role: _selectedRole,
-        profile: profile,
-      );
+      // Sync profile to DB — errors here are non-fatal (auth account was created)
+      try {
+        await AuthService.syncCurrentUser(
+          name: _nameCtrl.text.trim(),
+          role: _selectedRole,
+          profile: profile,
+        );
+      } catch (_) {
+        // Profile sync failed; will be retried automatically on next login
+      }
 
       if (!mounted) return;
 

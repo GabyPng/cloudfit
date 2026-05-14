@@ -1,9 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../core/api_config.dart';
 import '../../../core/constants.dart';
 import 'models/professional_model.dart';
 
@@ -43,8 +40,17 @@ class _ProfessionalDetailScreenState extends State<ProfessionalDetailScreen> {
     }
   }
 
-  Future<String?> _getToken() async {
-    return Supabase.instance.client.auth.currentSession?.accessToken;
+  final _supabase = Supabase.instance.client;
+
+  Future<int?> _resolveClientId() async {
+    final authId = _supabase.auth.currentUser?.id;
+    if (authId == null) return null;
+    final row = await _supabase
+        .from('users')
+        .select('user_id')
+        .eq('supabase_id', authId)
+        .maybeSingle();
+    return row?['user_id'] as int?;
   }
 
   Future<void> _loadNutriProfile() async {
@@ -53,70 +59,140 @@ class _ProfessionalDetailScreenState extends State<ProfessionalDetailScreen> {
       _profileError = null;
     });
     try {
-      final token = await _getToken();
-      final res = await http.get(
-        Uri.parse(
-            '${ApiConfig.baseUrl}/cliente/nutriologos/${widget.professional.userId}'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body) as Map<String, dynamic>;
-        final data = body['data'] as Map<String, dynamic>;
-        setState(() {
-          _extendedProfile = data;
-          _requestData = data['request'] as Map<String, dynamic>?;
-          _hasActiveNutritionist = data['has_active_nutritionist'] == true;
-        });
-      }
+      final clientId = await _resolveClientId();
+      if (clientId == null) return;
+
+      final nutriRow = await _supabase
+          .from('nutriologos')
+          .select(
+            'id, user_id, license_number, focus, bio, specialties,'
+            ' experience_years, location, consultation_price, phone, social_links',
+          )
+          .eq('user_id', widget.professional.userId)
+          .eq('profile_visible', true)
+          .maybeSingle();
+
+      if (nutriRow == null) return;
+      final nutriologoId = nutriRow['id'] as int;
+
+      final solicitud = await _supabase
+          .from('nutriologo_contact_requests')
+          .select('id, status, message, nutriologo_response, responded_at, created_at')
+          .eq('nutriologo_id', nutriologoId)
+          .eq('client_id', clientId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      final activeWithOther = await _supabase
+          .from('nutriologo_contact_requests')
+          .select('id')
+          .eq('client_id', clientId)
+          .eq('status', 'accepted')
+          .neq('nutriologo_id', nutriologoId)
+          .maybeSingle();
+
+      if (!mounted) return;
+      setState(() {
+        _extendedProfile = Map<String, dynamic>.from(nutriRow);
+        _requestData = solicitud != null
+            ? Map<String, dynamic>.from(solicitud)
+            : null;
+        _hasActiveNutritionist = activeWithOther != null;
+      });
     } catch (_) {
       setState(() => _profileError = 'No se pudo cargar el perfil completo.');
     } finally {
-      setState(() => _loadingProfile = false);
+      if (mounted) setState(() => _loadingProfile = false);
     }
   }
 
   Future<void> _sendRequest(String message) async {
     setState(() => _sendingRequest = true);
     try {
-      final token = await _getToken();
-      final res = await http.post(
-        Uri.parse(
-            '${ApiConfig.baseUrl}/cliente/nutriologos/${widget.professional.userId}/solicitar'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'message': message.trim().isEmpty ? null : message.trim()}),
-      );
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      if (res.statusCode == 201) {
-        setState(() {
-          _requestData = body['data'] as Map<String, dynamic>;
-        });
+      final clientId = await _resolveClientId();
+      if (clientId == null) return;
+
+      final nutriRow = await _supabase
+          .from('nutriologos')
+          .select('id')
+          .eq('user_id', widget.professional.userId)
+          .maybeSingle();
+      if (nutriRow == null) return;
+      final nutriologoId = nutriRow['id'] as int;
+
+      // Block if already paired with any nutriólogo
+      final activeWithAny = await _supabase
+          .from('nutriologo_contact_requests')
+          .select('id')
+          .eq('client_id', clientId)
+          .eq('status', 'accepted')
+          .maybeSingle();
+
+      if (activeWithAny != null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(body['message'] ?? 'Solicitud enviada'),
-              backgroundColor: AppColors.neonGreen.withOpacity(0.9),
+            const SnackBar(
+              content: Text(
+                  'Ya tienes un nutriólogo asignado. Finaliza esa relación antes de contactar a otro.'),
+              backgroundColor: Colors.orange,
             ),
           );
         }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(body['message'] ?? 'Error al enviar solicitud'),
-              backgroundColor: Colors.red.shade800,
-            ),
-          );
-        }
-        // Reload to get current status
-        await _loadNutriProfile();
+        return;
       }
+
+      // Check existing request with this nutriólogo
+      final existing = await _supabase
+          .from('nutriologo_contact_requests')
+          .select('id, status')
+          .eq('nutriologo_id', nutriologoId)
+          .eq('client_id', clientId)
+          .maybeSingle();
+
+      if (existing != null &&
+          (existing['status'] == 'pending' ||
+              existing['status'] == 'accepted')) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(existing['status'] == 'accepted'
+                  ? 'Ya tienes una solicitud aceptada con este nutriólogo.'
+                  : 'Ya tienes una solicitud pendiente con este nutriólogo.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        await _loadNutriProfile();
+        return;
+      }
+
+      final result = await _supabase
+          .from('nutriologo_contact_requests')
+          .upsert(
+            {
+              'nutriologo_id': nutriologoId,
+              'client_id': clientId,
+              'message':
+                  message.trim().isEmpty ? null : message.trim(),
+              'status': 'pending',
+              'nutriologo_response': null,
+              'responded_at': null,
+            },
+            onConflict: 'nutriologo_id,client_id',
+          )
+          .select('id, status, message, nutriologo_response, responded_at, created_at')
+          .single();
+
+      if (!mounted) return;
+      setState(() => _requestData = Map<String, dynamic>.from(result));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Solicitud enviada. El nutriólogo revisará tu solicitud pronto.'),
+          backgroundColor: Color(0xFF7EF0B3),
+        ),
+      );
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
