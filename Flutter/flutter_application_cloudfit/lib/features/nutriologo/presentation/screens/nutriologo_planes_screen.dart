@@ -360,7 +360,7 @@ class _NutriologoPlanesScreenState extends State<NutriologoPlanesScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         DropdownButtonFormField<String>(
-                          value: mealType,
+                          initialValue: mealType,
                           dropdownColor: const Color(0xFF1A1A1A),
                           decoration: const InputDecoration(labelText: 'Tipo', labelStyle: TextStyle(color: Colors.white70)),
                           style: const TextStyle(color: Colors.white),
@@ -740,7 +740,12 @@ class _NutriologoPlanesScreenState extends State<NutriologoPlanesScreen> {
         elevation: 0,
         title: const Text(
           'Planes Nutricionales',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            letterSpacing: -0.4,
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -748,8 +753,10 @@ class _NutriologoPlanesScreenState extends State<NutriologoPlanesScreen> {
         backgroundColor: AppColors.neonGreen,
         foregroundColor: Colors.black,
         icon: const Icon(Icons.add),
-        label: const Text('Nuevo plan', style: TextStyle(fontWeight: FontWeight.bold)),
+        label: const Text('Nuevo plan',
+            style: TextStyle(fontWeight: FontWeight.bold)),
       ),
+      floatingActionButtonLocation: _AboveNavbarFabLocation(),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
         child: Column(
@@ -759,17 +766,28 @@ class _NutriologoPlanesScreenState extends State<NutriologoPlanesScreen> {
             TextField(
               controller: _searchCtrl,
               onChanged: _onSearch,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Buscar plan...',
-                hintStyle: const TextStyle(color: Colors.white38),
-                prefixIcon: const Icon(Icons.search, color: Colors.white54, size: 20),
+                hintStyle: const TextStyle(color: Colors.white24, fontSize: 14),
+                prefixIcon: const Icon(Icons.search_rounded,
+                    color: Colors.white38, size: 20),
                 filled: true,
                 fillColor: AppColors.surface,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.05)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                      color: AppColors.neonGreen, width: 1.5),
                 ),
               ),
             ),
@@ -816,6 +834,7 @@ class _NutriologoPlanesScreenState extends State<NutriologoPlanesScreen> {
                             )
                           : ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.only(bottom: 110),
                               itemCount: _plans.length + (_hasMore ? 1 : 0),
                               itemBuilder: (_, index) {
                                 if (index == _plans.length) {
@@ -857,96 +876,144 @@ class _NutriologoPlanesScreenState extends State<NutriologoPlanesScreen> {
   Widget _planCard(Map<String, dynamic> plan) {
     final planId = plan['id'] as int;
     final isActive = _isPlanActive(plan);
+    final accentColor = isActive ? AppColors.neonGreen : Colors.white24;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border(
-          left: BorderSide(
-            color: isActive ? AppColors.neonGreen : Colors.white12,
-            width: 3,
-          ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isActive
+              ? AppColors.neonGreen.withValues(alpha: 0.15)
+              : Colors.white.withValues(alpha: 0.04),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title + status
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top accent stripe
+          Container(
+            height: 3,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isActive
+                    ? [AppColors.neonGreen, AppColors.neonGreen.withValues(alpha: 0.3)]
+                    : [Colors.white12, Colors.transparent],
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    plan['title']?.toString() ?? 'Sin título',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                // Title + switch
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.restaurant_menu_rounded,
+                        color: accentColor,
+                        size: 18,
+                      ),
                     ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            plan['title']?.toString() ?? 'Sin título',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          if (plan['goal'] != null &&
+                              plan['goal'].toString().isNotEmpty)
+                            Text(
+                              plan['goal'].toString(),
+                              style: const TextStyle(
+                                  color: Colors.white38, fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
+                    ),
+                    Transform.scale(
+                      scale: 0.85,
+                      child: Switch.adaptive(
+                        value: isActive,
+                        activeThumbColor: Colors.black,
+                        activeTrackColor: AppColors.neonGreen,
+                        inactiveThumbColor: Colors.white38,
+                        inactiveTrackColor: Colors.white12,
+                        onChanged: (v) => _toggleActive(plan, v),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                // Meta chips
+                Row(
+                  children: [
+                    _chip(Icons.restaurant_menu_rounded,
+                        '${plan['meals_count'] ?? 0} comidas'),
+                    const SizedBox(width: 8),
+                    _chip(Icons.people_rounded,
+                        '${plan['assignments_count'] ?? 0} asig.'),
+                    if (plan['daily_calories'] != null) ...[
+                      const SizedBox(width: 8),
+                      _chip(Icons.local_fire_department_rounded,
+                          '${plan['daily_calories']} kcal',
+                          color: AppColors.coralOrange),
+                    ],
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Action buttons
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _actionBtn(Icons.visibility_rounded, 'Ver',
+                          () => _viewPlanDetail(planId)),
+                      const SizedBox(width: 6),
+                      _actionBtn(Icons.restaurant_menu_rounded, 'Comidas',
+                          () => _manageMealsSheet(plan),
+                          color: AppColors.electricPurple),
+                      const SizedBox(width: 6),
+                      _actionBtn(Icons.person_add_rounded, 'Asignar',
+                          () => _assignPlanDialog(planId)),
+                      const SizedBox(width: 6),
+                      _actionBtn(Icons.edit_rounded, 'Editar',
+                          () => _editPlanDialog(plan)),
+                      const SizedBox(width: 6),
+                      _actionBtn(Icons.delete_rounded, 'Eliminar',
+                          () => _deletePlanDialog(plan),
+                          color: AppColors.coralOrange),
+                    ],
                   ),
                 ),
-                Switch.adaptive(
-                  value: isActive,
-                  activeThumbColor: AppColors.neonGreen,
-                  activeTrackColor: AppColors.neonGreen.withValues(alpha: 0.4),
-                  onChanged: (v) => _toggleActive(plan, v),
-                ),
               ],
             ),
-
-            if (plan['goal'] != null && plan['goal'].toString().isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(
-                plan['goal'].toString(),
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-            ],
-
-            const SizedBox(height: 8),
-
-            // Meta row
-            Row(
-              children: [
-                _chip(Icons.restaurant_menu_outlined,
-                    '${plan['meals_count'] ?? 0} comidas'),
-                const SizedBox(width: 8),
-                _chip(Icons.people_outlined,
-                    '${plan['assignments_count'] ?? 0} asig.'),
-                if (plan['daily_calories'] != null) ...[
-                  const SizedBox(width: 8),
-                  _chip(Icons.local_fire_department_outlined,
-                      '${plan['daily_calories']} kcal',
-                      color: AppColors.coralOrange),
-                ],
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Actions
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _actionBtn(Icons.visibility_outlined, 'Ver', () => _viewPlanDetail(planId)),
-                  const SizedBox(width: 8),
-                  _actionBtn(Icons.restaurant_menu_outlined, 'Comidas', () => _manageMealsSheet(plan), color: AppColors.electricPurple),
-                  const SizedBox(width: 8),
-                  _actionBtn(Icons.person_add_outlined, 'Asignar', () => _assignPlanDialog(planId)),
-                  const SizedBox(width: 8),
-                  _actionBtn(Icons.edit_outlined, 'Editar', () => _editPlanDialog(plan)),
-                  const SizedBox(width: 8),
-                  _actionBtn(Icons.delete_outline, 'Eliminar',
-                      () => _deletePlanDialog(plan),
-                      color: AppColors.coralOrange),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1013,5 +1080,18 @@ class _NutriologoPlanesScreenState extends State<NutriologoPlanesScreen> {
         ),
       ),
     );
+  }
+}
+
+// Positions FAB just above the floating bottom navbar (72px tall + 25px margin).
+class _AboveNavbarFabLocation extends FloatingActionButtonLocation {
+  const _AboveNavbarFabLocation();
+
+  @override
+  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
+    final base = FloatingActionButtonLocation.endFloat.getOffset(scaffoldGeometry);
+    // endFloat puts FAB bottom 16px from scaffold edge.
+    // Navbar occupies bottom ~97px, add 8px clearance → shift up 89px.
+    return Offset(base.dx, base.dy - 89);
   }
 }

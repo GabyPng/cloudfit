@@ -323,21 +323,44 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.neonGreen.withValues(alpha: 0.12),
+                  AppColors.electricPurple.withValues(alpha: 0.06),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                  color: AppColors.neonGreen.withValues(alpha: 0.14)),
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor:
-                      AppColors.neonGreen.withValues(alpha: 0.2),
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      color: AppColors.neonGreen,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 24,
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.neonGreen.withValues(alpha: 0.3),
+                        AppColors.neonGreen.withValues(alpha: 0.15),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                        color: AppColors.neonGreen.withValues(alpha: 0.3)),
+                  ),
+                  child: Center(
+                    child: Text(
+                      initial,
+                      style: const TextStyle(
+                        color: AppColors.neonGreen,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 26,
+                      ),
                     ),
                   ),
                 ),
@@ -349,34 +372,41 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
                       Text(
                         name,
                         style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18),
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          letterSpacing: -0.3,
+                        ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       Text(
                         _profile['email']?.toString() ?? '',
                         style: const TextStyle(
-                            color: Colors.white54, fontSize: 12),
+                            color: Colors.white38, fontSize: 12),
                       ),
-                      const SizedBox(height: 4),
-                      if (_profile['focus'] != null)
+                      if (_profile['focus'] != null) ...[
+                        const SizedBox(height: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                              horizontal: 10, vertical: 3),
                           decoration: BoxDecoration(
                             color: AppColors.neonGreen
-                                .withValues(alpha: 0.15),
+                                .withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: AppColors.neonGreen
+                                    .withValues(alpha: 0.3)),
                           ),
                           child: Text(
                             _profile['focus'].toString(),
                             style: const TextStyle(
-                                color: AppColors.neonGreen,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold),
+                              color: AppColors.neonGreen,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
+                      ],
                     ],
                   ),
                 ),
@@ -421,26 +451,29 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
   Widget _statChip(String label, String value, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.18)),
         ),
         child: Column(
           children: [
             Text(
               value,
               style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18),
+                color: color,
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                letterSpacing: -0.5,
+              ),
             ),
-            const SizedBox(height: 2),
-            Text(label,
-                textAlign: TextAlign.center,
-                style:
-                    const TextStyle(color: Colors.white54, fontSize: 9)),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white38, fontSize: 9),
+            ),
           ],
         ),
       ),

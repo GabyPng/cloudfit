@@ -15,6 +15,7 @@ class NutriologoHomeScreen extends StatefulWidget {
 
 class _NutriologoHomeScreenState extends State<NutriologoHomeScreen> {
   bool _isLoading = true;
+  String _userName = '';
   Map<String, dynamic> _stats = {};
   List<Map<String, dynamic>> _recentClients = [];
   List<Map<String, dynamic>> _recentPlans = [];
@@ -35,6 +36,7 @@ class _NutriologoHomeScreenState extends State<NutriologoHomeScreen> {
       ]);
       if (!mounted) return;
       setState(() {
+        _userName = results[0]['name']?.toString() ?? '';
         _stats = (results[0]['stats'] as Map<String, dynamic>?) ?? {};
         _recentClients = ((results[1]['data'] as List<dynamic>?) ?? [])
             .cast<Map<String, dynamic>>();
@@ -54,16 +56,7 @@ class _NutriologoHomeScreenState extends State<NutriologoHomeScreen> {
     return 'Buenas noches';
   }
 
-  String _dateLabel() {
-    const months = [
-      'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-      'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
-    ];
-    final now = DateTime.now();
-    return '${now.day} de ${months[now.month - 1]}. de ${now.year}';
-  }
-
-  Future<void> _confirmLogout() async {
+Future<void> _confirmLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -95,10 +88,7 @@ class _NutriologoHomeScreenState extends State<NutriologoHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = AuthService.currentUser;
-    final name = user?.userMetadata?['full_name']?.toString() ??
-        user?.email?.split('@').first ??
-        'Nutriólogo';
+    final name = _userName.isNotEmpty ? _userName : 'Nutriólogo';
     final greeting = _greeting();
 
     return Scaffold(
@@ -106,31 +96,51 @@ class _NutriologoHomeScreenState extends State<NutriologoHomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        titleSpacing: 16,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$greeting, $name',
+              '$greeting 👋',
               style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+                color: Colors.white54,
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
               ),
             ),
             Text(
-              _dateLabel(),
-              style: const TextStyle(color: Colors.white54, fontSize: 11),
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.3,
+              ),
             ),
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white70),
-            onPressed: () => _load(forceRefresh: true),
+          Container(
+            margin: const EdgeInsets.only(right: 6),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: Colors.white60, size: 20),
+              onPressed: () => _load(forceRefresh: true),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.white70),
-            onPressed: _confirmLogout,
+          Container(
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.logout_rounded, color: Colors.white60, size: 20),
+              onPressed: _confirmLogout,
+            ),
           ),
         ],
       ),
@@ -193,68 +203,36 @@ class _NutriologoHomeScreenState extends State<NutriologoHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Stats
+          // Stats row
           Row(
             children: [
               _statCard('Pacientes', _stats['total_pacientes'],
-                  Icons.people_outlined, AppColors.neonGreen),
+                  Icons.people_rounded, AppColors.neonGreen),
               const SizedBox(width: 10),
-              _statCard('Planes activos', _stats['planes_activos'],
-                  Icons.restaurant_menu_outlined, AppColors.electricPurple),
+              _statCard('Planes', _stats['planes_activos'],
+                  Icons.restaurant_menu_rounded, AppColors.electricPurple),
               const SizedBox(width: 10),
               _statCard('Alertas', _stats['alertas_nutricionales'],
                   Icons.warning_amber_rounded, AppColors.coralOrange),
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
           // Recent clients
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Clientes recientes',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 15),
-              ),
-              GestureDetector(
-                onTap: () => context.go('/nutriologo/pacientes'),
-                child: const Text('Ver todos',
-                    style:
-                        TextStyle(color: AppColors.neonGreen, fontSize: 12)),
-              ),
-            ],
-          ),
+          _sectionHeader('Clientes recientes', 'Ver todos',
+              () => context.go('/nutriologo/pacientes')),
           const SizedBox(height: 10),
           if (_recentClients.isEmpty)
             _emptyState('No hay clientes asignados')
           else
             ..._recentClients.map((c) => _clientTile(c)),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
           // Recent plans
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Planes recientes',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 15),
-              ),
-              GestureDetector(
-                onTap: () => context.go('/nutriologo/planes'),
-                child: const Text('Ver todos',
-                    style:
-                        TextStyle(color: AppColors.neonGreen, fontSize: 12)),
-              ),
-            ],
-          ),
+          _sectionHeader('Planes recientes', 'Ver todos',
+              () => context.go('/nutriologo/planes')),
           const SizedBox(height: 10),
           if (_recentPlans.isEmpty)
             _emptyState('No hay planes creados')
@@ -267,33 +245,87 @@ class _NutriologoHomeScreenState extends State<NutriologoHomeScreen> {
     );
   }
 
+  Widget _sectionHeader(String title, String action, VoidCallback onAction) {
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 16,
+          decoration: BoxDecoration(
+            color: AppColors.neonGreen,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 15,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: onAction,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.neonGreen.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text(
+              'Ver todos',
+              style: TextStyle(
+                color: AppColors.neonGreen,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _statCard(
       String label, dynamic value, IconData icon, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withValues(alpha: 0.18), width: 1),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 6),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(height: 8),
             Text(
               '${value ?? 0}',
               style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 22),
+                color: color,
+                fontWeight: FontWeight.w900,
+                fontSize: 24,
+                letterSpacing: -0.5,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
               label,
               textAlign: TextAlign.center,
-              style:
-                  const TextStyle(color: Colors.white54, fontSize: 10),
+              style: const TextStyle(color: Colors.white54, fontSize: 10),
             ),
           ],
         ),
@@ -302,114 +334,172 @@ class _NutriologoHomeScreenState extends State<NutriologoHomeScreen> {
   }
 
   Widget _clientTile(Map<String, dynamic> client) {
-    final initial =
-        (client['name']?.toString().isNotEmpty ?? false)
-            ? client['name'].toString().substring(0, 1).toUpperCase()
-            : '?';
+    final name = client['name']?.toString() ?? '';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final isAlert = client['estado'] == 'alerta';
     return GestureDetector(
       onTap: () => context.go('/nutriologo/pacientes'),
       child: Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor:
-                AppColors.neonGreen.withValues(alpha: 0.18),
-            child: Text(
-              initial,
-              style: const TextStyle(
-                  color: AppColors.neonGreen,
-                  fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  client['name']?.toString() ?? 'Sin nombre',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13),
-                ),
-                Text(
-                  client['email']?.toString() ?? '',
-                  style: const TextStyle(
-                      color: Colors.white54, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.arrow_forward_ios,
-              color: Colors.white24, size: 13),
-        ],
-      ),
-    ),
-    );
-  }
-
-  Widget _planTile(Map<String, dynamic> plan) {
-    final isActive = _isPlanActive(plan);
-    return GestureDetector(
-      onTap: () => context.go('/nutriologo/planes'),
-      child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border(
-            left: BorderSide(
-              color: isActive ? AppColors.neonGreen : Colors.white12,
-              width: 3,
-            ),
-          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
         ),
         child: Row(
           children: [
-            const Icon(Icons.restaurant_menu_outlined,
-                color: Colors.white38, size: 18),
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: isAlert
+                      ? AppColors.coralOrange.withValues(alpha: 0.18)
+                      : AppColors.neonGreen.withValues(alpha: 0.15),
+                  child: Text(
+                    initial,
+                    style: TextStyle(
+                      color: isAlert
+                          ? AppColors.coralOrange
+                          : AppColors.neonGreen,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                if (isAlert)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: AppColors.coralOrange,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: AppColors.surface, width: 1.5),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    plan['title']?.toString() ?? 'Sin título',
+                    name.isNotEmpty ? name : 'Sin nombre',
                     style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                   ),
+                  const SizedBox(height: 1),
                   Text(
-                    '${plan['meals_count'] ?? 0} comidas · ${plan['assignments_count'] ?? 0} asignaciones',
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 11),
+                    client['estado_label']?.toString() ??
+                        client['email']?.toString() ?? '',
+                    style: TextStyle(
+                      color: isAlert
+                          ? AppColors.coralOrange.withValues(alpha: 0.8)
+                          : Colors.white38,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
             ),
+            const Icon(Icons.chevron_right_rounded,
+                color: Colors.white24, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _planTile(Map<String, dynamic> plan) {
+    final isActive = _isPlanActive(plan);
+    final mealCount = plan['meals_count'] ?? 0;
+    final assignCount = plan['assignments_count'] ?? 0;
+    return GestureDetector(
+      onTap: () => context.go('/nutriologo/planes'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+        ),
+        child: Row(
+          children: [
             Container(
+              width: 4,
+              height: 60,
+              margin: const EdgeInsets.only(left: 0),
+              decoration: BoxDecoration(
+                color: isActive ? AppColors.neonGreen : Colors.white12,
+                borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(16)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: isActive
+                    ? AppColors.neonGreen.withValues(alpha: 0.1)
+                    : Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.restaurant_menu_rounded,
+                color: isActive ? AppColors.neonGreen : Colors.white24,
+                size: 16,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      plan['title']?.toString() ?? 'Sin título',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$mealCount comidas · $assignCount asig.',
+                      style: const TextStyle(
+                          color: Colors.white38, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              margin: const EdgeInsets.only(right: 14),
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: isActive
-                    ? AppColors.neonGreen.withValues(alpha: 0.15)
-                    : Colors.white12,
+                    ? AppColors.neonGreen.withValues(alpha: 0.12)
+                    : Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 isActive ? 'Activo' : 'Inactivo',
                 style: TextStyle(
-                  color: isActive ? AppColors.neonGreen : Colors.white54,
+                  color: isActive ? AppColors.neonGreen : Colors.white38,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),

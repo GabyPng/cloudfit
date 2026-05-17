@@ -22,7 +22,28 @@ class AuthService {
     );
   }
 
-  static Future<void> logout() => _client.auth.signOut();
+  static int? _cachedNumericId;
+
+  /// Returns the app-level numeric user_id for the current Supabase user,
+  /// caching after the first lookup so subsequent callers pay no round-trip cost.
+  static Future<int?> getNumericUserId() async {
+    if (_cachedNumericId != null) return _cachedNumericId;
+    final authId = _client.auth.currentUser?.id;
+    if (authId == null) return null;
+    final row = await _client
+        .from('users')
+        .select('user_id')
+        .eq('supabase_id', authId)
+        .maybeSingle();
+    _cachedNumericId = row?['user_id'] as int?;
+    return _cachedNumericId;
+  }
+
+  static Future<void> logout() async {
+    _cachedNumericId = null;
+    _localRoleOverride = null;
+    await _client.auth.signOut();
+  }
 
   static Future<String?> getIdToken() async {
     return _client.auth.currentSession?.accessToken;
@@ -178,6 +199,7 @@ class AuthService {
         .updateUser(UserAttributes(data: {'role': normalizedRole}));
     await _client.auth.refreshSession();
 
+    _cachedNumericId = userId;
     _localRoleOverride = normalizedRole;
     return normalizedRole;
   }

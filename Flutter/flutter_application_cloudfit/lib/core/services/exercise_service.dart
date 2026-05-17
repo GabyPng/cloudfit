@@ -1,22 +1,29 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../auth_service.dart';
 import '../../sections/workout/models/exercise_model.dart';
 
 class ExerciseService {
   static final _supabase = Supabase.instance.client;
 
+  static List<RoutineExercise>? _cache;
+  static DateTime? _cacheExpiry;
+  static const _cacheTtl = Duration(minutes: 5);
+
+  static void invalidateCache() {
+    _cache = null;
+    _cacheExpiry = null;
+  }
+
   /// Ejercicios de las rutinas activas asignadas al cliente logueado
   static Future<List<RoutineExercise>> getClientExercises() async {
-    final authId = _supabase.auth.currentUser?.id;
-    if (authId == null) return [];
+    if (_cache != null &&
+        _cacheExpiry != null &&
+        DateTime.now().isBefore(_cacheExpiry!)) {
+      return _cache!;
+    }
 
-    final userData = await _supabase
-        .from('users')
-        .select('user_id')
-        .eq('supabase_id', authId)
-        .maybeSingle();
-
-    if (userData == null) return [];
-    final clientId = userData['user_id'];
+    final clientId = await AuthService.getNumericUserId();
+    if (clientId == null) return [];
 
     final routinesData = await _supabase
         .from('routines')
@@ -39,10 +46,14 @@ class ExerciseService {
         .order('routine_id')
         .order('order');
 
-    return (exercisesData as List).map((e) {
+    final result = (exercisesData as List).map((e) {
       final ex = RoutineExercise.fromMap(e);
       return ex.copyWith(routineName: routineNames[ex.routineId]);
     }).toList();
+
+    _cache = result;
+    _cacheExpiry = DateTime.now().add(_cacheTtl);
+    return result;
   }
 
   /// Ejercicios de una rutina específica

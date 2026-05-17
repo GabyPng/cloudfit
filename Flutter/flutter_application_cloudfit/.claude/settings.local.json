@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter analyze *)",
+      "Skill(flutter-expert)",
+      "Bash(php artisan *)"
+    ]
+  }
+}

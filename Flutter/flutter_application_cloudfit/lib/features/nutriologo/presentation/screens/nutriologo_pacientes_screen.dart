@@ -33,13 +33,9 @@ class _NutriologoPacientesScreenState
   List<Map<String, dynamic>> get _displayClients {
     switch (_filterMode) {
       case 'con_plan':
-        return _clients
-            .where((c) => (c['active_plans_count'] as int? ?? 0) > 0)
-            .toList();
+        return _clients.where((c) => c['current_plan'] != null).toList();
       case 'sin_plan':
-        return _clients
-            .where((c) => (c['active_plans_count'] as int? ?? 0) == 0)
-            .toList();
+        return _clients.where((c) => c['current_plan'] == null).toList();
       default:
         return _clients;
     }
@@ -118,7 +114,8 @@ class _NutriologoPacientesScreenState
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 22,
+                fontSize: 24,
+                letterSpacing: -0.5,
               ),
             ),
 
@@ -128,18 +125,28 @@ class _NutriologoPacientesScreenState
             TextField(
               controller: _searchCtrl,
               onChanged: _onSearch,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Buscar paciente...',
-                hintStyle: const TextStyle(color: Colors.white38),
+                hintStyle: const TextStyle(color: Colors.white24, fontSize: 14),
                 prefixIcon:
-                    const Icon(Icons.search, color: Colors.white54, size: 20),
+                    const Icon(Icons.search_rounded, color: Colors.white38, size: 20),
                 filled: true,
                 fillColor: AppColors.surface,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.05)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                      color: AppColors.neonGreen, width: 1.5),
                 ),
               ),
             ),
@@ -265,76 +272,91 @@ class _NutriologoPacientesScreenState
     final name = client['name']?.toString() ?? '';
     final initial =
         name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?';
-    final activePlans = client['active_plans_count'] as int? ?? 0;
-    final bool hasActivePlans = activePlans > 0;
+    final bool hasActivePlans = client['current_plan'] != null;
+    final bool isAlert = client['status'] == 'alerta';
+
+    final statusColor = isAlert
+        ? AppColors.coralOrange
+        : hasActivePlans
+            ? AppColors.neonGreen
+            : Colors.white24;
 
     return GestureDetector(
       onTap: () => context.push('/nutriologo/seguimiento', extra: client),
       child: Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: hasActivePlans
-                ? AppColors.neonGreen.withValues(alpha: 0.18)
-                : AppColors.cardGrey,
-            child: Text(
-              initial,
-              style: TextStyle(
-                color: hasActivePlans ? AppColors.neonGreen : Colors.white38,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name.isNotEmpty ? name : 'Sin nombre',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  client['email']?.toString() ?? '',
-                  style: const TextStyle(
-                      color: Colors.white54, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          if (activePlans > 0)
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+        ),
+        child: Row(
+          children: [
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              width: 4,
+              height: 70,
               decoration: BoxDecoration(
-                color: AppColors.neonGreen.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
+                color: statusColor.withValues(alpha: 0.7),
+                borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(18)),
               ),
+            ),
+            const SizedBox(width: 12),
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: statusColor.withValues(alpha: 0.14),
               child: Text(
-                '$activePlans plan${activePlans != 1 ? 'es' : ''}',
-                style: const TextStyle(
-                  color: AppColors.neonGreen,
-                  fontSize: 10,
+                initial,
+                style: TextStyle(
+                  color: statusColor == Colors.white24
+                      ? Colors.white38
+                      : statusColor,
                   fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
               ),
             ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isNotEmpty ? name : 'Sin nombre',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      client['status_label']?.toString() ??
+                          client['email']?.toString() ?? '',
+                      style: TextStyle(
+                        color: isAlert
+                            ? AppColors.coralOrange.withValues(alpha: 0.8)
+                            : Colors.white38,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 14),
+              child: Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.white.withValues(alpha: 0.15),
+                size: 20,
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }
