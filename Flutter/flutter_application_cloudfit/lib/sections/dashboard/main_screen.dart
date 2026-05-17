@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/auth_service.dart';
 import '../../../core/constants.dart';
+import '../../../core/services/calorie_service.dart';
 
 // ── Muscle zone ───────────────────────────────────────────────────────────────
 class _MuscleZone {
@@ -132,17 +135,14 @@ Path _bodyLegR(double cx) => Path()
 // SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class MainScreen extends StatelessWidget {
+class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
-  static const _name = 'Santiago';
-  static const _weight = 78.4;
-  static const _bmi = 23.1;
-  static const _weeklyWorkouts = 4;
-  static const _caloriesConsumed = 1840;
-  static const _caloriesTarget = 2500;
-  static const _routineName = 'Push · Pull · Legs';
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
 
+class _MainScreenState extends State<MainScreen> {
   static const _zones = [
     _MuscleZone('Pecho',   AppColors.neonGreen),
     _MuscleZone('Espalda', Color(0xFF4DD0E1)),
@@ -151,88 +151,281 @@ class MainScreen extends StatelessWidget {
     _MuscleZone('Piernas', Color(0xFF6366F1)),
   ];
 
-  void _onMuscleTap(BuildContext context, String zone) {
-    context.go('/cliente/exercises');
+  late Future<_DashboardData> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
   }
+
+  Future<_DashboardData> _load() async {
+    final db = Supabase.instance.client;
+    final clientId = await AuthService.getNumericUserId();
+    if (clientId == null) return _DashboardData.empty();
+
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final weekStart = '${monday.year}-${monday.month.toString().padLeft(2, '0')}-${monday.day.toString().padLeft(2, '0')}';
+
+    final results = await Future.wait<dynamic>([
+      db.from('users')
+          .select('name, avatar_url')
+          .eq('user_id', clientId)
+          .maybeSingle(),
+      db.from('progress_records')
+          .select('weight_kg, bmi')
+          .eq('client_id', clientId)
+          .order('date', ascending: false)
+          .limit(1),
+      db.from('workout_logs')
+          .select('date')
+          .eq('client_id', clientId)
+          .eq('is_complete', true)
+          .order('date', ascending: false)
+          .limit(365),
+      db.from('workout_logs')
+          .select('date')
+          .eq('client_id', clientId)
+          .eq('is_complete', true)
+          .gte('date', weekStart),
+      db.from('routines')
+          .select('name')
+          .eq('client_id', clientId)
+          .eq('is_active', true)
+          .limit(1),
+      db.from('nutrition_plan_assignments')
+          .select('nutrition_plans(daily_calories)')
+          .eq('client_id', clientId)
+          .eq('status', 'active')
+          .limit(1),
+      CalorieService.getTodayCalories(),
+    ]);
+
+    final userRow = results[0] as Map<String, dynamic>?;
+    final progressRows = results[1] as List;
+    final allLogs = results[2] as List;
+    final weekLogs = results[3] as List;
+    final routineRows = results[4] as List;
+    final planRows = results[5] as List;
+    final caloriesConsumed = results[6] as int;
+
+    final name = userRow?['name'] as String? ?? '';
+    final avatarUrl = userRow?['avatar_url'] as String?;
+
+    final latestProgress = progressRows.isNotEmpty ? progressRows.first : null;
+    final weight = (latestProgress?['weight_kg'] as num?)?.toDouble();
+    final bmi = (latestProgress?['bmi'] as num?)?.toDouble();
+
+    final streak = _computeStreak(allLogs);
+    final weeklyWorkouts = weekLogs.length;
+
+    final routineName = routineRows.isNotEmpty
+        ? (routineRows.first['name'] as String? ?? 'Sin rutina activa')
+        : 'Sin rutina activa';
+
+    int caloriesTarget = 0;
+    if (planRows.isNotEmpty) {
+      final plan = (planRows.first['nutrition_plans'] as Map?);
+      caloriesTarget = (plan?['daily_calories'] as num?)?.toInt() ?? 0;
+    }
+
+    return _DashboardData(
+      name: name,
+      avatarUrl: avatarUrl,
+      streak: streak,
+      weight: weight,
+      bmi: bmi,
+      weeklyWorkouts: weeklyWorkouts,
+      routineName: routineName,
+      caloriesTarget: caloriesTarget,
+      caloriesConsumed: caloriesConsumed,
+    );
+  }
+
+  Future<void> _logCalories(int current, int target) async {
+    final ctrl = TextEditingController(
+        text: current > 0 ? '$current' : '');
+    final result = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Calorías consumidas hoy',
+            style: TextStyle(color: Colors.white, fontSize: 16)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: target > 0 ? 'Meta: $target kcal' : 'ej. 1800',
+            hintStyle: const TextStyle(color: Colors.white38),
+            suffixText: 'kcal',
+            suffixStyle: const TextStyle(color: Colors.white54),
+            enabledBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(color: Colors.white24)),
+            focusedBorder: UnderlineInputBorder(
+                borderSide:
+                    BorderSide(color: AppColors.neonGreen)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar',
+                style: TextStyle(color: Colors.white38)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final v = int.tryParse(ctrl.text.trim());
+              if (v != null && v >= 0) Navigator.pop(ctx, v);
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.neonGreen,
+                foregroundColor: Colors.black),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (result == null) return;
+    await CalorieService.logCalories(result);
+    setState(() => _future = _load());
+  }
+
+  int _computeStreak(List logs) {
+    final dates = logs
+        .map((l) {
+          final d = DateTime.tryParse(l['date']?.toString() ?? '');
+          return d == null ? null : DateTime(d.year, d.month, d.day);
+        })
+        .whereType<DateTime>()
+        .toSet();
+    int streak = 0;
+    var current = DateTime.now();
+    current = DateTime(current.year, current.month, current.day);
+    while (dates.contains(current)) {
+      streak++;
+      current = current.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Buenos días,';
+    if (h < 19) return 'Buenas tardes,';
+    return 'Buenas noches,';
+  }
+
+  void _onMuscleTap(String zone) => context.go('/cliente/exercises');
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              _buildHeader(),
-              const SizedBox(height: 20),
-              _buildStatsRow(),
-              const SizedBox(height: 24),
-              _buildBodyCard(context),
-              const SizedBox(height: 24),
-              _buildTodaySection(),
-              const SizedBox(height: 110),
-            ],
-          ),
-        ),
+      body: FutureBuilder<_DashboardData>(
+        future: _future,
+        builder: (context, snap) {
+          final data = snap.data ?? _DashboardData.empty();
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  _buildHeader(data),
+                  const SizedBox(height: 20),
+                  _buildStatsRow(data),
+                  const SizedBox(height: 24),
+                  _buildBodyCard(),
+                  const SizedBox(height: 24),
+                  _buildTodaySection(data),
+                  const SizedBox(height: 110),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(_DashboardData data) {
+    final initial = data.name.isNotEmpty ? data.name[0].toUpperCase() : '?';
+    final isNetworkImg = data.avatarUrl != null &&
+        (data.avatarUrl!.startsWith('http://') ||
+            data.avatarUrl!.startsWith('https://'));
+
     return Row(
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Buenos días,',
-                style: TextStyle(color: Colors.white54, fontSize: 14)),
-            Text(_name,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold)),
+            Text(_greeting,
+                style: const TextStyle(color: Colors.white54, fontSize: 14)),
+            Text(
+              data.name.isNotEmpty ? data.name : '—',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         const Spacer(),
-        _StreakBadge(days: 7),
-        const SizedBox(width: 12),
-        const CircleAvatar(
+        if (data.streak > 0) ...[
+          _StreakBadge(days: data.streak),
+          const SizedBox(width: 12),
+        ],
+        CircleAvatar(
           radius: 22,
-          backgroundImage: AssetImage('assets/images/Jona.png'),
           backgroundColor: AppColors.cardGrey,
+          backgroundImage: isNetworkImg
+              ? NetworkImage(data.avatarUrl!) as ImageProvider
+              : null,
+          child: !isNetworkImg
+              ? Text(initial,
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold))
+              : null,
         ),
       ],
     );
   }
 
-  Widget _buildStatsRow() {
+  Widget _buildStatsRow(_DashboardData data) {
+    final weightStr = data.weight != null
+        ? '${data.weight!.toStringAsFixed(1)}kg'
+        : '--';
+    final bmiStr =
+        data.bmi != null ? data.bmi!.toStringAsFixed(1) : '--';
     return Row(
       children: [
         _StatCard(
             label: 'Peso',
-            value: '${_weight}kg',
+            value: weightStr,
             icon: Icons.monitor_weight_outlined,
             accent: AppColors.neonGreen),
         const SizedBox(width: 10),
         _StatCard(
             label: 'IMC',
-            value: '$_bmi',
+            value: bmiStr,
             icon: Icons.health_and_safety_outlined,
             accent: const Color(0xFF6366F1)),
         const SizedBox(width: 10),
         _StatCard(
             label: 'Semana',
-            value: '$_weeklyWorkouts/7',
+            value: '${data.weeklyWorkouts}/7',
             icon: Icons.fitness_center,
             accent: const Color(0xFFFF6B6B)),
       ],
     );
   }
 
-  Widget _buildBodyCard(BuildContext context) {
+  Widget _buildBodyCard() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -241,7 +434,6 @@ class MainScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Title row
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Row(
@@ -252,7 +444,7 @@ class MainScreen extends StatelessWidget {
                         fontSize: 17,
                         fontWeight: FontWeight.bold)),
                 const Spacer(),
-                Row(children: const [
+                const Row(children: [
                   Icon(Icons.touch_app_rounded, color: Colors.white24, size: 14),
                   SizedBox(width: 4),
                   Text('Toca un músculo',
@@ -261,7 +453,6 @@ class MainScreen extends StatelessWidget {
               ],
             ),
           ),
-          // Dual body silhouettes
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
             child: Row(
@@ -269,24 +460,16 @@ class MainScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 _BodyTapWidget(
-                  isBack: false,
-                  zones: _zones,
-                  onTap: (z) => _onMuscleTap(context, z),
-                ),
+                    isBack: false, zones: _zones, onTap: _onMuscleTap),
                 Container(
-                  width: 1,
-                  height: 200,
-                  color: Colors.white.withValues(alpha: 0.07),
-                ),
+                    width: 1,
+                    height: 200,
+                    color: Colors.white.withValues(alpha: 0.07)),
                 _BodyTapWidget(
-                  isBack: true,
-                  zones: _zones,
-                  onTap: (z) => _onMuscleTap(context, z),
-                ),
+                    isBack: true, zones: _zones, onTap: _onMuscleTap),
               ],
             ),
           ),
-          // Zone legend chips
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             child: Wrap(
@@ -294,8 +477,8 @@ class MainScreen extends StatelessWidget {
               runSpacing: 8,
               alignment: WrapAlignment.center,
               children: _zones
-                  .map((z) => _ZoneChip(
-                      zone: z, onTap: () => _onMuscleTap(context, z.name)))
+                  .map((z) =>
+                      _ZoneChip(zone: z, onTap: () => _onMuscleTap(z.name)))
                   .toList(),
             ),
           ),
@@ -304,7 +487,7 @@ class MainScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTodaySection() {
+  Widget _buildTodaySection(_DashboardData data) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -314,12 +497,55 @@ class MainScreen extends StatelessWidget {
                 fontSize: 18,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
-        _RoutineCard(name: _routineName, workoutsThisWeek: _weeklyWorkouts),
+        _RoutineCard(
+            name: data.routineName,
+            workoutsThisWeek: data.weeklyWorkouts),
         const SizedBox(height: 12),
-        _CaloriesCard(consumed: _caloriesConsumed, target: _caloriesTarget),
+        GestureDetector(
+          onTap: () => _logCalories(data.caloriesConsumed, data.caloriesTarget),
+          child: _CaloriesCard(
+              consumed: data.caloriesConsumed,
+              target: data.caloriesTarget),
+        ),
       ],
     );
   }
+}
+
+class _DashboardData {
+  final String name;
+  final String? avatarUrl;
+  final int streak;
+  final double? weight;
+  final double? bmi;
+  final int weeklyWorkouts;
+  final String routineName;
+  final int caloriesTarget;
+  final int caloriesConsumed;
+
+  const _DashboardData({
+    required this.name,
+    required this.avatarUrl,
+    required this.streak,
+    required this.weight,
+    required this.bmi,
+    required this.weeklyWorkouts,
+    required this.routineName,
+    required this.caloriesTarget,
+    required this.caloriesConsumed,
+  });
+
+  factory _DashboardData.empty() => const _DashboardData(
+        name: '',
+        avatarUrl: null,
+        streak: 0,
+        weight: null,
+        bmi: null,
+        weeklyWorkouts: 0,
+        routineName: 'Sin rutina activa',
+        caloriesTarget: 0,
+        caloriesConsumed: 0,
+      );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

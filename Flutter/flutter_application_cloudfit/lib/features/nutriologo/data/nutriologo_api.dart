@@ -9,6 +9,10 @@ class NutriologoApi {
   static Map<String, dynamic>? _dashboardCache;
   static DateTime? _dashboardCachedAt;
 
+  // Context cache — _getCtx makes 2 DB calls; cache per auth session.
+  static _NutriologoCtx? _ctxCache;
+  static String? _ctxCachedForAuthId;
+
   // ── Internal context helper ───────────────────────────────────────────────
 
   /// Returns the numeric user_id and the nutriologos.id for the current user.
@@ -16,6 +20,8 @@ class NutriologoApi {
   static Future<_NutriologoCtx> _getCtx() async {
     final authId = _supabase.auth.currentUser?.id;
     if (authId == null) throw Exception('No auth token available.');
+
+    if (_ctxCachedForAuthId == authId && _ctxCache != null) return _ctxCache!;
 
     final userRow = await _supabase
         .from('users')
@@ -33,7 +39,9 @@ class NutriologoApi {
     if (nutriologoRow == null) throw Exception('No auth token available.');
     final nutriologoId = nutriologoRow['id'] as int;
 
-    return _NutriologoCtx(userId, nutriologoId);
+    _ctxCachedForAuthId = authId;
+    _ctxCache = _NutriologoCtx(userId, nutriologoId);
+    return _ctxCache!;
   }
 
   static String _statusLabel(String? s) => switch (s) {
@@ -167,9 +175,16 @@ class NutriologoApi {
       }).toList();
     }
 
+    final userRow = await _supabase
+        .from('users')
+        .select('name')
+        .eq('user_id', ctx.userId)
+        .maybeSingle();
+
     final result = <String, dynamic>{
       'message': 'Bienvenido al panel de Nutriologo.',
       'section': 'nutriologo',
+      'name': userRow?['name']?.toString() ?? '',
       'stats': {
         'total_pacientes': uniqueClientIds.length,
         'nuevos_este_mes': newThisMonth,
@@ -220,7 +235,7 @@ class NutriologoApi {
 
     final allIds = {
       ...(fromAssignments as List).map((a) => a['client_id'] as int),
-      ...(fromClients as List).map((c) => c['user_id'] as int),
+      ...fromClients.map((c) => c['user_id'] as int),
       ...(fromAccepted as List).map((a) => a['client_id'] as int),
     }.toList();
 
@@ -381,7 +396,23 @@ class NutriologoApi {
         .eq('nutriologo_id', ctx.nutriologoId)
         .single();
 
-    return plan;
+    final assignRows = await _supabase
+        .from('nutrition_plan_assignments')
+        .select('id,client_id,status,starts_at,ends_at,assigned_at,users!client_id(name)')
+        .eq('nutrition_plan_id', planId)
+        .eq('nutriologo_id', ctx.nutriologoId)
+        .order('assigned_at', ascending: false);
+
+    final assignments = (assignRows as List).map((a) {
+      final row = a as Map<String, dynamic>;
+      return <String, dynamic>{...row, 'client': row['users']};
+    }).toList();
+
+    return <String, dynamic>{
+      ...plan,
+      'meals': plan['nutrition_plan_meals'] ?? [],
+      'assignments': assignments,
+    };
   }
 
   static Future<Map<String, dynamic>> createPlan({
@@ -400,7 +431,7 @@ class NutriologoApi {
           'title': title,
           if (description?.isNotEmpty == true) 'description': description,
           if (goal?.isNotEmpty == true) 'goal': goal,
-          if (dailyCalories != null) 'daily_calories': dailyCalories,
+          'daily_calories': ?dailyCalories,
           'is_active': true,
         })
         .select('id')
@@ -470,18 +501,42 @@ class NutriologoApi {
       if (titleTrimmed?.isNotEmpty == true) 'title': titleTrimmed,
       if (descriptionTrimmed?.isNotEmpty == true) 'description': descriptionTrimmed,
       if (goalTrimmed?.isNotEmpty == true) 'goal': goalTrimmed,
-      if (dailyCalories != null) 'daily_calories': dailyCalories,
-      if (isActive != null) 'is_active': isActive,
-      if (meals != null) 'meals': meals,
+      'daily_calories': ?dailyCalories,
+      'is_active': ?isActive,
     };
 
-    final plan = await _supabase
-        .from('nutrition_plans')
-        .update(payload)
-        .eq('id', planId)
-        .eq('nutriologo_id', ctx.nutriologoId)
-        .select()
-        .single();
+    final Map<String, dynamic> plan;
+    if (payload.isNotEmpty) {
+      plan = await _supabase
+          .from('nutrition_plans')
+          .update(payload)
+          .eq('id', planId)
+          .eq('nutriologo_id', ctx.nutriologoId)
+          .select()
+          .single();
+    } else {
+      plan = await _supabase
+          .from('nutrition_plans')
+          .select()
+          .eq('id', planId)
+          .eq('nutriologo_id', ctx.nutriologoId)
+          .single();
+    }
+
+    if (meals != null) {
+      await _supabase
+          .from('nutrition_plan_meals')
+          .delete()
+          .eq('nutrition_plan_id', planId);
+      if (meals.isNotEmpty) {
+        final mealsData = meals.asMap().entries.map((e) => {
+              'nutrition_plan_id': planId,
+              ...e.value,
+              'position': e.key,
+            }).toList();
+        await _supabase.from('nutrition_plan_meals').insert(mealsData);
+      }
+    }
 
     return plan;
   }
@@ -706,12 +761,12 @@ class NutriologoApi {
           'author_id': ctx.userId,
           'author_role': 'nutriologo',
           'date': date,
-          if (weightKg != null) 'weight_kg': weightKg,
-          if (bmi != null) 'bmi': bmi,
-          if (bodyFatPct != null) 'body_fat_pct': bodyFatPct,
-          if (muscleMassKg != null) 'muscle_mass_kg': muscleMassKg,
-          if (caloriesTarget != null) 'calories_target': caloriesTarget,
-          if (adherencePct != null) 'adherence_pct': adherencePct,
+          'weight_kg': ?weightKg,
+          'bmi': ?bmi,
+          'body_fat_pct': ?bodyFatPct,
+          'muscle_mass_kg': ?muscleMassKg,
+          'calories_target': ?caloriesTarget,
+          'adherence_pct': ?adherencePct,
           if (notes?.isNotEmpty == true) 'notes': notes,
         })
         .select()
@@ -739,8 +794,8 @@ class NutriologoApi {
           'reason': reason,
           'date': date,
           'status': 'pending',
-          if (previousValue != null) 'previous_value': previousValue,
-          if (newValue != null) 'new_value': newValue,
+          'previous_value': ?previousValue,
+          'new_value': ?newValue,
         })
         .select()
         .single();

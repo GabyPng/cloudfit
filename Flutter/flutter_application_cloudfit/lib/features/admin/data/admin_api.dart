@@ -1,20 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/auth_service.dart';
 
 class AdminApi {
   static final _db = Supabase.instance.client;
 
   // ── Context ───────────────────────────────────────────────────────────────
 
-  static Future<int?> _adminUserId() async {
-    final authId = _db.auth.currentUser?.id;
-    if (authId == null) return null;
-    final row = await _db
-        .from('users')
-        .select('user_id')
-        .eq('supabase_id', authId)
-        .maybeSingle();
-    return row?['user_id'] as int?;
-  }
+  static Future<int?> _adminUserId() => AuthService.getNumericUserId();
 
   // ── Users ─────────────────────────────────────────────────────────────────
 
@@ -24,30 +16,38 @@ class AdminApi {
     int page = 1,
     int perPage = 20,
   }) async {
-    var q = _db
+    final offset = (page - 1) * perPage;
+
+    // Build both queries with the same filters
+    var dataQ = _db
         .from('users')
         .select('user_id,name,email,avatar_url,created_at,roles(name)');
+    var countQ = _db.from('users').select('user_id');
 
     if (search.isNotEmpty) {
-      q = q.or('name.ilike.%$search%,email.ilike.%$search%');
+      dataQ = dataQ.or('name.ilike.%$search%,email.ilike.%$search%');
+      countQ = countQ.or('name.ilike.%$search%,email.ilike.%$search%');
     }
-
     if (role != null && role.isNotEmpty) {
-      q = q.eq('roles.name', role);
+      dataQ = dataQ.eq('roles.name', role);
     }
 
-    final all = await q.order('created_at', ascending: false);
-    final total = (all as List).length;
-    final start = ((page - 1) * perPage).clamp(0, total);
-    final end = (start + perPage).clamp(0, total);
+    // Fetch page data and total count in parallel
+    final results = await Future.wait([
+      dataQ.order('created_at', ascending: false).range(offset, offset + perPage - 1),
+      countQ,
+    ]);
+
+    final data = results[0] as List;
+    final total = (results[1] as List).length;
 
     return {
-      'data': all.sublist(start, end),
+      'data': data,
       'meta': {
         'current_page': page,
         'last_page': total == 0 ? 1 : (total / perPage).ceil(),
         'total': total,
-        'has_more': (start + perPage) < total,
+        'has_more': (offset + perPage) < total,
       },
     };
   }

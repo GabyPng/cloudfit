@@ -1,19 +1,11 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../auth_service.dart';
 import '../../sections/nutrition/models/nutrition_model.dart';
 
 class NutritionService {
   static final _supabase = Supabase.instance.client;
 
-  static Future<int?> _clientId() async {
-    final authId = _supabase.auth.currentUser?.id;
-    if (authId == null) return null;
-    final row = await _supabase
-        .from('users')
-        .select('user_id')
-        .eq('supabase_id', authId)
-        .maybeSingle();
-    return row?['user_id'] as int?;
-  }
+  static Future<int?> _clientId() => AuthService.getNumericUserId();
 
   /// Returns pending diet change requests for the logged-in client.
   static Future<List<Map<String, dynamic>>> getDietChanges() async {
@@ -71,16 +63,8 @@ class NutritionService {
   /// Returns the active nutrition plan assigned to the logged-in client,
   /// or null if none exists. Queries Supabase directly — no server needed.
   static Future<NutritionPlanModel?> getAssignedPlan() async {
-    final authId = _supabase.auth.currentUser?.id;
-    if (authId == null) return null;
-
-    final userRow = await _supabase
-        .from('users')
-        .select('user_id')
-        .eq('supabase_id', authId)
-        .maybeSingle();
-    if (userRow == null) return null;
-    final clientId = userRow['user_id'] as int;
+    final clientId = await AuthService.getNumericUserId();
+    if (clientId == null) return null;
 
     final assignment = await _supabase
         .from('nutrition_plan_assignments')

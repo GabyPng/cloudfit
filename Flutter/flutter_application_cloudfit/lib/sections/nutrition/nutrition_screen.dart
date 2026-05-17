@@ -2,7 +2,9 @@ import 'dart:math';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../core/services/calorie_service.dart';
 import '../../core/services/nutrition_service.dart';
+import '../../core/services/water_service.dart';
 import 'models/nutrition_model.dart';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -17,20 +19,35 @@ class NutritionScreen extends StatefulWidget {
 
 class _NutritionScreenState extends State<NutritionScreen> {
   static const _weekdays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-  static const _weeklyKcal = [2100.0, 2450.0, 1980.0, 2320.0, 1840.0, 0.0, 0.0];
-  static const _todayIndex = 4;
-  static const _waterConsumed = 6;
-  static const _waterTarget = 8;
+  int get _todayIndex => (DateTime.now().weekday - 1) % 7;
 
   late Future<NutritionPlanModel?> _planFuture;
   List<Map<String, dynamic>> _dietChanges = [];
   bool _respondingChange = false;
+  List<int> _weeklyKcal = List.filled(7, 0);
+  int _waterConsumed = 0;
+  int _waterTarget = 8;
 
   @override
   void initState() {
     super.initState();
     _planFuture = NutritionService.getAssignedPlan();
     _loadDietChanges();
+    _loadWeeklyKcal();
+    _loadWater();
+  }
+
+  Future<void> _loadWeeklyKcal() async {
+    final data = await CalorieService.getWeeklyCalories();
+    if (mounted) setState(() => _weeklyKcal = data);
+  }
+
+  Future<void> _loadWater() async {
+    final data = await WaterService.getTodayWater();
+    if (mounted) setState(() {
+      _waterConsumed = data.consumed;
+      _waterTarget = data.target;
+    });
   }
 
   Future<void> _loadDietChanges() async {
@@ -255,7 +272,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
               const SizedBox(height: 14),
               _buildMacrosCard(plan),
               const SizedBox(height: 14),
-              _buildWeeklyChart(),
+              _buildWeeklyChart(calorieTarget),
               const SizedBox(height: 14),
               _buildWaterCard(),
               if (_dietChanges.isNotEmpty) ...[
@@ -665,7 +682,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
   // ── Weekly bar chart ───────────────────────────────────────────────────────
 
-  Widget _buildWeeklyChart() {
+  Widget _buildWeeklyChart(int dailyCal) {
+    final today = _todayIndex;
+    final weeklyKcal = List.generate(7, (i) => _weeklyKcal[i].toDouble());
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 12, 16),
       decoration: BoxDecoration(
@@ -725,10 +744,10 @@ class _NutritionScreenState extends State<NutritionScreen> {
                             _weekdays[i],
                             style: TextStyle(
                               fontSize: 11,
-                              color: i == _todayIndex
+                              color: i == today
                                   ? AppColors.neonGreen
                                   : Colors.white38,
-                              fontWeight: i == _todayIndex
+                              fontWeight: i == today
                                   ? FontWeight.w700
                                   : FontWeight.normal,
                             ),
@@ -754,9 +773,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   ),
                 ),
                 borderData: FlBorderData(show: false),
-                barGroups: List.generate(_weeklyKcal.length, (i) {
-                  final isToday = i == _todayIndex;
-                  final val = _weeklyKcal[i];
+                barGroups: List.generate(weeklyKcal.length, (i) {
+                  final isToday = i == today;
+                  final val = weeklyKcal[i];
                   return BarChartGroupData(
                     x: i,
                     barRods: [
@@ -806,35 +825,41 @@ class _NutritionScreenState extends State<NutritionScreen> {
               color: waterColor.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
-            child:
-                const Icon(Icons.water_drop_rounded, color: waterColor, size: 20),
+            child: const Icon(Icons.water_drop_rounded, color: waterColor, size: 20),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Hidratación',
+                const Text('Hidratación',
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.bold)),
                 Text('$_waterConsumed de $_waterTarget vasos',
-                    style: TextStyle(color: Colors.white38, fontSize: 11)),
+                    style: const TextStyle(color: Colors.white38, fontSize: 11)),
               ],
             ),
           ),
           Row(
             children: List.generate(
               _waterTarget,
-              (i) => Padding(
-                padding: const EdgeInsets.only(left: 3),
-                child: Icon(
-                  i < _waterConsumed
-                      ? Icons.water_drop_rounded
-                      : Icons.water_drop_outlined,
-                  color: i < _waterConsumed ? waterColor : Colors.white12,
-                  size: 19,
+              (i) => GestureDetector(
+                onTap: () async {
+                  final newVal = (i < _waterConsumed) ? i : i + 1;
+                  setState(() => _waterConsumed = newVal);
+                  await WaterService.logWater(newVal, target: _waterTarget);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 3),
+                  child: Icon(
+                    i < _waterConsumed
+                        ? Icons.water_drop_rounded
+                        : Icons.water_drop_outlined,
+                    color: i < _waterConsumed ? waterColor : Colors.white12,
+                    size: 19,
+                  ),
                 ),
               ),
             ),
