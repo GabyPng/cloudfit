@@ -291,6 +291,7 @@ class _MainScreenState extends State<MainScreen> {
     ctrl.dispose();
     if (result == null) return;
     await CalorieService.logCalories(result);
+    if (!mounted) return;
     setState(() => _future = _load());
   }
 
@@ -1014,7 +1015,7 @@ class _CaloriesCard extends StatelessWidget {
   const _CaloriesCard({required this.consumed, required this.target});
   @override
   Widget build(BuildContext context) {
-    final pct = (consumed / target).clamp(0.0, 1.0);
+    final pct = target > 0 ? (consumed / target).clamp(0.0, 1.0) : 0.0;
     const purple = Color(0xFF6366F1);
     return Container(
       padding: const EdgeInsets.all(18),
