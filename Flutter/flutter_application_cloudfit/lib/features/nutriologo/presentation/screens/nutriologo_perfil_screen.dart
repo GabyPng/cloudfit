@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants.dart';
+import '../../../../shared/widgets/certificate_upload_widget.dart';
 import '../../../../shared/widgets/skeleton.dart';
 import '../../data/nutriologo_api.dart';
 
@@ -34,7 +35,7 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _load();
   }
 
@@ -266,6 +267,7 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
           tabs: const [
             Tab(text: 'Perfil'),
             Tab(text: 'Solicitudes'),
+            Tab(text: 'Certificados'),
           ],
         ),
       ),
@@ -276,6 +278,7 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
               children: [
                 _buildProfileTab(),
                 _buildSolicitudesTab(),
+                _buildCertificatesTab(),
               ],
             ),
     );
@@ -320,21 +323,44 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.neonGreen.withValues(alpha: 0.12),
+                  AppColors.electricPurple.withValues(alpha: 0.06),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                  color: AppColors.neonGreen.withValues(alpha: 0.14)),
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor:
-                      AppColors.neonGreen.withValues(alpha: 0.2),
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      color: AppColors.neonGreen,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 24,
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.neonGreen.withValues(alpha: 0.3),
+                        AppColors.neonGreen.withValues(alpha: 0.15),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                        color: AppColors.neonGreen.withValues(alpha: 0.3)),
+                  ),
+                  child: Center(
+                    child: Text(
+                      initial,
+                      style: const TextStyle(
+                        color: AppColors.neonGreen,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 26,
+                      ),
                     ),
                   ),
                 ),
@@ -346,34 +372,41 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
                       Text(
                         name,
                         style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18),
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          letterSpacing: -0.3,
+                        ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       Text(
                         _profile['email']?.toString() ?? '',
                         style: const TextStyle(
-                            color: Colors.white54, fontSize: 12),
+                            color: Colors.white38, fontSize: 12),
                       ),
-                      const SizedBox(height: 4),
-                      if (_profile['focus'] != null)
+                      if (_profile['focus'] != null) ...[
+                        const SizedBox(height: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                              horizontal: 10, vertical: 3),
                           decoration: BoxDecoration(
                             color: AppColors.neonGreen
-                                .withValues(alpha: 0.15),
+                                .withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: AppColors.neonGreen
+                                    .withValues(alpha: 0.3)),
                           ),
                           child: Text(
                             _profile['focus'].toString(),
                             style: const TextStyle(
-                                color: AppColors.neonGreen,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold),
+                              color: AppColors.neonGreen,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
+                      ],
                     ],
                   ),
                 ),
@@ -418,26 +451,29 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
   Widget _statChip(String label, String value, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.18)),
         ),
         child: Column(
           children: [
             Text(
               value,
               style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18),
+                color: color,
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                letterSpacing: -0.5,
+              ),
             ),
-            const SizedBox(height: 2),
-            Text(label,
-                textAlign: TextAlign.center,
-                style:
-                    const TextStyle(color: Colors.white54, fontSize: 9)),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white38, fontSize: 9),
+            ),
           ],
         ),
       ),
@@ -649,6 +685,78 @@ class _NutriologoPerfilScreenState extends State<NutriologoPerfilScreen>
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCertificatesTab() {
+    final uploads = (_profile['certificate_uploads'] as List?)
+            ?.cast<Map<String, dynamic>>() ??
+        [];
+    final userId = _profile['user_id'] as int?;
+    final isVerified = _profile['is_verified'] == true;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('MIS CERTIFICADOS',
+                      style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.1)),
+                ],
+              ),
+            ),
+            if (isVerified)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.neonGreen.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: AppColors.neonGreen.withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.verified_rounded,
+                        color: AppColors.neonGreen, size: 14),
+                    SizedBox(width: 4),
+                    Text('Verificado',
+                        style: TextStyle(
+                            color: AppColors.neonGreen,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+          ]),
+          const SizedBox(height: 14),
+          if (userId != null)
+            CertificateUploadWidget(
+              initialCertificates: uploads,
+              role: 'nutriologo',
+              userId: userId,
+              onUploaded: (certs) async {
+                try {
+                  await NutriologoApi.updatePerfil(
+                      {'certificate_uploads': certs});
+                  setState(() {
+                    _profile['certificate_uploads'] = certs;
+                  });
+                } catch (_) {}
+              },
+            ),
+          const SizedBox(height: 80),
+        ],
+      ),
     );
   }
 

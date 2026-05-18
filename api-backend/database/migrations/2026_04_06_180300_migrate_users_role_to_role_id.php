@@ -9,13 +9,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasColumn('users', 'role_id')) {
+        if (! Schema::hasColumn('users', 'role_id')) {
             Schema::table('users', function (Blueprint $table) {
                 $table->foreignId('role_id')->nullable()->after('email')->constrained('roles')->nullOnDelete();
             });
         }
 
-        DB::statement("\n            UPDATE users\n            SET role_id = roles.id\n            FROM roles\n            WHERE LOWER(CAST(users.role AS TEXT)) = LOWER(roles.name)\n        ");
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement('UPDATE users SET role_id = (SELECT id FROM roles WHERE LOWER(CAST(users.role AS TEXT)) = LOWER(roles.name) LIMIT 1)');
+        } else {
+            DB::statement('UPDATE users SET role_id = roles.id FROM roles WHERE LOWER(CAST(users.role AS TEXT)) = LOWER(roles.name)');
+        }
 
         $clienteRoleId = DB::table('roles')->where('name', 'cliente')->value('id');
         if ($clienteRoleId) {
@@ -31,7 +35,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (!Schema::hasColumn('users', 'role')) {
+        if (! Schema::hasColumn('users', 'role')) {
             Schema::table('users', function (Blueprint $table) {
                 $table->enum('role', ['admin', 'coach', 'nutriologo', 'cliente'])->default('cliente')->after('email');
             });

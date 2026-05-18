@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Progress extends Model
 {
     protected $table = 'progress';
+
     protected $primaryKey = 'progress_id';
 
     protected $fillable = [
@@ -20,10 +21,10 @@ class Progress extends Model
     protected function casts(): array
     {
         return [
-            'weight'   => 'decimal:2',
+            'weight' => 'decimal:2',
             'body_fat' => 'decimal:2',
-            'bmi'      => 'decimal:2',
-            'date'     => 'date',
+            'bmi' => 'decimal:2',
+            'date' => 'date',
         ];
     }
 

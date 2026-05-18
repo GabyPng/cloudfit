@@ -1,51 +1,174 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/auth_service.dart';
 import '../../core/constants.dart';
+import 'share_progress_widget.dart';
 
-class ProgressScreen extends StatelessWidget {
+class ProgressScreen extends StatefulWidget {
   static const String name = 'progress_screen';
   const ProgressScreen({super.key});
-  // ── Static data ──────────────────────────────────────────────────────────
-  static const _weightData = [83.0, 82.0, 80.5, 79.5, 78.8, 78.5, 78.2, 78.4];
-  static const _months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'];
-  static const _weightTarget = 72.0;
-  static const _currentWeight = 78.4;
-  static const _bmi = 23.1;
-  static const _muscleKg = 48.6;
-  static const _musclePct = 62.0;
-  static const _fatPct = 14.0;
-  static const _waterPct = 6.0;
-  static const _metabolism = 1840;
+
+  @override
+  State<ProgressScreen> createState() => _ProgressScreenState();
+}
+
+class _ProgressScreenState extends State<ProgressScreen> {
+  late Future<_ProgressData> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<_ProgressData> _load() async {
+    final clientId = await AuthService.getNumericUserId();
+    if (clientId == null) return _ProgressData.empty();
+
+    final rows = await Supabase.instance.client
+        .from('progress_records')
+        .select(
+          'date,weight_kg,bmi,body_fat_pct,muscle_mass_kg,calories_target,adherence_pct',
+        )
+        .eq('client_id', clientId)
+        .order('date', ascending: true)
+        .limit(20);
+
+    final list = List<Map<String, dynamic>>.from(rows as List);
+    if (list.isEmpty) return _ProgressData.empty();
+
+    final latest = list.last;
+    final chartPoints = list.length > 8 ? list.sublist(list.length - 8) : list;
+
+    return _ProgressData(
+      records: list,
+      chartPoints: chartPoints,
+      currentWeight: (latest['weight_kg'] as num?)?.toDouble(),
+      bmi: (latest['bmi'] as num?)?.toDouble(),
+      bodyFatPct: (latest['body_fat_pct'] as num?)?.toDouble(),
+      muscleMassKg: (latest['muscle_mass_kg'] as num?)?.toDouble(),
+      lastDate: latest['date'] as String?,
+    );
+  }
+
+  void _refresh() => setState(() => _future = _load());
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          _buildHeader(),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 110),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                _buildSummaryCards(),
-                const SizedBox(height: 14),
-                _buildWeightChart(),
-                const SizedBox(height: 14),
-                _buildBodyCompositionCard(),
-                const SizedBox(height: 14),
-                _buildStatsRow(),
-                const SizedBox(height: 14),
-                _buildLastMeasurement(),
-              ]),
-            ),
-          ),
-        ],
+      body: FutureBuilder<_ProgressData>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return _buildLoading();
+          }
+          if (snap.hasError) {
+            return _buildError();
+          }
+          final data = snap.data ?? _ProgressData.empty();
+          if (data.records.isEmpty) return _buildEmpty();
+          return _buildContent(data);
+        },
       ),
     );
   }
 
-  // ── Header ────────────────────────────────────────────────────────────────
+  Widget _buildLoading() => CustomScrollView(slivers: [
+        _buildHeader(),
+        const SliverFillRemaining(
+          child: Center(
+              child: CircularProgressIndicator(color: AppColors.neonGreen)),
+        ),
+      ]);
+
+  Widget _buildError() => CustomScrollView(slivers: [
+        _buildHeader(),
+        SliverFillRemaining(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    color: AppColors.coralOrange, size: 48),
+                const SizedBox(height: 16),
+                const Text('Error al cargar el progreso',
+                    style: TextStyle(color: Colors.white, fontSize: 16)),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Reintentar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.neonGreen,
+                    foregroundColor: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ]);
+
+  Widget _buildEmpty() => CustomScrollView(slivers: [
+        _buildHeader(),
+        const SliverFillRemaining(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.show_chart_rounded,
+                      color: Colors.white24, size: 52),
+                  SizedBox(height: 16),
+                  Text('Sin registros de progreso',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                  SizedBox(height: 8),
+                  Text(
+                    'Tu entrenador aún no ha registrado mediciones.',
+                    style: TextStyle(color: Colors.white38, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ]);
+
+  Widget _buildContent(_ProgressData data) {
+    return CustomScrollView(
+      slivers: [
+        _buildHeader(),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 110),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              _buildSummaryCards(data),
+              if (data.chartPoints.length >= 2) ...[
+                const SizedBox(height: 14),
+                _buildWeightChart(data),
+              ],
+              if (data.bodyFatPct != null || data.muscleMassKg != null) ...[
+                const SizedBox(height: 14),
+                _buildBodyCompositionCard(data),
+              ],
+              const SizedBox(height: 14),
+              _buildLastMeasurement(data),
+              const SizedBox(height: 14),
+              const ShareProgressWidget(),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildHeader() {
     return SliverToBoxAdapter(
       child: Padding(
@@ -53,18 +176,24 @@ class ProgressScreen extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Progreso',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text('Tu evolución, paso a paso',
-                    style: TextStyle(color: Colors.white38, fontSize: 13)),
-              ],
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Progreso',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('Tu evolución, paso a paso',
+                      style: TextStyle(color: Colors.white38, fontSize: 13)),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: _refresh,
+              icon: const Icon(Icons.refresh_rounded, color: Colors.white38, size: 20),
             ),
           ],
         ),
@@ -72,8 +201,14 @@ class ProgressScreen extends StatelessWidget {
     );
   }
 
-  // ── Summary cards ─────────────────────────────────────────────────────────
-  Widget _buildSummaryCards() {
+  Widget _buildSummaryCards(_ProgressData data) {
+    final weightStr = data.currentWeight != null
+        ? '${data.currentWeight!.toStringAsFixed(1)} kg'
+        : '-- kg';
+    final bmiStr =
+        data.bmi != null ? data.bmi!.toStringAsFixed(1) : '--';
+    final bmiLabel = _bmiLabel(data.bmi);
+
     return Row(
       children: [
         Expanded(
@@ -81,11 +216,9 @@ class ProgressScreen extends StatelessWidget {
             icon: Icons.monitor_weight_outlined,
             iconColor: AppColors.neonGreen,
             title: 'Peso actual',
-            value: '$_currentWeight kg',
-            badge: 'Normal',
+            value: weightStr,
+            badge: bmiLabel,
             badgeColor: AppColors.neonGreen,
-            delta: '▼  -1.2 kg este mes',
-            deltaColor: Colors.redAccent,
           ),
         ),
         const SizedBox(width: 12),
@@ -94,23 +227,36 @@ class ProgressScreen extends StatelessWidget {
             icon: Icons.shield_outlined,
             iconColor: AppColors.electricPurple,
             title: 'IMC actual',
-            value: '$_bmi',
-            badge: 'Normal',
+            value: bmiStr,
+            badge: bmiLabel,
             badgeColor: AppColors.electricPurple,
-            delta: '✓  Rango saludable',
-            deltaColor: AppColors.neonGreen,
           ),
         ),
       ],
     );
   }
 
-  // ── Weight evolution chart ────────────────────────────────────────────────
-  Widget _buildWeightChart() {
+  String _bmiLabel(double? bmi) {
+    if (bmi == null) return '--';
+    if (bmi < 18.5) return 'Bajo peso';
+    if (bmi < 25) return 'Normal';
+    if (bmi < 30) return 'Sobrepeso';
+    return 'Obesidad';
+  }
+
+  Widget _buildWeightChart(_ProgressData data) {
+    final points = data.chartPoints;
+    final weights = points.map((r) => (r['weight_kg'] as num?)?.toDouble() ?? 0.0).toList();
+    final labels = points.map((r) {
+      final d = DateTime.tryParse(r['date'] as String? ?? '');
+      return d != null ? '${d.day}/${d.month}' : '';
+    }).toList();
+
+    final minW = weights.reduce((a, b) => a < b ? a : b) - 2;
+    final maxW = weights.reduce((a, b) => a > b ? a : b) + 2;
+
     final spots = List.generate(
-      _weightData.length,
-      (i) => FlSpot(i.toDouble(), _weightData[i]),
-    );
+        weights.length, (i) => FlSpot(i.toDouble(), weights[i]));
 
     final weightLine = LineChartBarData(
       spots: spots,
@@ -120,7 +266,7 @@ class ProgressScreen extends StatelessWidget {
       barWidth: 2.5,
       dotData: FlDotData(
         show: true,
-        getDotPainter: (spot, _, _, _) => FlDotCirclePainter(
+        getDotPainter: (spot, pct, bar, idx) => FlDotCirclePainter(
           radius: 4,
           color: AppColors.neonGreen,
           strokeWidth: 2,
@@ -149,59 +295,32 @@ class ProgressScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Evolución de peso',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold)),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.cardGrey,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Row(children: [
-                  Text('Peso (kg)',
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 12)),
-                  SizedBox(width: 4),
-                  Icon(Icons.keyboard_arrow_down_rounded,
-                      color: Colors.white38, size: 16),
-                ]),
-              ),
-            ],
-          ),
+          const Text('Evolución de peso',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
           SizedBox(
-            height: 190,
+            height: 180,
             child: LineChart(
               LineChartData(
-                minY: 65,
-                maxY: 86,
+                minY: minW,
+                maxY: maxW,
                 minX: 0,
-                maxX: 7,
+                maxX: (weights.length - 1).toDouble(),
                 clipData: const FlClipData.all(),
-                showingTooltipIndicators: [
-                  ShowingTooltipIndicators([
-                    LineBarSpot(weightLine, 0, FlSpot(7, 78.4)),
-                  ]),
-                ],
                 lineTouchData: LineTouchData(
                   enabled: true,
                   touchTooltipData: LineTouchTooltipData(
                     getTooltipColor: (_) => AppColors.cardGrey,
                     getTooltipItems: (spots) => spots.map((s) {
                       return LineTooltipItem(
-                        '${s.y} kg\nActual',
+                        '${s.y.toStringAsFixed(1)} kg',
                         const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          height: 1.5,
                         ),
                       );
                     }).toList(),
@@ -211,12 +330,12 @@ class ProgressScreen extends StatelessWidget {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 34,
-                      interval: 5,
+                      reservedSize: 36,
+                      interval: 2,
                       getTitlesWidget: (val, _) => Text(
-                        val.toInt().toString(),
+                        val.toStringAsFixed(0),
                         style: const TextStyle(
-                            color: Colors.white38, fontSize: 11),
+                            color: Colors.white38, fontSize: 10),
                       ),
                     ),
                   ),
@@ -226,14 +345,14 @@ class ProgressScreen extends StatelessWidget {
                       reservedSize: 28,
                       getTitlesWidget: (val, _) {
                         final i = val.toInt();
-                        if (i < 0 || i >= _months.length) {
+                        if (i < 0 || i >= labels.length) {
                           return const SizedBox();
                         }
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
-                          child: Text(_months[i],
+                          child: Text(labels[i],
                               style: const TextStyle(
-                                  color: Colors.white38, fontSize: 11)),
+                                  color: Colors.white38, fontSize: 10)),
                         );
                       },
                     ),
@@ -246,52 +365,26 @@ class ProgressScreen extends StatelessWidget {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  horizontalInterval: 5,
                   getDrawingHorizontalLine: (_) => FlLine(
                     color: Colors.white.withValues(alpha: 0.05),
                     strokeWidth: 1,
                   ),
                 ),
                 borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  weightLine,
-                  // Target dashed line
-                  LineChartBarData(
-                    spots: const [
-                      FlSpot(0, _weightTarget),
-                      FlSpot(7, _weightTarget),
-                    ],
-                    isCurved: false,
-                    color: Colors.white30,
-                    barWidth: 1.5,
-                    dashArray: [6, 4],
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(show: false),
-                  ),
-                ],
+                lineBarsData: [weightLine],
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            Container(
-                width: 18,
-                height: 1.5,
-                decoration: const BoxDecoration(
-                    color: Colors.white30)),
-            const SizedBox(width: 6),
-            const Text('Objetivo: $_weightTarget kg',
-                style: TextStyle(color: Colors.white38, fontSize: 11)),
-          ]),
         ],
       ),
     );
   }
 
-  // ── Body composition card ─────────────────────────────────────────────────
-  Widget _buildBodyCompositionCard() {
-    const cyanColor = Color(0xFF4DD0E1);
-    const otherPct = 100.0 - _musclePct - _fatPct - _waterPct;
+  Widget _buildBodyCompositionCard(_ProgressData data) {
+    final musclePct = data.muscleMassKg != null && data.currentWeight != null && data.currentWeight! > 0
+        ? (data.muscleMassKg! / data.currentWeight! * 100).clamp(0.0, 100.0)
+        : null;
+    final fatPct = data.bodyFatPct;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -302,94 +395,28 @@ class ProgressScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Composición corporal',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold)),
-              Row(children: const [
-                Text('Ver detalles',
-                    style: TextStyle(
-                        color: AppColors.neonGreen, fontSize: 12)),
-                SizedBox(width: 4),
-                Icon(Icons.arrow_forward_ios_rounded,
-                    color: AppColors.neonGreen, size: 12),
-              ]),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              // Donut chart with body icon
-              SizedBox(
-                width: 130,
-                height: 130,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    PieChart(
-                      PieChartData(
-                        sections: [
-                          PieChartSectionData(
-                              value: _musclePct,
-                              color: AppColors.neonGreen,
-                              radius: 20,
-                              title: ''),
-                          PieChartSectionData(
-                              value: _fatPct,
-                              color: AppColors.electricPurple,
-                              radius: 20,
-                              title: ''),
-                          PieChartSectionData(
-                              value: _waterPct,
-                              color: cyanColor,
-                              radius: 20,
-                              title: ''),
-                          PieChartSectionData(
-                              value: otherPct,
-                              color: Colors.white10,
-                              radius: 20,
-                              title: ''),
-                        ],
-                        centerSpaceRadius: 45,
-                        sectionsSpace: 2,
-                        startDegreeOffset: -90,
-                      ),
-                    ),
-                    const Icon(Icons.accessibility_new_rounded,
-                        color: Colors.white24, size: 44),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 20),
-              // Legend with bars
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _compRow('Músculo', '${_musclePct.toInt()}%',
-                        _musclePct / 100, AppColors.neonGreen),
-                    const SizedBox(height: 18),
-                    _compRow('Grasa corporal', '${_fatPct.toInt()}%',
-                        _fatPct / 100, AppColors.electricPurple),
-                    const SizedBox(height: 18),
-                    _compRow('Agua', '${_waterPct.toInt()}%',
-                        _waterPct / 100, cyanColor),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          const Text('Composición corporal',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          if (musclePct != null)
+            _compRow('Músculo', '${musclePct.toStringAsFixed(1)}%',
+                musclePct / 100, AppColors.neonGreen),
+          if (musclePct != null) const SizedBox(height: 14),
+          if (fatPct != null)
+            _compRow('Grasa corporal', '${fatPct.toStringAsFixed(1)}%',
+                (fatPct / 100).clamp(0.0, 1.0), AppColors.electricPurple),
+          if (musclePct == null && fatPct == null)
+            const Text('Sin datos de composición',
+                style: TextStyle(color: Colors.white38, fontSize: 13)),
         ],
       ),
     );
   }
 
-  Widget _compRow(
-      String label, String valueText, double pct, Color color) {
+  Widget _compRow(String label, String valueText, double pct, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -400,12 +427,12 @@ class ProgressScreen extends StatelessWidget {
               Container(
                   width: 9,
                   height: 9,
-                  decoration: BoxDecoration(
-                      color: color, shape: BoxShape.circle)),
+                  decoration:
+                      BoxDecoration(color: color, shape: BoxShape.circle)),
               const SizedBox(width: 8),
               Text(label,
-                  style: const TextStyle(
-                      color: Colors.white70, fontSize: 12)),
+                  style:
+                      const TextStyle(color: Colors.white70, fontSize: 12)),
             ]),
             Text(valueText,
                 style: TextStyle(
@@ -428,64 +455,16 @@ class ProgressScreen extends StatelessWidget {
     );
   }
 
-  // ── Stats row ─────────────────────────────────────────────────────────────
-  Widget _buildStatsRow() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          _StatItem(
-            icon: Icons.fitness_center_rounded,
-            iconColor: AppColors.neonGreen,
-            label: 'Masa muscular',
-            value: '$_muscleKg kg',
-            delta: '+1.8 kg',
-            isPositive: true,
-          ),
-          _vDivider(),
-          _StatItem(
-            icon: Icons.percent_rounded,
-            iconColor: AppColors.electricPurple,
-            label: 'Grasa corporal',
-            value: '$_fatPct%',
-            delta: '-0.8%',
-            isPositive: false,
-          ),
-          _vDivider(),
-          _StatItem(
-            icon: Icons.water_drop_rounded,
-            iconColor: const Color(0xFF4DD0E1),
-            label: 'Agua corporal',
-            value: '$_waterPct%',
-            delta: '= 0%',
-            isPositive: null,
-          ),
-          _vDivider(),
-          _StatItem(
-            icon: Icons.local_fire_department_rounded,
-            iconColor: AppColors.coralOrange,
-            label: 'Metabolismo',
-            value: '$_metabolism',
-            delta: '+120 kcal',
-            isPositive: true,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildLastMeasurement(_ProgressData data) {
+    String dateLabel = 'Sin fecha';
+    if (data.lastDate != null) {
+      final d = DateTime.tryParse(data.lastDate!);
+      if (d != null) {
+        dateLabel =
+            '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+      }
+    }
 
-  Widget _vDivider() => Container(
-        width: 1,
-        height: 52,
-        color: Colors.white.withValues(alpha: 0.07),
-      );
-
-  // ── Last measurement ──────────────────────────────────────────────────────
-  Widget _buildLastMeasurement() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
@@ -504,31 +483,52 @@ class ProgressScreen extends StatelessWidget {
                 color: AppColors.electricPurple, size: 18),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Última medición',
+                const Text('Última medición',
                     style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 14)),
-                SizedBox(height: 2),
-                Text('24 Oct, 2023 · 08:30 AM',
-                    style:
-                        TextStyle(color: Colors.white38, fontSize: 12)),
+                const SizedBox(height: 2),
+                Text(dateLabel,
+                    style: const TextStyle(
+                        color: Colors.white38, fontSize: 12)),
               ],
             ),
           ),
-          const Icon(Icons.arrow_forward_ios_rounded,
-              color: Colors.white24, size: 15),
         ],
       ),
     );
   }
 }
 
-// ── Summary card ──────────────────────────────────────────────────────────────
+class _ProgressData {
+  final List<Map<String, dynamic>> records;
+  final List<Map<String, dynamic>> chartPoints;
+  final double? currentWeight;
+  final double? bmi;
+  final double? bodyFatPct;
+  final double? muscleMassKg;
+  final String? lastDate;
+
+  const _ProgressData({
+    required this.records,
+    required this.chartPoints,
+    this.currentWeight,
+    this.bmi,
+    this.bodyFatPct,
+    this.muscleMassKg,
+    this.lastDate,
+  });
+
+  factory _ProgressData.empty() => const _ProgressData(
+        records: [],
+        chartPoints: [],
+      );
+}
 
 class _SummaryCard extends StatelessWidget {
   final IconData icon;
@@ -537,8 +537,6 @@ class _SummaryCard extends StatelessWidget {
   final String value;
   final String badge;
   final Color badgeColor;
-  final String delta;
-  final Color deltaColor;
 
   const _SummaryCard({
     required this.icon,
@@ -547,8 +545,6 @@ class _SummaryCard extends StatelessWidget {
     required this.value,
     required this.badge,
     required this.badgeColor,
-    required this.delta,
-    required this.deltaColor,
   });
 
   @override
@@ -597,81 +593,6 @@ class _SummaryCard extends StatelessWidget {
                   color: Colors.white,
                   fontSize: 26,
                   fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Text(delta,
-              style: TextStyle(
-                  color: deltaColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Stat item ─────────────────────────────────────────────────────────────────
-
-class _StatItem extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-  final String value;
-  final String delta;
-  final bool? isPositive; // null = neutral
-
-  const _StatItem({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-    required this.value,
-    required this.delta,
-    required this.isPositive,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final Color deltaColor;
-    final String prefix;
-    if (isPositive == null) {
-      deltaColor = Colors.white38;
-      prefix = '';
-    } else if (isPositive!) {
-      deltaColor = AppColors.neonGreen;
-      prefix = '▲  ';
-    } else {
-      deltaColor = Colors.redAccent;
-      prefix = '▼  ';
-    }
-
-    return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 17),
-          ),
-          const SizedBox(height: 8),
-          Text(label,
-              textAlign: TextAlign.center,
-              style:
-                  const TextStyle(color: Colors.white38, fontSize: 9.5)),
-          const SizedBox(height: 3),
-          Text(value,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 2),
-          Text('$prefix$delta',
-              style: TextStyle(
-                  color: deltaColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600)),
         ],
       ),
     );

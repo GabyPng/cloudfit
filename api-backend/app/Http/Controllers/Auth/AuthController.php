@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Controller;
 use App\Models\Nutriologo;
 use App\Models\Role;
 use App\Models\User;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -26,7 +26,7 @@ class AuthController extends Controller
 
     private function normalizeRoleValue(?string $rawRole): ?string
     {
-        if (!$rawRole) {
+        if (! $rawRole) {
             return null;
         }
 
@@ -77,9 +77,9 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'uid'   => $request->attributes->get('supabase_uid'),
+            'uid' => $request->attributes->get('supabase_uid'),
             'email' => $request->attributes->get('supabase_email'),
-            'role'  => $request->attributes->get('supabase_role'),
+            'role' => $request->attributes->get('supabase_role'),
             'local_user' => $localUser,
         ]);
     }
@@ -88,7 +88,7 @@ class AuthController extends Controller
     {
         $email = $request->attributes->get('supabase_email');
 
-        if (!$email) {
+        if (! $email) {
             return response()->json(['error' => 'No email in token'], 400);
         }
 
@@ -100,7 +100,7 @@ class AuthController extends Controller
 
         $user = User::query()->where('email', $email)->first();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'User not found'], 404);
         }
 
@@ -131,7 +131,7 @@ class AuthController extends Controller
     public function sync(Request $request)
     {
         $email = $request->attributes->get('supabase_email');
-        if (!$email) {
+        if (! $email) {
             return response()->json(['error' => 'No email in token'], 400);
         }
 
@@ -139,7 +139,7 @@ class AuthController extends Controller
 
         if ($existingUser && $existingUser->role_id) {
             $roleModel = Role::find($existingUser->role_id);
-            if (!$roleModel) {
+            if (! $roleModel) {
                 return response()->json(['error' => 'Rol inválido para el usuario'], 422);
             }
             $roleId = $existingUser->role_id;
@@ -148,7 +148,7 @@ class AuthController extends Controller
             $role = $this->resolveRoleFromRequest($request);
 
             $roleId = Role::query()->where('name', $role)->value('role_id');
-            if (!$roleId) {
+            if (! $roleId) {
                 return response()->json(['error' => 'Role not found'], 422);
             }
         }
@@ -161,7 +161,7 @@ class AuthController extends Controller
             $user->supabase_id = $supabaseUid;
         }
 
-        if (!$existingUser) {
+        if (! $existingUser) {
             $user->role_id = $roleId;
         }
 
@@ -173,7 +173,7 @@ class AuthController extends Controller
             $user->objective = $request->input('objective');
         }
 
-        if (!$user->exists) {
+        if (! $user->exists) {
             $user->password = '';
         }
 
@@ -218,26 +218,25 @@ class AuthController extends Controller
 
     private function updateSupabaseMetadata($supabaseUid, $role)
     {
-        if (!$supabaseUid) {
+        if (! $supabaseUid) {
             return;
         }
 
         try {
             $response = Http::withoutVerifying()->withHeaders([
-                'Authorization' => 'Bearer ' . config('supabase.service_role_key'),
+                'Authorization' => 'Bearer '.config('supabase.service_role_key'),
                 'Content-Type' => 'application/json',
-            ])->patch(config('supabase.url') . '/auth/v1/admin/users/' . $supabaseUid, [
+            ])->patch(config('supabase.url').'/auth/v1/admin/users/'.$supabaseUid, [
                 'user_metadata' => ['role' => $role],
             ]);
 
             if ($response->successful()) {
                 Log::info("Metadatos actualizados para $supabaseUid con role=$role");
             } else {
-                Log::error("Error al actualizar metadatos: " . $response->body());
+                Log::error('Error al actualizar metadatos: '.$response->body());
             }
         } catch (\Exception $e) {
-            Log::error('Excepción al actualizar metadatos: ' . $e->getMessage());
+            Log::error('Excepción al actualizar metadatos: '.$e->getMessage());
         }
     }
 }
-

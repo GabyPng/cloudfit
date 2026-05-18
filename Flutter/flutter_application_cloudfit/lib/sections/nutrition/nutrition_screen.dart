@@ -2,7 +2,9 @@ import 'dart:math';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../core/services/calorie_service.dart';
 import '../../core/services/nutrition_service.dart';
+import '../../core/services/water_service.dart';
 import 'models/nutrition_model.dart';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -17,22 +19,65 @@ class NutritionScreen extends StatefulWidget {
 
 class _NutritionScreenState extends State<NutritionScreen> {
   static const _weekdays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-  static const _weeklyKcal = [2100.0, 2450.0, 1980.0, 2320.0, 1840.0, 0.0, 0.0];
-  static const _todayIndex = 4;
-  static const _waterConsumed = 6;
-  static const _waterTarget = 8;
+  int get _todayIndex => (DateTime.now().weekday - 1) % 7;
 
   late Future<NutritionPlanModel?> _planFuture;
+  List<Map<String, dynamic>> _dietChanges = [];
+  bool _respondingChange = false;
+  List<int> _weeklyKcal = List.filled(7, 0);
+  int _waterConsumed = 0;
+  int _waterTarget = 8;
 
   @override
   void initState() {
     super.initState();
     _planFuture = NutritionService.getAssignedPlan();
+    _loadDietChanges();
+    _loadWeeklyKcal();
+    _loadWater();
   }
 
-  void _refresh() => setState(() {
-        _planFuture = NutritionService.getAssignedPlan();
-      });
+  Future<void> _loadWeeklyKcal() async {
+    final data = await CalorieService.getWeeklyCalories();
+    if (mounted) setState(() => _weeklyKcal = data);
+  }
+
+  Future<void> _loadWater() async {
+    final data = await WaterService.getTodayWater();
+    if (mounted) setState(() {
+      _waterConsumed = data.consumed;
+      _waterTarget = data.target;
+    });
+  }
+
+  Future<void> _loadDietChanges() async {
+    final changes = await NutritionService.getDietChanges();
+    if (mounted) setState(() => _dietChanges = changes);
+  }
+
+  void _refresh() {
+    setState(() => _planFuture = NutritionService.getAssignedPlan());
+    _loadDietChanges();
+  }
+
+  Future<void> _responderCambio(int id, String status) async {
+    setState(() => _respondingChange = true);
+    final ok = await NutritionService.responderCambioDieta(id, status);
+    if (mounted) {
+      if (ok) {
+        setState(() => _dietChanges.removeWhere((c) => c['id'] == id));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(status == 'approved'
+              ? 'Cambio aceptado'
+              : 'Cambio rechazado'),
+          backgroundColor: status == 'approved'
+              ? AppColors.neonGreen.withOpacity(0.9)
+              : Colors.red.shade800,
+        ));
+      }
+      setState(() => _respondingChange = false);
+    }
+  }
 
   static IconData _iconForType(String type) {
     switch (type) {
@@ -227,9 +272,13 @@ class _NutritionScreenState extends State<NutritionScreen> {
               const SizedBox(height: 14),
               _buildMacrosCard(plan),
               const SizedBox(height: 14),
-              _buildWeeklyChart(),
+              _buildWeeklyChart(calorieTarget),
               const SizedBox(height: 14),
               _buildWaterCard(),
+              if (_dietChanges.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                _buildDietChangesSection(),
+              ],
               const SizedBox(height: 24),
               const Text('Comidas del Plan',
                   style: TextStyle(
@@ -242,6 +291,179 @@ class _NutritionScreenState extends State<NutritionScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // ── Diet Changes ───────────────────────────────────────────────────────────
+
+  static const _changeTypeLabels = {
+    'calories':   'Calorías diarias',
+    'macro':      'Macronutrientes',
+    'meal':       'Comida del plan',
+    'restriction':'Restricción alimentaria',
+    'supplement': 'Suplemento',
+    'other':      'Ajuste general',
+  };
+
+  Widget _buildDietChangesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 6, height: 6,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFCE047),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Cambios de dieta pendientes',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFCE047).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFCE047).withOpacity(0.4)),
+              ),
+              child: Text(
+                '${_dietChanges.length}',
+                style: const TextStyle(
+                  color: Color(0xFFFCE047),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ..._dietChanges.map((change) => _buildDietChangeCard(change)),
+      ],
+    );
+  }
+
+  Widget _buildDietChangeCard(Map<String, dynamic> change) {
+    final int id = change['id'] as int;
+    final String type = change['change_type'] as String? ?? 'other';
+    final String typeLabel = _changeTypeLabels[type] ?? type;
+    final String? reason = change['reason'] as String?;
+    final String? proposedBy = change['proposed_by'] as String?;
+    final dynamic newValue = change['new_value'];
+
+    String newValueText = '';
+    if (newValue is Map) {
+      newValueText = newValue.entries
+          .map((e) => '${e.key}: ${e.value}')
+          .join(', ');
+    } else if (newValue != null) {
+      newValueText = newValue.toString();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFCE047).withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFCE047).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  typeLabel,
+                  style: const TextStyle(
+                    color: Color(0xFFFCE047),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              if (proposedBy != null)
+                Text(
+                  'Por $proposedBy',
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+            ],
+          ),
+          if (newValueText.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              newValueText,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          if (reason != null && reason.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              reason,
+              style: const TextStyle(color: Colors.white60, fontSize: 12, height: 1.4),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _respondingChange
+                      ? null
+                      : () => _responderCambio(id, 'rejected'),
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  label: const Text('Rechazar'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFF7351),
+                    side: const BorderSide(color: Color(0xFFFF7351), width: 1),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _respondingChange
+                      ? null
+                      : () => _responderCambio(id, 'approved'),
+                  icon: const Icon(Icons.check_rounded, size: 16),
+                  label: const Text('Aceptar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.neonGreen,
+                    foregroundColor: Colors.black,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -460,7 +682,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
   // ── Weekly bar chart ───────────────────────────────────────────────────────
 
-  Widget _buildWeeklyChart() {
+  Widget _buildWeeklyChart(int dailyCal) {
+    final today = _todayIndex;
+    final weeklyKcal = List.generate(7, (i) => _weeklyKcal[i].toDouble());
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 12, 16),
       decoration: BoxDecoration(
@@ -520,10 +744,10 @@ class _NutritionScreenState extends State<NutritionScreen> {
                             _weekdays[i],
                             style: TextStyle(
                               fontSize: 11,
-                              color: i == _todayIndex
+                              color: i == today
                                   ? AppColors.neonGreen
                                   : Colors.white38,
-                              fontWeight: i == _todayIndex
+                              fontWeight: i == today
                                   ? FontWeight.w700
                                   : FontWeight.normal,
                             ),
@@ -549,9 +773,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   ),
                 ),
                 borderData: FlBorderData(show: false),
-                barGroups: List.generate(_weeklyKcal.length, (i) {
-                  final isToday = i == _todayIndex;
-                  final val = _weeklyKcal[i];
+                barGroups: List.generate(weeklyKcal.length, (i) {
+                  final isToday = i == today;
+                  final val = weeklyKcal[i];
                   return BarChartGroupData(
                     x: i,
                     barRods: [
@@ -601,35 +825,41 @@ class _NutritionScreenState extends State<NutritionScreen> {
               color: waterColor.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
-            child:
-                const Icon(Icons.water_drop_rounded, color: waterColor, size: 20),
+            child: const Icon(Icons.water_drop_rounded, color: waterColor, size: 20),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Hidratación',
+                const Text('Hidratación',
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.bold)),
                 Text('$_waterConsumed de $_waterTarget vasos',
-                    style: TextStyle(color: Colors.white38, fontSize: 11)),
+                    style: const TextStyle(color: Colors.white38, fontSize: 11)),
               ],
             ),
           ),
           Row(
             children: List.generate(
               _waterTarget,
-              (i) => Padding(
-                padding: const EdgeInsets.only(left: 3),
-                child: Icon(
-                  i < _waterConsumed
-                      ? Icons.water_drop_rounded
-                      : Icons.water_drop_outlined,
-                  color: i < _waterConsumed ? waterColor : Colors.white12,
-                  size: 19,
+              (i) => GestureDetector(
+                onTap: () async {
+                  final newVal = (i < _waterConsumed) ? i : i + 1;
+                  setState(() => _waterConsumed = newVal);
+                  await WaterService.logWater(newVal, target: _waterTarget);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 3),
+                  child: Icon(
+                    i < _waterConsumed
+                        ? Icons.water_drop_rounded
+                        : Icons.water_drop_outlined,
+                    color: i < _waterConsumed ? waterColor : Colors.white12,
+                    size: 19,
+                  ),
                 ),
               ),
             ),

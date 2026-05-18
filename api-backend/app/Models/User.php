@@ -28,8 +28,11 @@ class User extends Authenticatable
         'avatar_url',
         'objective',
     ];
+
     public $incrementing = true;
-    protected $keyType = 'int';    
+
+    protected $keyType = 'int';
+
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -49,7 +52,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
+            'password' => 'hashed',
         ];
     }
 

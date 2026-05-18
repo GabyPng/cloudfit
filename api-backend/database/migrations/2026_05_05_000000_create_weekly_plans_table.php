@@ -11,14 +11,14 @@ return new class extends Migration
         Schema::create('weekly_plans', function (Blueprint $table) {
             $table->id();
             $table->foreignId('client_id')
-                  ->constrained('clients', 'user_id')
-                  ->cascadeOnDelete();
+                ->constrained('clients', 'user_id')
+                ->cascadeOnDelete();
             $table->foreignId('coach_id')
-                  ->constrained('coaches', 'user_id')
-                  ->cascadeOnDelete();
+                ->constrained('coaches', 'user_id')
+                ->cascadeOnDelete();
             $table->foreignId('routine_id')
-                  ->constrained('routines', 'id')
-                  ->cascadeOnDelete();
+                ->constrained('routines', 'id')
+                ->cascadeOnDelete();
             $table->string('day_of_week', 3); // Mon Tue Wed Thu Fri Sat Sun
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
@@ -28,7 +28,7 @@ return new class extends Migration
 
         // Notes field for the weekly plan (one per client)
         Schema::table('clients', function (Blueprint $table) {
-            if (!Schema::hasColumn('clients', 'weekly_plan_notes')) {
+            if (! Schema::hasColumn('clients', 'weekly_plan_notes')) {
                 $table->text('weekly_plan_notes')->nullable();
             }
         });

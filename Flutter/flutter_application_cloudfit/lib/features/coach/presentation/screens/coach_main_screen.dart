@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/auth_service.dart';
 import '../../../../core/constants.dart';
 
 class CoachMainScreen extends StatefulWidget {
@@ -126,32 +127,18 @@ class _CoachMainScreenState extends State<CoachMainScreen> {
   }
 
 Future<List<Map<String, dynamic>>> _getClients() async {
-  final myAuthId = _supabase.auth.currentUser!.id;
-  final userData = await _supabase
-      .from('users')
-      .select('user_id')
-      .eq('supabase_id', myAuthId)
-      .single();
-  final myNumericId = userData['user_id'];
+  final myNumericId = await AuthService.getNumericUserId();
+  if (myNumericId == null) return [];
 
-  final clientsData = await _supabase
+  final rows = await _supabase
       .from('clients')
-      .select('user_id, coach_id')
+      .select('users!user_id(user_id, name, email, avatar_url, objective)')
       .eq('coach_id', myNumericId);
-  
-  final List<Map<String, dynamic>> clientsWithUsers = [];
-  for (var client in clientsData) {
-    final user = await _supabase
-        .from('users')
-        .select('user_id, name, email, avatar_url, objective')
-        .eq('user_id', client['user_id'])
-        .single();
-    clientsWithUsers.add(user);
-  }
-  return clientsWithUsers;
+
+  return (rows as List)
+      .map((r) => Map<String, dynamic>.from(r['users'] as Map))
+      .toList();
 }
-//Implementación de la función _getClients que obtiene los clientes
-// asociados al coach actual, incluyendo sus datos de usuario para mostrar en la interfaz.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -224,28 +211,37 @@ Future<List<Map<String, dynamic>>> _getClients() async {
             ),
           ],
         ),
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.neonGreen.withOpacity(0.5), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.neonGreen.withOpacity(0.2),
-                blurRadius: 10,
-                spreadRadius: 2,
-              )
-            ],
-          ),
-          child: CircleAvatar(
-            backgroundColor: AppColors.cardGrey,
-            radius: 22,
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              onPressed: () => _supabase.auth.signOut(),
-              icon: const Icon(Icons.logout, color: Colors.white, size: 20),
+        Row(children: [
+          GestureDetector(
+            onTap: () => context.push('/coach-perfil'),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.neonGreen.withOpacity(0.12),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.neonGreen.withOpacity(0.4)),
+              ),
+              child: const Icon(Icons.person_outline,
+                  color: AppColors.neonGreen, size: 20),
             ),
           ),
-        ),
+          const SizedBox(width: 10),
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.neonGreen.withOpacity(0.5), width: 2),
+            ),
+            child: CircleAvatar(
+              backgroundColor: AppColors.cardGrey,
+              radius: 22,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => _supabase.auth.signOut(),
+                icon: const Icon(Icons.logout, color: Colors.white, size: 18),
+              ),
+            ),
+          ),
+        ]),
       ],
     );
   }

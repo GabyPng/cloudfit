@@ -30,6 +30,11 @@ class NutriologoContactRequest extends Model
         return $this->belongsTo(User::class, 'client_id', 'user_id');
     }
 
+    public function clientProfile(): BelongsTo
+    {
+        return $this->belongsTo(Client::class, 'client_id', 'user_id');
+    }
+
     public function scopePending($query)
     {
         return $query->where('status', 'pending');

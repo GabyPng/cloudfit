@@ -43,14 +43,24 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await AuthService.login(_emailCtrl.text.trim(), _passwordCtrl.text);
-      await AuthService.loadRole();
-      if (mounted) context.go(AuthService.homeRouteForCurrentUser);
     } on AuthException catch (e) {
       setState(() => _error = _mensajeError(e.message));
+      if (mounted) setState(() => _loading = false);
+      return;
     } catch (e) {
       setState(() => _error = 'Error técnico: $e');
-    } finally {
       if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    // Login succeeded — loadRole is best-effort; never blocks navigation
+    try {
+      await AuthService.loadRole();
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() => _loading = false);
+      context.go(AuthService.homeRouteForCurrentUser);
     }
   }
 

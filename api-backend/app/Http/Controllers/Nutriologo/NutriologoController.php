@@ -27,11 +27,11 @@ class NutriologoController extends Controller
     private function currentNutriologo(Request $request): ?Nutriologo
     {
         $email = $request->attributes->get('supabase_email');
-        if (!$email) {
+        if (! $email) {
             return null;
         }
 
-        $cacheKey = 'nutriologo_profile_' . md5($email);
+        $cacheKey = 'nutriologo_profile_'.md5($email);
 
         return Cache::remember($cacheKey, 300, function () use ($email) {
             $user = User::query()
@@ -40,7 +40,7 @@ class NutriologoController extends Controller
                 ->where('email', $email)
                 ->first();
 
-            if (!$user) {
+            if (! $user) {
                 return null;
             }
 
@@ -88,7 +88,7 @@ class NutriologoController extends Controller
     public function dashboard(Request $request)
     {
         $nutriologo = $this->currentNutriologo($request);
-        if (!$nutriologo) {
+        if (! $nutriologo) {
             return response()->json(['error' => 'No user in token'], 401);
         }
 
@@ -110,12 +110,12 @@ class NutriologoController extends Controller
             ->selectRaw("SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_assignments")
             ->selectRaw('COUNT(DISTINCT client_id) as total_clients')
             ->selectRaw(
-                "COUNT(DISTINCT CASE
+                'COUNT(DISTINCT CASE
                     WHEN (
                         (assigned_at IS NOT NULL AND assigned_at BETWEEN ? AND ?)
                         OR (created_at BETWEEN ? AND ?)
                     ) THEN client_id
-                END) as new_clients_month",
+                END) as new_clients_month',
                 [
                     $startOfMonth->toDateString(),
                     $endOfMonth->toDateString(),
@@ -141,13 +141,13 @@ class NutriologoController extends Controller
         $activeAssignments = (int) ($assignmentSummary?->active_assignments ?? 0);
 
         $stats = [
-            'total_pacientes'    => (int) ($assignmentSummary?->total_clients ?? 0),
-            'nuevos_este_mes'    => (int) ($assignmentSummary?->new_clients_month ?? 0),
+            'total_pacientes' => (int) ($assignmentSummary?->total_clients ?? 0),
+            'nuevos_este_mes' => (int) ($assignmentSummary?->new_clients_month ?? 0),
             'adherencia_promedio' => $totalAssignments > 0
                 ? (int) round(($activeAssignments / $totalAssignments) * 100)
                 : 0,
             'alertas_nutricionales' => (int) ($assignmentSummary?->alerts_count ?? 0),
-            'planes_activos'     => (int) ($assignmentSummary?->planes_activos ?? 0),
+            'planes_activos' => (int) ($assignmentSummary?->planes_activos ?? 0),
         ];
 
         $statusLabels = [
@@ -174,7 +174,7 @@ class NutriologoController extends Controller
             ->pluck('la.la_id');
 
         $patientAssignments = NutritionPlanAssignment::query()
-            ->with(['client:' . implode(',', $userFields), 'nutritionPlan:id,title'])
+            ->with(['client:'.implode(',', $userFields), 'nutritionPlan:id,title'])
             ->whereIn('id', $latestPatientAssignmentIds)
             ->get()
             ->keyBy('id');
@@ -219,10 +219,10 @@ class NutriologoController extends Controller
                 };
 
                 $detail = match ($assignment->status) {
-                    'completed' => 'completó su plan ' . ($assignment->nutritionPlan?->title ?? 'nutricional'),
+                    'completed' => 'completó su plan '.($assignment->nutritionPlan?->title ?? 'nutricional'),
                     'paused' => 'tiene su plan en pausa',
                     'cancelled' => 'requiere revisión de seguimiento',
-                    default => 'tiene activo el plan ' . ($assignment->nutritionPlan?->title ?? 'nutricional'),
+                    default => 'tiene activo el plan '.($assignment->nutritionPlan?->title ?? 'nutricional'),
                 };
 
                 return [
@@ -245,7 +245,7 @@ class NutriologoController extends Controller
     public function clientes(Request $request)
     {
         $nutriologo = $this->currentNutriologo($request);
-        if (!$nutriologo) {
+        if (! $nutriologo) {
             return response()->json(['error' => 'No user in token'], 401);
         }
 
@@ -343,7 +343,7 @@ class NutriologoController extends Controller
     public function planes(Request $request)
     {
         $nutriologo = $this->currentNutriologo($request);
-        if (!$nutriologo) {
+        if (! $nutriologo) {
             return response()->json(['error' => 'No user in token'], 401);
         }
 
@@ -382,7 +382,7 @@ class NutriologoController extends Controller
     public function planDetalle(Request $request, int $planId)
     {
         $nutriologo = $this->currentNutriologo($request);
-        if (!$nutriologo) {
+        if (! $nutriologo) {
             return response()->json(['error' => 'No user in token'], 401);
         }
 
@@ -392,7 +392,7 @@ class NutriologoController extends Controller
             ->where('nutriologo_id', $nutriologo->id)
             ->first();
 
-        if (!$plan) {
+        if (! $plan) {
             return response()->json(['error' => 'Plan no encontrado.'], 404);
         }
 
@@ -402,7 +402,7 @@ class NutriologoController extends Controller
     public function storePlan(Request $request)
     {
         $nutriologo = $this->currentNutriologo($request);
-        if (!$nutriologo) {
+        if (! $nutriologo) {
             return response()->json(['error' => 'No user in token'], 401);
         }
 
@@ -471,7 +471,7 @@ class NutriologoController extends Controller
     public function assignPlan(Request $request, int $planId)
     {
         $nutriologo = $this->currentNutriologo($request);
-        if (!$nutriologo) {
+        if (! $nutriologo) {
             return response()->json(['error' => 'No user in token'], 401);
         }
 
@@ -480,7 +480,7 @@ class NutriologoController extends Controller
             ->where('nutriologo_id', $nutriologo->id)
             ->first();
 
-        if (!$plan) {
+        if (! $plan) {
             return response()->json(['error' => 'Plan no encontrado.'], 404);
         }
 
@@ -515,7 +515,7 @@ class NutriologoController extends Controller
     public function updatePlan(Request $request, int $planId)
     {
         $nutriologo = $this->currentNutriologo($request);
-        if (!$nutriologo) {
+        if (! $nutriologo) {
             return response()->json(['error' => 'No user in token'], 401);
         }
 
@@ -524,7 +524,7 @@ class NutriologoController extends Controller
             ->where('nutriologo_id', $nutriologo->id)
             ->first();
 
-        if (!$plan) {
+        if (! $plan) {
             return response()->json(['error' => 'Plan no encontrado.'], 404);
         }
 
@@ -597,7 +597,7 @@ class NutriologoController extends Controller
     public function destroyPlan(Request $request, int $planId)
     {
         $nutriologo = $this->currentNutriologo($request);
-        if (!$nutriologo) {
+        if (! $nutriologo) {
             return response()->json(['error' => 'No user in token'], 401);
         }
 
@@ -606,7 +606,7 @@ class NutriologoController extends Controller
             ->where('nutriologo_id', $nutriologo->id)
             ->first();
 
-        if (!$plan) {
+        if (! $plan) {
             return response()->json(['error' => 'Plan no encontrado.'], 404);
         }
 
@@ -620,7 +620,7 @@ class NutriologoController extends Controller
     public function updateAssignmentStatus(Request $request, int $assignmentId)
     {
         $nutriologo = $this->currentNutriologo($request);
-        if (!$nutriologo) {
+        if (! $nutriologo) {
             return response()->json(['error' => 'No user in token'], 401);
         }
 
@@ -629,7 +629,7 @@ class NutriologoController extends Controller
             ->where('nutriologo_id', $nutriologo->id)
             ->first();
 
-        if (!$assignment) {
+        if (! $assignment) {
             return response()->json(['error' => 'Asignacion no encontrada.'], 404);
         }
 

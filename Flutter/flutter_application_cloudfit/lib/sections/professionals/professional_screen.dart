@@ -22,6 +22,7 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
   bool _isLoading = true;
   String? _error;
   int? _selectedRole;
+  int? _clientCoachId;
 
   @override
   void initState() {
@@ -38,16 +39,42 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
 
   Future<void> _fetchProfessionals() async {
     try {
-      final response = await _supabase
-          .from('users')
-          .select(
-              'user_id, name, avatar_url, role_id, objective, nutriologos(license_number, focus, certificate_uploads)')
-          .inFilter('role_id', [2, 3])
-          .order('role_id');
+      // Load professionals and client's current coach assignment in parallel
+      final authId = _supabase.auth.currentUser?.id;
+
+      final results = await Future.wait<dynamic>([
+        _supabase
+            .from('users')
+            .select(
+                'user_id, name, avatar_url, role_id, objective, nutriologos(license_number, focus, certificate_uploads)')
+            .inFilter('role_id', [2, 3])
+            .order('role_id'),
+        if (authId != null)
+          _supabase
+              .from('users')
+              .select('user_id')
+              .eq('supabase_id', authId)
+              .maybeSingle()
+        else
+          Future<dynamic>.value(null),
+      ]);
+
+      final profList = results[0] as List;
+      final userRow = results[1] as Map<String, dynamic>?;
+
+      int? coachId;
+      if (userRow != null) {
+        final clientRow = await _supabase
+            .from('clients')
+            .select('coach_id')
+            .eq('user_id', userRow['user_id'] as int)
+            .maybeSingle();
+        coachId = clientRow?['coach_id'] as int?;
+      }
 
       setState(() {
-        _professionals =
-            (response as List).map((e) => ProfessionalModel.fromMap(e)).toList();
+        _professionals = profList.map((e) => ProfessionalModel.fromMap(e)).toList();
+        _clientCoachId = coachId;
         _isLoading = false;
       });
       _applyFilters();
@@ -297,6 +324,7 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
     final isCoach = pro.roleId == 2;
     final rc = isCoach ? AppColors.neonGreen : AppColors.electricPurple;
     final rl = isCoach ? 'Coach' : 'Nutriólogo';
+    final isMyCoach = isCoach && _clientCoachId == pro.userId;
 
     return GestureDetector(
       onTap: () => _goToDetail(pro),
@@ -305,7 +333,10 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: rc.withValues(alpha: 0.18), width: 1),
+          border: Border.all(
+            color: isMyCoach ? AppColors.neonGreen.withValues(alpha: 0.55) : rc.withValues(alpha: 0.18),
+            width: isMyCoach ? 1.5 : 1,
+          ),
         ),
         child: Column(children: [
           // Main row
@@ -373,6 +404,31 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white)),
                         ),
+                        if (isMyCoach)
+                          Container(
+                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.neonGreen.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: AppColors.neonGreen.withValues(alpha: 0.5)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_outline_rounded,
+                                    size: 11, color: AppColors.neonGreen),
+                                SizedBox(width: 3),
+                                Text('Tu Coach',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.neonGreen)),
+                              ],
+                            ),
+                          ),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 3),
@@ -480,7 +536,11 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (_) => ProfessionalDetailScreen(professional: pro)),
+        builder: (_) => ProfessionalDetailScreen(
+          professional: pro,
+          clientCoachId: _clientCoachId,
+        ),
+      ),
     );
   }
 }

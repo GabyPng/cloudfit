@@ -8,6 +8,8 @@ class RoutineExercise {
   final String? restTime;
   final String? notes;
   final int order;
+  final String? mediaUrl;
+  final String? mediaType;
 
   RoutineExercise({
     required this.id,
@@ -19,6 +21,8 @@ class RoutineExercise {
     this.restTime,
     this.notes,
     required this.order,
+    this.mediaUrl,
+    this.mediaType,
   });
 
   factory RoutineExercise.fromMap(Map<String, dynamic> map) {
@@ -32,6 +36,8 @@ class RoutineExercise {
       restTime: map['rest_time'],
       notes: map['notes'],
       order: map['order'] as int? ?? 0,
+      mediaUrl: map['media_url'] as String?,
+      mediaType: map['media_type'] as String?,
     );
   }
 
@@ -46,6 +52,8 @@ class RoutineExercise {
       restTime: restTime,
       notes: notes,
       order: order,
+      mediaUrl: mediaUrl,
+      mediaType: mediaType,
     );
   }
 }

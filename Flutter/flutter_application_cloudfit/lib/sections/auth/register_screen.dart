@@ -32,7 +32,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   static const _certificatesBucket = 'certificates';
   static const _maxCertificateFiles = 3;
   static const _maxCertificateFileSizeBytes = 5 * 1024 * 1024;
-  static const _allowedExtensions = {'png', 'jpg', 'jpeg', 'webp'};
+  static const _allowedExtensions = {'png', 'jpg', 'jpeg', 'webp', 'pdf'};
 
   bool _loading = false;
   String? _errorMessage;
@@ -47,9 +47,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String _objective = 'ganar_masa';
   String _activityLevel = 'medio';
+  DateTime? _birthDate;
+  final _heightCtrl = TextEditingController();
+  final _weightCtrl = TextEditingController();
 
   String _specialty = 'fuerza';
   final _experienceYearsCtrl = TextEditingController();
+  final _coachBioCtrl = TextEditingController();
+  final _coachLocationCtrl = TextEditingController();
 
   final _licenseNumberCtrl = TextEditingController();
   String _focus = 'deportivo';
@@ -64,6 +69,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _confirmCtrl.dispose();
     _experienceYearsCtrl.dispose();
     _licenseNumberCtrl.dispose();
+    _heightCtrl.dispose();
+    _weightCtrl.dispose();
+    _coachBioCtrl.dispose();
+    _coachLocationCtrl.dispose();
     super.dispose();
   }
 
@@ -110,9 +119,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_selectedRole == 'cliente') {
       metadata['objective'] = _objective;
       metadata['activityLevel'] = _activityLevel;
+      if (_birthDate != null) {
+        metadata['birthDate'] = _birthDate!.toIso8601String().split('T').first;
+      }
+      if (_heightCtrl.text.trim().isNotEmpty) {
+        metadata['height'] = _heightCtrl.text.trim();
+      }
     } else if (_selectedRole == 'coach') {
       metadata['specialty'] = _specialty;
       metadata['experienceYears'] = _experienceYearsCtrl.text.trim();
+      if (_coachBioCtrl.text.trim().isNotEmpty) {
+        metadata['bio'] = _coachBioCtrl.text.trim();
+      }
+      if (_coachLocationCtrl.text.trim().isNotEmpty) {
+        metadata['location'] = _coachLocationCtrl.text.trim();
+      }
     } else if (_selectedRole == 'nutriologo') {
       metadata['licenseNumber'] = _licenseNumberCtrl.text.trim();
       metadata['focus'] = _focus;
@@ -157,11 +178,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         profile['certificateUploads'] = uploadedCertificates;
       }
 
-      await AuthService.syncCurrentUser(
-        name: _nameCtrl.text.trim(),
-        role: _selectedRole,
-        profile: profile,
-      );
+      // Sync profile to DB — errors here are non-fatal (auth account was created)
+      try {
+        await AuthService.syncCurrentUser(
+          name: _nameCtrl.text.trim(),
+          role: _selectedRole,
+          profile: profile,
+        );
+      } catch (_) {
+        // Profile sync failed; will be retried automatically on next login
+      }
 
       if (!mounted) return;
 
@@ -242,7 +268,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!_allowedExtensions.contains(extension)) {
         setState(() {
           _errorMessage =
-              'Formato no permitido: ${file.name}. Usa PNG, JPG o WEBP.';
+              'Formato no permitido: ${file.name}. Usa PNG, JPG, WEBP o PDF.';
         });
         return;
       }
@@ -301,6 +327,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String _contentTypeForExtension(String? extension) {
     switch ((extension ?? '').toLowerCase()) {
+      case 'pdf':
+        return 'application/pdf';
       case 'png':
         return 'image/png';
       case 'jpg':
@@ -335,7 +363,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Hasta 3 imagenes (PNG, JPG, WEBP), maximo 5MB cada una.',
+          'Hasta 3 archivos (PNG, JPG, WEBP, PDF), maximo 5MB cada uno.',
           style: const TextStyle(color: _CF.labelGrey, fontSize: 12),
         ),
         if (hasFiles) ...[
@@ -357,6 +385,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildCertificateThumb(int index, PlatformFile file) {
     final fileBytes = file.bytes;
     final sizeKb = (file.size / 1024).toStringAsFixed(1);
+    final ext = (file.extension ?? '').toLowerCase();
+    final isPdf = ext == 'pdf';
 
     return Container(
       width: 110,
@@ -374,17 +404,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: SizedBox(
               width: 98,
               height: 76,
-              child: fileBytes != null
-                  ? Image.memory(fileBytes, fit: BoxFit.cover)
-                  : Container(
+              child: isPdf
+                  ? Container(
                       color: const Color(0xFF101010),
                       alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.image_not_supported_outlined,
-                        color: _CF.labelGrey,
-                        size: 20,
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.picture_as_pdf,
+                              color: Color(0xFFFF6B6B), size: 32),
+                          Text('PDF',
+                              style: TextStyle(
+                                  color: Color(0xFFFF6B6B), fontSize: 10)),
+                        ],
                       ),
-                    ),
+                    )
+                  : fileBytes != null
+                      ? Image.memory(fileBytes, fit: BoxFit.cover)
+                      : Container(
+                          color: const Color(0xFF101010),
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.image_not_supported_outlined,
+                            color: _CF.labelGrey,
+                            size: 20,
+                          ),
+                        ),
             ),
           ),
           const SizedBox(height: 6),
@@ -533,6 +578,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           keyboardType: TextInputType.number,
         ),
         const SizedBox(height: 12),
+        const _FieldLabel('BIO CORTA'),
+        _CFTextField(
+          controller: _coachBioCtrl,
+          hint: 'Cuéntanos sobre ti...',
+        ),
+        const SizedBox(height: 12),
+        const _FieldLabel('UBICACION'),
+        _CFTextField(
+          controller: _coachLocationCtrl,
+          hint: 'Ciudad, País',
+        ),
+        const SizedBox(height: 12),
         _buildCertificatesSection(),
       ];
     }
@@ -569,7 +626,60 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'medio': 'Medio',
         'alto': 'Alto',
       }, (v) => setState(() => _activityLevel = v!)),
+      const SizedBox(height: 12),
+      const _FieldLabel('FECHA DE NACIMIENTO'),
+      _buildDatePicker(),
+      const SizedBox(height: 12),
+      const _FieldLabel('ESTATURA (cm)'),
+      _CFTextField(
+        controller: _heightCtrl,
+        hint: 'Ej: 170',
+        keyboardType: TextInputType.number,
+      ),
     ];
+  }
+
+  Widget _buildDatePicker() {
+    return GestureDetector(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: _birthDate ?? DateTime(2000, 1, 1),
+          firstDate: DateTime(1940),
+          lastDate: DateTime.now().subtract(const Duration(days: 365 * 10)),
+          builder: (ctx, child) => Theme(
+            data: ThemeData.dark().copyWith(
+              colorScheme: const ColorScheme.dark(primary: _CF.neon),
+            ),
+            child: child!,
+          ),
+        );
+        if (picked != null) setState(() => _birthDate = picked);
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: _CF.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _CF.border),
+        ),
+        child: Row(children: [
+          const Icon(Icons.calendar_today_outlined,
+              color: _CF.labelGrey, size: 18),
+          const SizedBox(width: 12),
+          Text(
+            _birthDate != null
+                ? '${_birthDate!.day}/${_birthDate!.month}/${_birthDate!.year}'
+                : 'Seleccionar fecha',
+            style: TextStyle(
+              color: _birthDate != null ? _CF.white : _CF.hint,
+              fontSize: 14,
+            ),
+          ),
+        ]),
+      ),
+    );
   }
 
   Widget _buildRoleDropdown() => _buildDropdown(

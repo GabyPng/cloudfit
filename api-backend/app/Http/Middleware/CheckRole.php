@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -46,15 +47,17 @@ class CheckRole
 
         $email = (string) ($request->attributes->get('supabase_email') ?? '');
         if ($email !== '') {
-            $localRole = User::query()
+            $localRole = Cache::remember('user_role_'.md5($email), 300, fn () => User::query()
                 ->with('role:role_id,name')
                 ->where('email', $email)
-                ->first()?->role?->name;
+                ->first()?->role?->name
+            );
 
             $normalizedLocalRole = $this->normalizeRole($localRole);
 
             if ($normalizedLocalRole && in_array($normalizedLocalRole, $requiredRoles, true)) {
                 $request->attributes->set('supabase_role', $normalizedLocalRole);
+
                 return $next($request);
             }
         }
@@ -66,9 +69,9 @@ class CheckRole
         }
 
         return response()->json([
-            'message'        => 'No tienes permiso para acceder a este recurso.',
+            'message' => 'No tienes permiso para acceder a este recurso.',
             'required_roles' => $requiredRoles,
-            'your_role'      => $requestRole,
+            'your_role' => $requestRole,
         ], 403);
     }
 }

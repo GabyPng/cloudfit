@@ -3,15 +3,14 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
-use Firebase\JWT\JWK;
 use Firebase\JWT\ExpiredException;
+use Firebase\JWT\JWK;
+use Firebase\JWT\JWT;
 use Firebase\JWT\SignatureInvalidException;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Symfony\Component\HttpFoundation\Response;
 
 class VerifySupabaseToken
 {
@@ -58,7 +57,7 @@ class VerifySupabaseToken
     {
         $token = $request->bearerToken();
 
-        if (!$token) {
+        if (! $token) {
             return response()->json(['message' => 'Token requerido.'], 401);
         }
 
@@ -66,24 +65,24 @@ class VerifySupabaseToken
             // Obtén JWKS desde Supabase (cacheado 1 hora)
             $jwks = Cache::remember('supabase_jwks', 3600, function () {
                 $supabaseUrl = config('supabase.url');
-                if (!$supabaseUrl) {
+                if (! $supabaseUrl) {
                     throw new \RuntimeException('SUPABASE_URL no configurada');
                 }
-                
+
                 $jwksUrl = "{$supabaseUrl}/auth/v1/.well-known/jwks.json";
 
                 $response = Http::timeout(10)
                     ->withoutVerifying()
                     ->get($jwksUrl);
 
-                if (!$response->successful()) {
-                    throw new \RuntimeException('Fallo al obtener JWKS: ' . $response->status());
+                if (! $response->successful()) {
+                    throw new \RuntimeException('Fallo al obtener JWKS: '.$response->status());
                 }
 
                 return $response->json();
             });
 
-            if (!isset($jwks['keys']) || empty($jwks['keys'])) {
+            if (! isset($jwks['keys']) || empty($jwks['keys'])) {
                 throw new \RuntimeException('JWKS vacío o sin claves');
             }
 
@@ -95,7 +94,7 @@ class VerifySupabaseToken
             $request->attributes->set('supabase_uid', $payload['sub'] ?? null);
             $request->attributes->set('supabase_email', $payload['email'] ?? null);
             $request->attributes->set('supabase_token', $token);
-            
+
             // Extrae el rol real de metadata de la app/usuario y evita usar el rol genérico de Supabase.
             $request->attributes->set('supabase_role', $this->extractRoleClaim($payload));
 
@@ -104,7 +103,8 @@ class VerifySupabaseToken
         } catch (SignatureInvalidException $e) {
             return response()->json(['message' => 'Firma inválida.'], 401);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('VerifySupabaseToken error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('VerifySupabaseToken error: '.$e->getMessage());
+
             return response()->json(['message' => 'Token inválido.'], 401);
         }
 

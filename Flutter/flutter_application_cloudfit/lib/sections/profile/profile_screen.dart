@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,11 +16,72 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late Future<Map<String, dynamic>> _profileFuture;
+  bool _uploadingAvatar = false;
 
   @override
   void initState() {
     super.initState();
     _profileFuture = _loadProfile();
+  }
+
+  Future<void> _pickAndUploadAvatar(int userId) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    final bytes = file.bytes;
+    if (bytes == null) return;
+
+    setState(() => _uploadingAvatar = true);
+    try {
+      final authId = Supabase.instance.client.auth.currentUser?.id;
+      if (authId == null) return;
+
+      final ext = file.extension?.toLowerCase() ?? 'jpg';
+      final path = 'avatars/$authId.$ext';
+      final contentType = switch (ext) {
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        _ => 'image/jpeg',
+      };
+
+      await Supabase.instance.client.storage
+          .from('avatars')
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(upsert: true, contentType: contentType),
+          );
+
+      final publicUrl = Supabase.instance.client.storage
+          .from('avatars')
+          .getPublicUrl(path);
+
+      await Supabase.instance.client
+          .from('users')
+          .update({'avatar_url': publicUrl})
+          .eq('user_id', userId);
+
+      setState(() => _profileFuture = _loadProfile());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto actualizada correctamente')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al subir la foto')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
   }
 
   Future<Map<String, dynamic>> _loadProfile() async {
@@ -73,9 +135,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final objectiveCtrl = TextEditingController(
       text: profile['objective'] as String? ?? '',
     );
-    final avatarCtrl = TextEditingController(
-      text: profile['avatarUrl'] as String? ?? '',
-    );
 
     String? errorText;
 
@@ -102,13 +161,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         labelText: 'Objetivo físico',
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: avatarCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'URL de avatar',
-                      ),
-                    ),
                     if (errorText != null) ...[
                       const SizedBox(height: 10),
                       Text(
@@ -129,27 +181,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    final payload = {
-                      'name': nameCtrl.text.trim(),
-                      'objective': objectiveCtrl.text.trim().isEmpty
-                          ? null
-                          : objectiveCtrl.text.trim(),
-                      'avatar_url': avatarCtrl.text.trim().isEmpty
-                          ? null
-                          : avatarCtrl.text.trim(),
-                    };
-
                     try {
                       final userId = profile['user_id'] as int;
                       await Supabase.instance.client
                           .from('users')
-                          .update(payload)
+                          .update({
+                            'name': nameCtrl.text.trim(),
+                            'objective': objectiveCtrl.text.trim().isEmpty
+                                ? null
+                                : objectiveCtrl.text.trim(),
+                          })
                           .eq('user_id', userId);
 
                       await AuthService.updateUserMetadata({
                         'nombre': nameCtrl.text.trim(),
                         'objective': objectiveCtrl.text.trim(),
-                        'avatar_url': avatarCtrl.text.trim(),
                       });
 
                       if (!mounted) return;
@@ -161,9 +207,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       );
                     } catch (_) {
-                      setDialogState(() {
-                        errorText = 'Error de red al actualizar perfil';
-                      });
+                      setDialogState(
+                          () => errorText = 'Error de red al actualizar perfil');
                     }
                   },
                   child: const Text('Guardar'),
@@ -272,6 +317,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     null,
                   ),
                 ]),
+                const SizedBox(height: 20),
+                _buildSectionTitle("AYUDA"),
+                _buildMenuCard([
+                  _menuItem(
+                    Icons.support_agent_outlined,
+                    "Soporte y Ayuda",
+                    "Tickets",
+                    onTap: () => context.push('/cliente/support'),
+                  ),
+                ]),
                 const SizedBox(height: 30),
                 _buildLogoutButton(),
                 const SizedBox(height: 120),
@@ -285,41 +340,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildAvatarHeader(Map<String, dynamic> profile) {
     final avatarUrl = profile['avatarUrl'] as String;
-
-    final ImageProvider avatarImage = avatarUrl.isNotEmpty
-        ? NetworkImage(avatarUrl)
-        : const AssetImage('assets/images/Efra.jpg');
+    final name = profile['name'] as String;
+    final userId = profile['user_id'] as int;
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
     return Column(
       children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            CircleAvatar(
-              radius: 55,
-              backgroundColor: AppColors.electricPurple,
-              child: CircleAvatar(radius: 52, backgroundImage: avatarImage),
-            ),
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: AppColors.neonGreen,
-                shape: BoxShape.circle,
+        GestureDetector(
+          onTap: _uploadingAvatar ? null : () => _pickAndUploadAvatar(userId),
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              CircleAvatar(
+                radius: 55,
+                backgroundColor: AppColors.electricPurple,
+                child: _uploadingAvatar
+                    ? const CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2)
+                    : avatarUrl.isNotEmpty
+                        ? CircleAvatar(
+                            radius: 52,
+                            backgroundImage: NetworkImage(avatarUrl),
+                          )
+                        : CircleAvatar(
+                            radius: 52,
+                            backgroundColor:
+                                AppColors.electricPurple.withValues(alpha: 0.6),
+                            child: Text(
+                              initial,
+                              style: const TextStyle(
+                                fontSize: 38,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
               ),
-              child: const Icon(
-                Icons.camera_alt,
-                size: 16,
-                color: Colors.black,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: AppColors.neonGreen,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.camera_alt, size: 16, color: Colors.black),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 15),
         Text(
-          profile['name'] as String,
+          name,
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
-        Text(profile['email'] as String, style: const TextStyle(color: Colors.white38, fontSize: 14)),
+        Text(
+          profile['email'] as String,
+          style: const TextStyle(color: Colors.white38, fontSize: 14),
+        ),
       ],
     );
   }

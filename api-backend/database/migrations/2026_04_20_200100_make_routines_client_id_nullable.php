@@ -7,7 +7,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Allow routines to exist as templates without a client
+        // SQLite no soporta ALTER COLUMN; en testing client_id ya es nullable por definición.
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement('ALTER TABLE routines ALTER COLUMN client_id DROP NOT NULL');
     }
 

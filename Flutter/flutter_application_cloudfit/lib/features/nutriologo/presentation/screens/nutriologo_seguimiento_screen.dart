@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants.dart';
 import '../../../../shared/widgets/skeleton.dart';
@@ -282,6 +283,108 @@ class _NutriologoSeguimientoScreenState
     notesCtrl.dispose();
   }
 
+  Future<void> _addWaterTargetDialog() async {
+    if (_selectedPatient == null) return;
+    final clientId = _clientId(_selectedPatient!);
+    if (clientId == null) return;
+
+    final supabase = Supabase.instance.client;
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final targetCtrl = TextEditingController(text: '8');
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Meta de hidratación',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Vasos de agua diarios para ${_selectedPatient!['name']?.toString() ?? 'el paciente'}',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: targetCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Vasos objetivo (1-20)',
+                labelStyle: const TextStyle(color: Colors.white54, fontSize: 12),
+                filled: true,
+                fillColor: AppColors.background,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.neonGreen),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.neonGreen,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              final target = int.tryParse(targetCtrl.text.trim());
+              if (target == null || target < 1 || target > 20) return;
+              Navigator.pop(ctx);
+              try {
+                final existing = await supabase
+                    .from('daily_water_logs')
+                    .select('glasses_consumed')
+                    .eq('client_id', clientId)
+                    .eq('date', today)
+                    .maybeSingle();
+                final consumed = (existing?['glasses_consumed'] as int?) ?? 0;
+                await supabase.from('daily_water_logs').upsert(
+                  {
+                    'client_id': clientId,
+                    'date': today,
+                    'glasses_consumed': consumed,
+                    'glasses_target': target,
+                  },
+                  onConflict: 'client_id,date',
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Meta de agua actualizada: $target vasos/día')));
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            child: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    targetCtrl.dispose();
+  }
+
   static const _changeTypes = {
     'calorie_adjust': 'Ajuste calórico',
     'macro_adjust': 'Ajuste de macros',
@@ -341,7 +444,7 @@ class _NutriologoSeguimientoScreenState
                 const SizedBox(height: 10),
                 // Tipo de cambio
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   dropdownColor: AppColors.background,
                   decoration: InputDecoration(
                     labelText: 'Tipo de cambio *',
@@ -514,6 +617,12 @@ class _NutriologoSeguimientoScreenState
               onPressed: _addDietChangeDialog,
               tooltip: 'Proponer cambio de dieta',
             ),
+            IconButton(
+              icon: const Icon(Icons.water_drop_outlined,
+                  color: Color(0xFF4DD0E1)),
+              onPressed: _addWaterTargetDialog,
+              tooltip: 'Ajustar meta de agua',
+            ),
           ],
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white70),
@@ -682,22 +791,26 @@ class _NutriologoSeguimientoScreenState
                     style: const TextStyle(
                         color: AppColors.neonGreen,
                         fontWeight: FontWeight.bold)),
-                if (email.isNotEmpty)
-                  Text(email,
-                      style: const TextStyle(
-                          color: Colors.white54, fontSize: 11)),
-              ],
-            ),
-          ),
-          TextButton.icon(
-            onPressed: _addProgressDialog,
-            icon: const Icon(Icons.add, color: AppColors.neonGreen, size: 14),
-            label: const Text('Progreso', style: TextStyle(color: AppColors.neonGreen, fontSize: 12)),
-          ),
-          TextButton.icon(
-            onPressed: _addDietChangeDialog,
-            icon: const Icon(Icons.swap_horiz_rounded, color: AppColors.coralOrange, size: 14),
-            label: const Text('Dieta', style: TextStyle(color: AppColors.coralOrange, fontSize: 12)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: email.isNotEmpty
+                    ? Text(email,
+                        style: const TextStyle(color: Colors.white54, fontSize: 11),
+                        overflow: TextOverflow.ellipsis)
+                    : const SizedBox(),
+              ),
+              TextButton.icon(
+                onPressed: _addProgressDialog,
+                icon: const Icon(Icons.add, color: AppColors.neonGreen, size: 14),
+                label: const Text('Progreso', style: TextStyle(color: AppColors.neonGreen, fontSize: 12)),
+              ),
+              TextButton.icon(
+                onPressed: _addDietChangeDialog,
+                icon: const Icon(Icons.swap_horiz_rounded, color: AppColors.coralOrange, size: 14),
+                label: const Text('Dieta', style: TextStyle(color: AppColors.coralOrange, fontSize: 12)),
+              ),
+            ],
           ),
         ),
         if (!_loadingHistory && lastProgreso != null) ...[
@@ -734,23 +847,28 @@ class _NutriologoSeguimientoScreenState
     return Expanded(
       child: Container(
         margin: const EdgeInsets.only(right: 6),
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.22)),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(
           children: [
-            Text(value,
-                style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13)),
-            const SizedBox(height: 2),
-            Text(label,
-                style: const TextStyle(
-                    color: Colors.white38, fontSize: 9)),
+            Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                letterSpacing: -0.3,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white38, fontSize: 9),
+            ),
           ],
         ),
       ),
@@ -766,8 +884,9 @@ class _NutriologoSeguimientoScreenState
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        height: 52,
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+        height: 80,
+        clipBehavior: Clip.hardEdge,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
@@ -798,7 +917,7 @@ class _NutriologoSeguimientoScreenState
                       const SizedBox(height: 2),
                       Container(
                         width: 10,
-                        height: 28 * heightPct,
+                        height: 24 * heightPct,
                         decoration: BoxDecoration(
                           color: isLast
                               ? AppColors.neonGreen
@@ -933,45 +1052,57 @@ class _NutriologoSeguimientoScreenState
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Column(
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.15),
+                  color: accentColor.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: accentColor.withValues(alpha: 0.4)),
+                      color: accentColor.withValues(alpha: 0.35), width: 1.5),
                 ),
                 child: Icon(icon, color: accentColor, size: 16),
               ),
               if (!isLast)
                 Container(
-                  width: 1.5,
-                  height: 30,
-                  color: Colors.white12,
+                  width: 1,
+                  height: 28,
+                  margin: const EdgeInsets.symmetric(vertical: 3),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        accentColor.withValues(alpha: 0.25),
+                        Colors.transparent,
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
                 ),
             ],
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: accentColor.withValues(alpha: 0.1),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
@@ -983,23 +1114,32 @@ class _NutriologoSeguimientoScreenState
                           ),
                         ),
                       ),
-                      Text(
-                        date,
-                        style: const TextStyle(
-                            color: Colors.white38, fontSize: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          date,
+                          style: const TextStyle(
+                              color: Colors.white38, fontSize: 10),
+                        ),
                       ),
                     ],
                   ),
                   if (chips.isNotEmpty) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 7),
                     Wrap(spacing: 6, runSpacing: 4, children: chips),
                   ],
                   if (subtitle != null && subtitle.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                          color: Colors.white54, fontSize: 11),
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.45),
+                          fontSize: 11),
                     ),
                   ],
                 ],

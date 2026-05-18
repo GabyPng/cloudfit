@@ -46,9 +46,11 @@ class GeminiFormatter
                 ]);
 
             $text = $response->json('candidates.0.content.parts.0.text');
+
             return $text ? trim((string) $text) : self::fallbackFormat($intent, $data);
         } catch (\Throwable $e) {
             Log::warning('Gemini formatter error', ['error' => $e->getMessage()]);
+
             return self::fallbackFormat($intent, $data);
         }
     }
@@ -191,14 +193,14 @@ PROMPT;
                 data_get($item, 'goal'),
                 data_get($item, 'status'),
                 data_get($item, 'portion'),
-                data_get($item, 'daily_calories') ? data_get($item, 'daily_calories') . ' kcal' : null,
-                data_get($item, 'reps') ? ((data_get($item, 'sets') ?? '?') . ' series x ' . data_get($item, 'reps') . ' reps') : null,
+                data_get($item, 'daily_calories') ? data_get($item, 'daily_calories').' kcal' : null,
+                data_get($item, 'reps') ? ((data_get($item, 'sets') ?? '?').' series x '.data_get($item, 'reps').' reps') : null,
             ]);
 
-            $lines[] = '• ' . $name . (! empty($details) ? ' — ' . implode(' | ', $details) : '');
+            $lines[] = '• '.$name.(! empty($details) ? ' — '.implode(' | ', $details) : '');
         }
 
-        return trim($intro . "\n" . implode("\n", $lines));
+        return trim($intro."\n".implode("\n", $lines));
     }
 
     private static function formatRoutinePayload(array $data): string
@@ -216,9 +218,9 @@ PROMPT;
         if (is_array($exercises) && count($exercises) > 0) {
             $lines[] = 'Ejercicios:';
             foreach ($exercises as $exercise) {
-                $lines[] = '• ' . (data_get($exercise, 'exercise_name') ?? 'Ejercicio')
-                    . ' — ' . (data_get($exercise, 'sets') ?? '?') . ' series x ' . (data_get($exercise, 'reps') ?? '?')
-                    . (data_get($exercise, 'rest_time') ? ' | Descanso: ' . data_get($exercise, 'rest_time') : '');
+                $lines[] = '• '.(data_get($exercise, 'exercise_name') ?? 'Ejercicio')
+                    .' — '.(data_get($exercise, 'sets') ?? '?').' series x '.(data_get($exercise, 'reps') ?? '?')
+                    .(data_get($exercise, 'rest_time') ? ' | Descanso: '.data_get($exercise, 'rest_time') : '');
             }
         }
 
@@ -234,15 +236,15 @@ PROMPT;
         $lines = ["Detalle del plan: {$title}"];
 
         if ($goal) {
-            $lines[] = 'Objetivo: ' . $goal;
+            $lines[] = 'Objetivo: '.$goal;
         }
 
         if (is_array($meals) && count($meals) > 0) {
             $lines[] = 'Comidas:';
             foreach ($meals as $meal) {
-                $lines[] = '• ' . (data_get($meal, 'meal_type') ?? 'Comida') . ': ' . (data_get($meal, 'name') ?? 'Sin nombre')
-                    . (data_get($meal, 'portion') ? ' (' . data_get($meal, 'portion') . ')' : '')
-                    . (data_get($meal, 'calories') ? ' - ' . data_get($meal, 'calories') . ' kcal' : '');
+                $lines[] = '• '.(data_get($meal, 'meal_type') ?? 'Comida').': '.(data_get($meal, 'name') ?? 'Sin nombre')
+                    .(data_get($meal, 'portion') ? ' ('.data_get($meal, 'portion').')' : '')
+                    .(data_get($meal, 'calories') ? ' - '.data_get($meal, 'calories').' kcal' : '');
             }
         }
 
@@ -253,9 +255,9 @@ PROMPT;
     {
         return implode("\n", [
             'Resumen de progreso del cliente:',
-            '• Rutinas totales: ' . (data_get($data, 'total_routines') ?? 0),
-            '• Rutinas activas: ' . (data_get($data, 'active_routines') ?? 0),
-            '• Rutinas inactivas: ' . (data_get($data, 'inactive_routines') ?? 0),
+            '• Rutinas totales: '.(data_get($data, 'total_routines') ?? 0),
+            '• Rutinas activas: '.(data_get($data, 'active_routines') ?? 0),
+            '• Rutinas inactivas: '.(data_get($data, 'inactive_routines') ?? 0),
         ]);
     }
 
@@ -276,23 +278,23 @@ PROMPT;
             $lines = ["Resumen del plan: {$title}"];
 
             if ($dailyCalories) {
-                $lines[] = '• Calorías diarias: ' . $dailyCalories . ' kcal';
+                $lines[] = '• Calorías diarias: '.$dailyCalories.' kcal';
             }
 
             if (is_array($macroTargets)) {
                 if (isset($macroTargets['protein'])) {
-                    $lines[] = '• Proteína: ' . $macroTargets['protein'] . ' g';
+                    $lines[] = '• Proteína: '.$macroTargets['protein'].' g';
                 }
                 if (isset($macroTargets['carbs'])) {
-                    $lines[] = '• Carbohidratos: ' . $macroTargets['carbs'] . ' g';
+                    $lines[] = '• Carbohidratos: '.$macroTargets['carbs'].' g';
                 }
                 if (isset($macroTargets['fat'])) {
-                    $lines[] = '• Grasas: ' . $macroTargets['fat'] . ' g';
+                    $lines[] = '• Grasas: '.$macroTargets['fat'].' g';
                 }
             }
 
             if (data_get($data, 'goal')) {
-                $lines[] = '• Objetivo: ' . data_get($data, 'goal');
+                $lines[] = '• Objetivo: '.data_get($data, 'goal');
             }
 
             return implode("\n", $lines);
@@ -306,7 +308,7 @@ PROMPT;
             data_get($data, 'status'),
         ]);
 
-        return $name . (! empty($details) ? "\n• " . implode("\n• ", $details) : '');
+        return $name.(! empty($details) ? "\n• ".implode("\n• ", $details) : '');
     }
 
     private static function friendlyEmptyState(string $intent, string $error = ''): string
@@ -325,9 +327,9 @@ PROMPT;
         };
 
         if ($error !== '') {
-            return $base . ' ' . $error . ' Puedes intentar con otra opción o reformular tu consulta.';
+            return $base.' '.$error.' Puedes intentar con otra opción o reformular tu consulta.';
         }
 
-        return $base . ' Puedes intentar con otra opción o reformular tu consulta.';
+        return $base.' Puedes intentar con otra opción o reformular tu consulta.';
     }
 }

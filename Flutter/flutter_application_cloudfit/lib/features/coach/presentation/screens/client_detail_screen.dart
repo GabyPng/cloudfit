@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/auth_service.dart';
 import '../../../../core/constants.dart';
 
 class ClientDetailScreen extends StatefulWidget {
@@ -14,39 +15,42 @@ class ClientDetailScreen extends StatefulWidget {
 
 class _ClientDetailScreenState extends State<ClientDetailScreen> {
   final _supabase = Supabase.instance.client;
+  late Future<Map<String, dynamic>> _dataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _dataFuture = _fetchClientData();
+  }
 
   Future<Map<String, dynamic>> _fetchClientData() async {
-    final clientResp = await _supabase.from('users').select().eq('user_id', widget.clientId).single();
-    
-    // Fetch active routines
-    final routinesResp = await _supabase
-        .from('routines')
-        .select()
-        .eq('client_id', widget.clientId)
-        .eq('is_active', true)
-        .order('created_at', ascending: false);
-
-    // Fetch last 7 progress logs
-    final progressResp = await _supabase
-        .from('progress')
-        .select()
-        .eq('client_id', widget.clientId)
-        .order('date', ascending: true)
-        .limit(7);
-
-    // Fetch recent 5 workout logs
-    final logsResp = await _supabase
-        .from('workout_logs')
-        .select()
-        .eq('client_id', widget.clientId)
-        .order('date', ascending: false)
-        .limit(5);
+    final results = await Future.wait([
+      _supabase.from('users').select().eq('user_id', widget.clientId).single(),
+      _supabase
+          .from('routines')
+          .select()
+          .eq('client_id', widget.clientId)
+          .eq('is_active', true)
+          .order('created_at', ascending: false),
+      _supabase
+          .from('progress_records')
+          .select()
+          .eq('client_id', widget.clientId)
+          .order('date', ascending: true)
+          .limit(7),
+      _supabase
+          .from('workout_logs')
+          .select()
+          .eq('client_id', widget.clientId)
+          .order('date', ascending: false)
+          .limit(5),
+    ]);
 
     return {
-      'client': clientResp,
-      'routines': routinesResp,
-      'progress': progressResp,
-      'logs': logsResp,
+      'client': results[0],
+      'routines': results[1],
+      'progress': results[2],
+      'logs': results[3],
     };
   }
 
@@ -78,13 +82,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 
     if (confirm == true) {
       try {
-        final myAuthId = _supabase.auth.currentUser!.id;
-        final userData = await _supabase
-            .from('users')
-            .select('user_id')
-            .eq('supabase_id', myAuthId)
-            .single();
-        final myNumericId = userData['user_id'];
+        final myNumericId = await AuthService.getNumericUserId();
+        if (myNumericId == null) return;
 
         await _supabase
             .from('clients')
@@ -104,9 +103,175 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     }
   }
 
+  InputDecoration _inputDecoration(String label) => InputDecoration(
+    labelText: label,
+    labelStyle: const TextStyle(color: Colors.white54, fontSize: 12),
+    filled: true,
+    fillColor: Colors.black26,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.neonGreen),
+    ),
+  );
+
+  Future<void> _addProgressDialog() async {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final dateCtrl = TextEditingController(text: today);
+    final weightCtrl = TextEditingController();
+    final bmiCtrl = TextEditingController();
+    final fatCtrl = TextEditingController();
+    final muscleCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardGrey,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20, right: 20, top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 36, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Registrar progreso',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
+              const SizedBox(height: 16),
+              TextField(controller: dateCtrl, style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration('Fecha (YYYY-MM-DD) *')),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(child: TextField(controller: weightCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputDecoration('Peso (kg)'))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: bmiCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputDecoration('IMC'))),
+              ]),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(child: TextField(controller: fatCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputDecoration('% Grasa'))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: muscleCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputDecoration('Músculo (kg)'))),
+              ]),
+              const SizedBox(height: 10),
+              TextField(controller: notesCtrl, maxLines: 3,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration('Notas / observaciones')),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white54,
+                      side: const BorderSide(color: Colors.white24),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.neonGreen,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () async {
+                      final date = dateCtrl.text.trim();
+                      if (date.isEmpty) return;
+                      Navigator.pop(ctx);
+                      final coachId = await AuthService.getNumericUserId();
+                      if (coachId == null) return;
+                      try {
+                        await _supabase.from('progress_records').insert({
+                          'client_id': int.parse(widget.clientId),
+                          'date': date,
+                          'author_role': 'coach',
+                          'author_id': coachId,
+                          if (weightCtrl.text.trim().isNotEmpty)
+                            'weight_kg': double.tryParse(weightCtrl.text.trim()),
+                          if (bmiCtrl.text.trim().isNotEmpty)
+                            'bmi': double.tryParse(bmiCtrl.text.trim()),
+                          if (fatCtrl.text.trim().isNotEmpty)
+                            'body_fat_pct': double.tryParse(fatCtrl.text.trim()),
+                          if (muscleCtrl.text.trim().isNotEmpty)
+                            'muscle_mass_kg': double.tryParse(muscleCtrl.text.trim()),
+                          if (notesCtrl.text.trim().isNotEmpty)
+                            'notes': notesCtrl.text.trim(),
+                        });
+                        if (mounted) {
+                          setState(() => _dataFuture = _fetchClientData());
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Progreso registrado')));
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: $e')));
+                        }
+                      }
+                    },
+                    child: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    dateCtrl.dispose();
+    weightCtrl.dispose();
+    bmiCtrl.dispose();
+    fatCtrl.dispose();
+    muscleCtrl.dispose();
+    notesCtrl.dispose();
+  }
+
   Future<void> _editClient(Map<String, dynamic> client) async {
     final nameController = TextEditingController(text: client['name']);
     final emailController = TextEditingController(text: client['email']);
+    final phoneController = TextEditingController(text: client['phone'] ?? '');
     final objectiveController = TextEditingController(text: client['objective'] ?? '');
 
     final result = await showDialog<bool>(
@@ -141,6 +306,22 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                 style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Email',
+                  labelStyle: TextStyle(color: Colors.white70),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white30),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.neonGreen),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: phoneController,
+                style: const TextStyle(color: Colors.white),
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'WhatsApp (con código país, ej: 521234567890)',
                   labelStyle: TextStyle(color: Colors.white70),
                   enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: Colors.white30),
@@ -188,6 +369,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             .update({
               'name': nameController.text.trim(),
               'email': emailController.text.trim(),
+              'phone': phoneController.text.trim().isEmpty ? null : phoneController.text.trim(),
               'objective': objectiveController.text.trim().isEmpty ? null : objectiveController.text.trim(),
             })
             .eq('user_id', client['user_id']);
@@ -195,8 +377,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cliente actualizado exitosamente')),
         );
-        // Refresh the screen
-        setState(() {});
+        setState(() {
+          _dataFuture = _fetchClientData();
+        });
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error actualizando cliente: $e')),
@@ -228,7 +411,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         centerTitle: true,
       ),
       body: FutureBuilder<Map<String, dynamic>>(
-        future: _fetchClientData(),
+        future: _dataFuture,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
@@ -302,11 +485,24 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                 ),
                 const SizedBox(height: 15),
                 _buildActionButton(
+                  "REGISTRAR PROGRESO",
+                  AppColors.neonGreen,
+                  Icons.monitor_weight_outlined,
+                  onTap: _addProgressDialog,
+                ),
+                const SizedBox(height: 15),
+                _buildActionButton(
                   "ENVIAR MENSAJE (WHATSAPP)",
                   const Color(0xFF25D366),
                   Icons.chat_bubble_outline,
                   onTap: () async {
-                    final phone = '521234567890';
+                    final phone = (client['phone'] as String? ?? '').replaceAll(RegExp(r'[^\d]'), '');
+                    if (phone.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Este cliente no tiene número de WhatsApp registrado. Edítalo primero.')),
+                      );
+                      return;
+                    }
                     final url = Uri.parse('https://wa.me/$phone');
                     if (await canLaunchUrl(url)) {
                       await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -532,7 +728,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 
     double maxWeight = 0;
     for (var p in progress) {
-      final w = double.tryParse(p['weight'].toString()) ?? 0;
+      final w = double.tryParse(p['weight_kg'].toString()) ?? 0;
       if (w > maxWeight) maxWeight = w;
     }
 
@@ -549,10 +745,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: progress.map((p) {
-          final w = double.tryParse(p['weight'].toString()) ?? 0;
+          final w = double.tryParse(p['weight_kg'].toString()) ?? 0;
           final heightFactor = maxWeight > 0 ? (w / maxWeight) : 0.0;
           final d = p['date'].toString();
-          final dateStr = '${d.substring(8, 10)}/${d.substring(5, 7)}'; // DD/MM
+          final dateStr = '${d.substring(8, 10)}/${d.substring(5, 7)}';
 
           return Column(
             mainAxisAlignment: MainAxisAlignment.end,

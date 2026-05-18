@@ -4,12 +4,12 @@ namespace App\Http\Middleware;
 
 use App\Models\User;
 use Closure;
+use Firebase\JWT\JWK;
+use Firebase\JWT\JWT;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Firebase\JWT\JWT;
-use Firebase\JWT\JWK;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -32,17 +32,18 @@ class AuthenticateCoachWeb
               ?? $request->session()->get('supabase_token')
               ?? $request->bearerToken();
 
-        if (!$token) {
+        if (! $token) {
             return redirect('/login')->with('error', 'Debes iniciar sesión.');
         }
 
         try {
             $jwks = Cache::remember('supabase_jwks', 3600, function () {
-                $url = config('supabase.url') . '/auth/v1/.well-known/jwks.json';
+                $url = config('supabase.url').'/auth/v1/.well-known/jwks.json';
                 $response = Http::timeout(10)->withoutVerifying()->get($url);
-                if (!$response->successful()) {
+                if (! $response->successful()) {
                     throw new \RuntimeException('No se pudo obtener JWKS');
                 }
+
                 return $response->json();
             });
 
@@ -50,12 +51,12 @@ class AuthenticateCoachWeb
             $decoded = (array) JWT::decode($token, $keys);
 
             $email = $decoded['email'] ?? null;
-            if (!$email) {
+            if (! $email) {
                 return redirect('/login')->with('error', 'Token sin email.');
             }
 
             $user = User::with('role')->where('email', $email)->first();
-            if (!$user || !$user->hasRole('coach')) {
+            if (! $user || ! $user->hasRole('coach')) {
                 return redirect('/login')->with('error', 'Acceso denegado.');
             }
 
