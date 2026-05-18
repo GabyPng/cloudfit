@@ -43,7 +43,7 @@ class ProgresoController extends Controller
                 $parts = explode(' ', $c->name);
                 $initials = '';
                 foreach (array_slice($parts, 0, 2) as $p) {
-                    $initials .= strtoupper($p[0] ?? '');
+                    $initials .= mb_strtoupper(mb_substr($p, 0, 1));
                 }
                 return [
                     'id'       => $c->id,
