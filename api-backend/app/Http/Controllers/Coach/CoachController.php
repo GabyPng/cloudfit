@@ -62,7 +62,7 @@ class CoachController extends Controller
             ->leftJoinSub($wlHoy, 'wl_hoy', 'wl_hoy.client_id', '=', 'clients.user_id')
             ->leftJoinSub($wlSemana, 'wl_semana', 'wl_semana.client_id', '=', 'clients.user_id')
             ->selectRaw('(SELECT COUNT(DISTINCT client_id) FROM routine_assignments WHERE coach_id = ? AND status = ?) as con_rutina', [$coachId, 'active'])
-            ->selectRaw('(SELECT COUNT(*) FROM routines WHERE coach_id = ? AND is_active = 1) as planes_activos', [$coachId])
+            ->selectRaw('(SELECT COUNT(*) FROM routines WHERE coach_id = ? AND is_active = true) as planes_activos', [$coachId])
             ->selectRaw('COUNT(DISTINCT CASE WHEN wl_hoy.client_id IS NOT NULL THEN clients.user_id END) as entrenaron_hoy')
             ->selectRaw('COUNT(DISTINCT CASE WHEN wl_semana.client_id IS NULL THEN clients.user_id END) as alerta_inactividad')
             ->first();
